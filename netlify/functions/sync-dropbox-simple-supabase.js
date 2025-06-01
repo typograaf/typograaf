@@ -1,4 +1,4 @@
-// netlify/functions/sync-dropbox-simple-supabase.js
+// netlify/functions/sync-dropbox-background.js
 const https = require('https');
 
 const DROPBOX_ACCESS_TOKEN = process.env.DROPBOX_ACCESS_TOKEN;
@@ -7,35 +7,37 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const PORTFOLIO_PATH = '/AboutContact/Website/Portfolio';
 
 exports.handler = async (event, context) => {
+  // Set timeout to 8 seconds to avoid the 10-second limit
+  const startTime = Date.now();
+  const TIMEOUT_MS = 8000;
+  
   try {
-    console.log('Simple Supabase sync starting...');
+    console.log('Background sync starting...');
     
     const queryParams = event.queryStringParameters || {};
     const forceRefresh = queryParams.refresh === 'true';
     const requestedBatch = parseInt(queryParams.batch) || 0;
+    const syncProject = queryParams.project || null; // Sync specific project only
     
-    // Check if we need to refresh
-    if (forceRefresh) {
-      console.log('Force refresh requested...');
-      await performFullSync();
+    // If requesting data (not refresh), return from database
+    if (!forceRefresh) {
+      return await getPortfolioFromDB(requestedBatch);
     }
     
-    // Get data from database
-    const portfolioData = await getPortfolioFromDB(requestedBatch);
+    // If refresh requested, do background sync
+    if (syncProject) {
+      // Sync specific project only
+      await syncSingleProject(syncProject, startTime, TIMEOUT_MS);
+    } else {
+      // Start background sync process
+      await startBackgroundSync(startTime, TIMEOUT_MS);
+    }
     
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
-      },
-      body: JSON.stringify(portfolioData)
-    };
+    // Return current state
+    return await getPortfolioFromDB(0);
     
   } catch (error) {
-    console.error('Simple sync error:', error);
+    console.error('Background sync error:', error);
     return {
       statusCode: 500,
       headers: {
@@ -51,60 +53,118 @@ exports.handler = async (event, context) => {
   }
 };
 
-async function performFullSync() {
+async function startBackgroundSync(startTime, timeoutMs) {
   try {
-    console.log('Starting full Dropbox scan...');
+    console.log('Starting background sync...');
     
-    // First, clear existing data
-    console.log('Clearing existing data...');
-    const deleteResponse = await supabaseRequest('DELETE', '/rest/v1/portfolio_images');
-    console.log('Delete response status:', deleteResponse.status);
+    // Get list of projects
+    const projectFolders = await listDropboxFolder(PORTFOLIO_PATH);
+    const projects = projectFolders
+      .filter(folder => folder['.tag'] === 'folder')
+      .map(folder => folder.name);
     
-    // Scan Dropbox
-    const portfolioData = await scanDropboxPortfolio();
-    console.log(`Scanned ${portfolioData.length} images from Dropbox`);
+    console.log(`Found ${projects.length} projects:`, projects);
     
-    if (portfolioData.length === 0) {
-      throw new Error('No images found in Dropbox scan');
-    }
+    // Process projects one by one until timeout
+    let processedProjects = 0;
     
-    // Insert data in smaller batches to avoid timeouts
-    console.log('Inserting data into database...');
-    const batchSize = 10; // Smaller batches
-    
-    for (let i = 0; i < portfolioData.length; i += batchSize) {
-      const batch = portfolioData.slice(i, i + batchSize);
-      console.log(`Inserting batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(portfolioData.length/batchSize)}...`);
+    for (const projectName of projects) {
+      if (Date.now() - startTime > timeoutMs - 1000) {
+        console.log(`Timeout approaching, stopping at project ${processedProjects + 1}/${projects.length}`);
+        break;
+      }
       
-      const insertResponse = await supabaseRequest('POST', '/rest/v1/portfolio_images', batch);
-      console.log(`Batch ${Math.floor(i/batchSize) + 1} status:`, insertResponse.status);
-      
-      if (insertResponse.status !== 201) {
-        const errorText = await insertResponse.text();
-        console.error(`Batch ${Math.floor(i/batchSize) + 1} failed:`, errorText);
-        // Continue with other batches instead of failing completely
+      try {
+        await syncSingleProject(projectName, startTime, timeoutMs);
+        processedProjects++;
+        console.log(`Completed project ${processedProjects}/${projects.length}: ${projectName}`);
+      } catch (projectError) {
+        console.error(`Failed to sync project ${projectName}:`, projectError.message);
+        // Continue with next project
       }
     }
     
-    // Update metadata
-    console.log('Updating metadata...');
-    await supabaseRequest('DELETE', '/rest/v1/portfolio_meta');
-    
-    const metaData = [{
+    // Update sync status
+    await updateSyncMeta({
       last_sync: new Date().toISOString(),
-      total_images: portfolioData.length,
-      projects: [...new Set(portfolioData.map(img => img.project))].join(',')
-    }];
+      projects_synced: processedProjects,
+      total_projects: projects.length,
+      status: processedProjects === projects.length ? 'complete' : 'partial'
+    });
     
-    const metaResponse = await supabaseRequest('POST', '/rest/v1/portfolio_meta', metaData);
-    console.log('Meta update status:', metaResponse.status);
-    
-    console.log('Full sync complete!');
+    console.log(`Background sync completed: ${processedProjects}/${projects.length} projects`);
     
   } catch (error) {
-    console.error('Full sync error:', error);
+    console.error('Background sync error:', error);
     throw error;
   }
+}
+
+async function syncSingleProject(projectName, startTime, timeoutMs) {
+  try {
+    console.log(`Syncing project: ${projectName}`);
+    
+    const projectPath = `${PORTFOLIO_PATH}/${projectName}`;
+    const projectImages = [];
+    
+    // Scan project folder
+    await scanProjectRecursively(projectPath, projectName, projectImages);
+    console.log(`Found ${projectImages.length} images in ${projectName}`);
+    
+    if (projectImages.length === 0) return;
+    
+    // Remove existing images for this project
+    const deleteResponse = await supabaseRequest('DELETE', `/rest/v1/portfolio_images?project=eq.${encodeURIComponent(projectName)}`);
+    console.log(`Deleted existing ${projectName} images, status:`, deleteResponse.status);
+    
+    // Get image URLs in batches (this is the slow part)
+    const urlBatchSize = 3; // Very small batches for URLs
+    for (let i = 0; i < projectImages.length; i += urlBatchSize) {
+      if (Date.now() - startTime > timeoutMs - 1000) {
+        console.log(`Timeout approaching, stopping URL fetch at ${i}/${projectImages.length}`);
+        break;
+      }
+      
+      const batch = projectImages.slice(i, i + urlBatchSize);
+      await fetchImageUrlsForBatch(batch);
+      console.log(`Got URLs for ${Math.min(i + urlBatchSize, projectImages.length)}/${projectImages.length} images`);
+    }
+    
+    // Insert images in small batches
+    const insertBatchSize = 5;
+    for (let i = 0; i < projectImages.length; i += insertBatchSize) {
+      const batch = projectImages.slice(i, i + insertBatchSize);
+      
+      const insertResponse = await supabaseRequest('POST', '/rest/v1/portfolio_images', batch);
+      if (insertResponse.status !== 201) {
+        const errorText = await insertResponse.text();
+        console.error(`Insert batch failed:`, errorText);
+      }
+    }
+    
+    console.log(`Successfully synced ${projectImages.length} images for ${projectName}`);
+    
+  } catch (error) {
+    console.error(`Error syncing project ${projectName}:`, error);
+    throw error;
+  }
+}
+
+async function fetchImageUrlsForBatch(batch) {
+  const promises = batch.map(async (item) => {
+    try {
+      const imageUrl = await getDropboxImageUrl(item.path);
+      if (imageUrl) {
+        item.image_url = imageUrl;
+        item.url_fetched = new Date().toISOString();
+      }
+    } catch (error) {
+      console.error(`Failed to get URL for ${item.name}:`, error.message);
+      item.image_url = null;
+    }
+  });
+  
+  await Promise.all(promises);
 }
 
 async function getPortfolioFromDB(requestedBatch = 0) {
@@ -112,12 +172,12 @@ async function getPortfolioFromDB(requestedBatch = 0) {
     const BATCH_SIZE = 20;
     const offset = requestedBatch * BATCH_SIZE;
     
-    // Get total count by querying all IDs
-    const allResponse = await supabaseRequest('GET', '/rest/v1/portfolio_images?select=id');
+    // Get total count
+    const countResponse = await supabaseRequest('GET', '/rest/v1/portfolio_images?select=id');
     let totalImages = 0;
     
-    if (allResponse.status === 200) {
-      const allData = await allResponse.json();
+    if (countResponse.status === 200) {
+      const allData = await countResponse.json();
       totalImages = allData.length;
     }
     
@@ -126,21 +186,28 @@ async function getPortfolioFromDB(requestedBatch = 0) {
     // If no images, return empty result
     if (totalImages === 0) {
       return {
-        success: true,
-        images: [],
-        batch: {
-          current: 0,
-          total: 0,
-          hasMore: false,
-          nextBatch: null
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
         },
-        stats: {
-          totalImages: 0,
-          batchSize: BATCH_SIZE,
-          cached: true,
-          source: 'supabase'
-        },
-        timestamp: new Date().toISOString()
+        body: JSON.stringify({
+          success: true,
+          images: [],
+          batch: {
+            current: 0,
+            total: 0,
+            hasMore: false,
+            nextBatch: null
+          },
+          stats: {
+            totalImages: 0,
+            batchSize: BATCH_SIZE,
+            cached: true,
+            source: 'supabase-background'
+          },
+          timestamp: new Date().toISOString()
+        })
       };
     }
     
@@ -150,33 +217,37 @@ async function getPortfolioFromDB(requestedBatch = 0) {
     );
     
     if (response.status !== 200) {
-      const errorText = await response.text();
-      console.error('Failed to fetch images:', errorText);
       throw new Error('Failed to fetch from database');
     }
     
     const images = await response.json();
-    console.log(`Fetched ${images.length} images for batch ${requestedBatch}`);
     
     const totalBatches = Math.ceil(totalImages / BATCH_SIZE);
     const hasMore = requestedBatch < totalBatches - 1;
     
     return {
-      success: true,
-      images: images,
-      batch: {
-        current: requestedBatch,
-        total: totalBatches,
-        hasMore: hasMore,
-        nextBatch: hasMore ? requestedBatch + 1 : null
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
       },
-      stats: {
-        totalImages: totalImages,
-        batchSize: BATCH_SIZE,
-        cached: true,
-        source: 'supabase'
-      },
-      timestamp: new Date().toISOString()
+      body: JSON.stringify({
+        success: true,
+        images: images,
+        batch: {
+          current: requestedBatch,
+          total: totalBatches,
+          hasMore: hasMore,
+          nextBatch: hasMore ? requestedBatch + 1 : null
+        },
+        stats: {
+          totalImages: totalImages,
+          batchSize: BATCH_SIZE,
+          cached: true,
+          source: 'supabase-background'
+        },
+        timestamp: new Date().toISOString()
+      })
     };
     
   } catch (error) {
@@ -185,64 +256,16 @@ async function getPortfolioFromDB(requestedBatch = 0) {
   }
 }
 
-async function scanDropboxPortfolio() {
-  const portfolioData = [];
-  
+async function updateSyncMeta(metaData) {
   try {
-    console.log('Listing project folders...');
-    const projectFolders = await listDropboxFolder(PORTFOLIO_PATH);
-    console.log(`Found ${projectFolders.length} project folders`);
-    
-    // Process each project folder
-    for (const projectFolder of projectFolders) {
-      if (projectFolder['.tag'] === 'folder') {
-        const projectName = projectFolder.name;
-        const projectPath = `${PORTFOLIO_PATH}/${projectName}`;
-        
-        console.log(`Scanning project: ${projectName}`);
-        await scanProjectRecursively(projectPath, projectName, portfolioData);
-      }
-    }
-    
-    console.log(`Found ${portfolioData.length} total images`);
-    
-    // Get image URLs for all images
-    console.log('Fetching image URLs...');
-    await fetchImageUrlsForAll(portfolioData);
-    
-    return portfolioData;
-    
+    await supabaseRequest('DELETE', '/rest/v1/portfolio_meta');
+    await supabaseRequest('POST', '/rest/v1/portfolio_meta', [metaData]);
   } catch (error) {
-    console.error('Error scanning Dropbox portfolio:', error);
-    throw error;
+    console.error('Error updating sync meta:', error);
   }
 }
 
-async function fetchImageUrlsForAll(portfolioData) {
-  const batchSize = 5;
-  
-  for (let i = 0; i < portfolioData.length; i += batchSize) {
-    const batch = portfolioData.slice(i, i + batchSize);
-    console.log(`Fetching URLs for batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(portfolioData.length/batchSize)}`);
-    
-    const promises = batch.map(async (item) => {
-      try {
-        const imageUrl = await getDropboxImageUrl(item.path);
-        if (imageUrl) {
-          item.image_url = imageUrl;
-          item.url_fetched = new Date().toISOString();
-        }
-      } catch (error) {
-        console.error(`Failed to get URL for ${item.name}:`, error.message);
-        item.image_url = null;
-      }
-    });
-    
-    await Promise.all(promises);
-  }
-}
-
-async function scanProjectRecursively(folderPath, projectName, portfolioData, toolName = 'Mixed') {
+async function scanProjectRecursively(folderPath, projectName, projectImages, toolName = 'Mixed') {
   try {
     const contents = await listDropboxFolder(folderPath);
     
@@ -260,14 +283,14 @@ async function scanProjectRecursively(folderPath, projectName, portfolioData, to
           size: item.size,
           modified: item.server_modified,
           extension: item.name.toLowerCase().substring(item.name.lastIndexOf('.')),
-          image_url: null, // Will be filled later
+          image_url: null,
           scanned: new Date().toISOString()
         };
         
-        portfolioData.push(imageData);
+        projectImages.push(imageData);
       } else if (item['.tag'] === 'folder') {
         const subFolderPath = `${folderPath}/${item.name}`;
-        await scanProjectRecursively(subFolderPath, projectName, portfolioData, item.name);
+        await scanProjectRecursively(subFolderPath, projectName, projectImages, item.name);
       }
     }
   } catch (error) {
@@ -275,6 +298,7 @@ async function scanProjectRecursively(folderPath, projectName, portfolioData, to
   }
 }
 
+// Include all helper functions (supabaseRequest, listDropboxFolder, etc.)
 async function supabaseRequest(method, endpoint, data = null) {
   return new Promise((resolve, reject) => {
     const postData = data ? JSON.stringify(data) : null;
@@ -326,7 +350,6 @@ async function supabaseRequest(method, endpoint, data = null) {
   });
 }
 
-// Include helper functions from original code
 async function listDropboxFolder(path) {
   return new Promise((resolve, reject) => {
     const postData = JSON.stringify({
