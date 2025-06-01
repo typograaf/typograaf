@@ -3,8 +3,12 @@ const https = require('https');
 
 const DROPBOX_ACCESS_TOKEN = process.env.DROPBOX_ACCESS_TOKEN;
 const PORTFOLIO_PATH = '/AboutContact/Website/Portfolio';
+const MAX_IMAGES = 50; // Limit to prevent timeout
+const TIMEOUT_BUFFER = 8000; // Leave 2 seconds buffer
 
 exports.handler = async (event, context) => {
+  const startTime = Date.now();
+  
   try {
     console.log('Starting Dropbox sync...');
     
@@ -12,7 +16,7 @@ exports.handler = async (event, context) => {
       throw new Error('DROPBOX_ACCESS_TOKEN environment variable not set');
     }
     
-    const portfolioData = await scanPortfolioStructure();
+    const portfolioData = await scanPortfolioStructure(startTime);
     
     return {
       statusCode: 200,
@@ -26,7 +30,8 @@ exports.handler = async (event, context) => {
         success: true,
         images: portfolioData,
         timestamp: new Date().toISOString(),
-        count: portfolioData.length
+        count: portfolioData.length,
+        message: portfolioData.length >= MAX_IMAGES ? `Limited to ${MAX_IMAGES} images to prevent timeout` : `Found ${portfolioData.length} images`
       })
     };
   } catch (error) {
@@ -46,15 +51,20 @@ exports.handler = async (event, context) => {
   }
 };
 
-async function scanPortfolioStructure() {
+async function scanPortfolioStructure(startTime) {
   const portfolioData = [];
   
   try {
-    // Get project folders
     console.log('Scanning portfolio folder:', PORTFOLIO_PATH);
     const projectFolders = await listDropboxFolder(PORTFOLIO_PATH);
     
     for (const projectFolder of projectFolders) {
+      // Check timeout
+      if (Date.now() - startTime > TIMEOUT_BUFFER) {
+        console.log('Approaching timeout, stopping scan');
+        break;
+      }
+      
       if (projectFolder['.tag'] === 'folder') {
         const projectName = projectFolder.name;
         const projectPath = `${PORTFOLIO_PATH}/${projectName}`;
@@ -65,6 +75,12 @@ async function scanPortfolioStructure() {
         const toolFolders = await listDropboxFolder(projectPath);
         
         for (const toolFolder of toolFolders) {
+          // Check timeout and image limit
+          if (Date.now() - startTime > TIMEOUT_BUFFER || portfolioData.length >= MAX_IMAGES) {
+            console.log('Stopping due to timeout or image limit');
+            break;
+          }
+          
           if (toolFolder['.tag'] === 'folder') {
             const toolName = toolFolder.name;
             const toolPath = `${projectPath}/${toolName}`;
@@ -75,28 +91,31 @@ async function scanPortfolioStructure() {
             const files = await listDropboxFolder(toolPath);
             
             for (const file of files) {
+              // Check limits
+              if (Date.now() - startTime > TIMEOUT_BUFFER || portfolioData.length >= MAX_IMAGES) {
+                break;
+              }
+              
               if (file['.tag'] === 'file' && isImageFile(file.name)) {
                 console.log('Processing image:', file.name);
                 
                 try {
-                  const imageUrl = await getDropboxImageUrl(file.path_lower);
+                  // Skip getting image URL for now to speed up - just store metadata
+                  const imageData = {
+                    name: file.name.replace(/\.[^/.]+$/, ""),
+                    project: projectName,
+                    tool: toolName,
+                    type: guessTypeFromName(file.name),
+                    time: extractTimeFromFile(file),
+                    aspectRatio: await guessAspectRatio(file.name),
+                    path: file.path_lower,
+                    size: file.size,
+                    modified: file.server_modified,
+                    // We'll generate imageUrl on demand later
+                    needsUrl: true
+                  };
                   
-                  if (imageUrl) {
-                    const imageData = {
-                      name: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
-                      project: projectName,
-                      tool: toolName,
-                      type: guessTypeFromName(file.name),
-                      time: extractTimeFromFile(file),
-                      aspectRatio: await guessAspectRatio(file.name),
-                      imageUrl: imageUrl,
-                      path: file.path_lower,
-                      size: file.size,
-                      modified: file.server_modified
-                    };
-                    
-                    portfolioData.push(imageData);
-                  }
+                  portfolioData.push(imageData);
                 } catch (imageError) {
                   console.error('Error processing image:', file.name, imageError.message);
                 }
@@ -164,57 +183,6 @@ async function listDropboxFolder(path) {
   });
 }
 
-async function getDropboxImageUrl(path) {
-  return new Promise((resolve, reject) => {
-    const postData = JSON.stringify({
-      path: path
-    });
-    
-    const options = {
-      hostname: 'api.dropboxapi.com',
-      port: 443,
-      path: '/2/files/get_temporary_link',
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DROPBOX_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    };
-    
-    const req = https.request(options, (res) => {
-      let data = '';
-      
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-      
-      res.on('end', () => {
-        try {
-          const jsonData = JSON.parse(data);
-          if (res.statusCode === 200) {
-            resolve(jsonData.link);
-          } else {
-            console.error(`Failed to get image URL for ${path}:`, jsonData.error_summary || data);
-            resolve(null);
-          }
-        } catch (parseError) {
-          console.error(`Failed to parse response for ${path}:`, parseError.message);
-          resolve(null);
-        }
-      });
-    });
-    
-    req.on('error', (error) => {
-      console.error(`Request error for ${path}:`, error.message);
-      resolve(null);
-    });
-    
-    req.write(postData);
-    req.end();
-  });
-}
-
 function isImageFile(filename) {
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg'];
   const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
@@ -233,26 +201,21 @@ function guessTypeFromName(filename) {
 }
 
 async function guessAspectRatio(filename) {
-  // For now, return common ratios based on filename patterns
   const lower = filename.toLowerCase();
   if (lower.includes('portrait') || lower.includes('vertical')) return 3/4;
   if (lower.includes('square') || lower.includes('1x1')) return 1;
   if (lower.includes('wide') || lower.includes('banner')) return 16/9;
   if (lower.includes('screen') || lower.includes('desktop')) return 16/10;
-  
-  // Default aspect ratio
   return 4/3;
 }
 
 function extractTimeFromFile(file) {
   try {
-    // Use server_modified date from Dropbox
     const date = new Date(file.server_modified || file.client_modified);
     const year = date.getFullYear();
     const quarter = Math.ceil((date.getMonth() + 1) / 3);
     return `${year}-Q${quarter}`;
   } catch (error) {
-    // Fallback to current date
     const now = new Date();
     const quarter = Math.ceil((now.getMonth() + 1) / 3);
     return `${now.getFullYear()}-Q${quarter}`;
