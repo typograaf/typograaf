@@ -117,6 +117,12 @@ async function syncSingleProject(projectName, startTime, timeoutMs) {
     const deleteResponse = await supabaseRequest('DELETE', `/rest/v1/portfolio_images?project=eq.${encodeURIComponent(projectName)}`);
     console.log(`Deleted existing ${projectName} images, status:`, deleteResponse.status);
     
+    // Only proceed if we have new images to add
+    if (projectImages.length === 0) {
+      console.log(`No images found for ${projectName}, skipping`);
+      return;
+    }
+    
     // Get image URLs in batches (this is the slow part)
     const urlBatchSize = 3; // Very small batches for URLs
     for (let i = 0; i < projectImages.length; i += urlBatchSize) {
@@ -197,46 +203,7 @@ async function getPortfolioFromDB(requestedBatch = 0) {
     const BATCH_SIZE = 20;
     const offset = requestedBatch * BATCH_SIZE;
     
-    // Get total count
-    const countResponse = await supabaseRequest('GET', '/rest/v1/portfolio_images?select=id');
-    let totalImages = 0;
-    
-    if (countResponse.status === 200) {
-      const allData = await countResponse.json();
-      totalImages = allData.length;
-    }
-    
-    console.log(`Total images in DB: ${totalImages}`);
-    
-    // If no images, return empty result
-    if (totalImages === 0) {
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({
-          success: true,
-          images: [],
-          batch: {
-            current: 0,
-            total: 0,
-            hasMore: false,
-            nextBatch: null
-          },
-          stats: {
-            totalImages: 0,
-            batchSize: BATCH_SIZE,
-            cached: true,
-            source: 'supabase-background'
-          },
-          timestamp: new Date().toISOString()
-        })
-      };
-    }
-    
-    // Get batch of images
+    // Get batch of images first
     const response = await supabaseRequest('GET', 
       `/rest/v1/portfolio_images?select=*&order=project,tool,name&limit=${BATCH_SIZE}&offset=${offset}`
     );
@@ -246,6 +213,20 @@ async function getPortfolioFromDB(requestedBatch = 0) {
     }
     
     const images = await response.json();
+    console.log(`Fetched ${images.length} images for batch ${requestedBatch}`);
+    
+    // Get total count using a simpler method
+    const countResponse = await supabaseRequest('GET', '/rest/v1/portfolio_images?select=id');
+    let totalImages = 0;
+    
+    if (countResponse.status === 200) {
+      const allData = await countResponse.json();
+      totalImages = allData.length;
+      console.log(`Total images in DB: ${totalImages} (actual count from all IDs)`);
+    } else {
+      console.error('Failed to get count, using batch size');
+      totalImages = images.length; // Fallback
+    }
     
     const totalBatches = Math.ceil(totalImages / BATCH_SIZE);
     const hasMore = requestedBatch < totalBatches - 1;
