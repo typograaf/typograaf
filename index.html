@@ -93,6 +93,26 @@
             font-size: 12px;
             color: #666;
         }
+
+        #status-indicator {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #666;
+            z-index: 100;
+        }
+
+        .status-online {
+            color: #4CAF50;
+        }
+
+        .status-loading {
+            color: #FF9800;
+        }
     </style>
 </head>
 <body>
@@ -100,8 +120,8 @@
     
     <div id="loading">
         <div class="loading-spinner"></div>
-        <div id="loading-text">Loading portfolio from Dropbox...</div>
-        <div class="loading-progress" id="loading-progress">Initializing...</div>
+        <div id="loading-text">Loading portfolio from database...</div>
+        <div class="loading-progress" id="loading-progress">Connecting...</div>
     </div>
     
     <div id="overlay" style="display: none;">
@@ -121,6 +141,10 @@
         <div class="dimension-button" data-dimension="time">Timeline</div>
         <div class="dimension-button" data-dimension="tools">Tools</div>
         <div class="dimension-button" data-dimension="type">Content Type</div>
+    </div>
+
+    <div id="status-indicator" style="display: none;">
+        <span id="status-text">Ready</span>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -145,11 +169,8 @@
         let previousMousePosition = { x: 0, y: 0 };
         let isLoadingImages = false;
 
-        // Image URL cache
-        let imageUrlCache = new Map();
-
         async function init() {
-            // Load portfolio data from Dropbox
+            // Load portfolio data from Supabase
             await loadPortfolioData();
             
             // Scene
@@ -186,13 +207,12 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('overlay').style.display = 'block';
             document.getElementById('dimensions').style.display = 'block';
+            document.getElementById('status-indicator').style.display = 'block';
             
             // Update UI
             document.getElementById('imageCount').textContent = portfolioData.length;
             document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
-            
-            // Start loading images immediately
-            loadImageUrls();
+            updateStatus('Ready', 'status-online');
             
             // Start
             animate();
@@ -200,27 +220,44 @@
 
         async function loadPortfolioData() {
             try {
-                console.log('Loading portfolio data...');
-                document.getElementById('loading-progress').textContent = 'Fetching portfolio data...';
+                console.log('Loading portfolio data from Supabase...');
+                document.getElementById('loading-progress').textContent = 'Loading from database...';
                 
                 let allImages = [];
                 let currentBatch = 0;
                 let hasMore = true;
 
-                // Load all batches
+                // Load all batches from Supabase
                 while (hasMore) {
                     console.log(`Loading batch ${currentBatch}...`);
                     document.getElementById('loading-progress').textContent = `Loading batch ${currentBatch + 1}...`;
                     
-                    const response = await fetch(`/.netlify/functions/sync-dropbox?batch=${currentBatch}`);
+                    const response = await fetch(`/.netlify/functions/sync-dropbox-supabase?batch=${currentBatch}`);
                     const data = await response.json();
                     
                     if (data.success) {
-                        allImages = allImages.concat(data.images);
+                        // Map database field names to frontend field names
+                        const mappedImages = data.images.map(img => ({
+                            id: img.id,
+                            name: img.name,
+                            project: img.project,
+                            tool: img.tool,
+                            type: img.type,
+                            time: img.time,
+                            aspectRatio: img.aspectratio || 4/3,
+                            path: img.path,
+                            size: img.size,
+                            modified: img.modified,
+                            extension: img.extension,
+                            imageUrl: img.image_url, // Pre-fetched URL from database
+                            scanned: img.scanned
+                        }));
+
+                        allImages = allImages.concat(mappedImages);
                         hasMore = data.batch.hasMore;
                         currentBatch = data.batch.nextBatch || currentBatch + 1;
                         
-                        console.log(`Batch ${currentBatch}: Loaded ${data.images.length} images (${allImages.length} total)`);
+                        console.log(`Batch ${currentBatch}: Loaded ${mappedImages.length} images (${allImages.length} total)`);
                         document.getElementById('loading-progress').textContent = `Loaded ${allImages.length} images...`;
                     } else {
                         console.error('Failed to load batch:', data.error);
@@ -229,8 +266,13 @@
                 }
 
                 portfolioData = allImages;
-                console.log(`Successfully loaded ${portfolioData.length} images from Dropbox`);
+                console.log(`Successfully loaded ${portfolioData.length} images from database`);
                 document.getElementById('loading-progress').textContent = `Found ${portfolioData.length} images total`;
+                
+                // Check if database is empty and needs initial sync
+                if (portfolioData.length === 0) {
+                    await triggerInitialSync();
+                }
                 
             } catch (error) {
                 console.error('Error loading portfolio:', error);
@@ -239,133 +281,39 @@
             }
         }
 
-        async function loadImageUrls() {
-            if (isLoadingImages) return;
-            isLoadingImages = true;
-
-            console.log('Loading images in fast parallel mode...');
-            
-            // Load ALL images in parallel with high concurrency
-            const batchSize = 20; // Higher concurrency
-            const batches = [];
-            
-            for (let i = 0; i < portfolioData.length; i += batchSize) {
-                batches.push(portfolioData.slice(i, i + batchSize));
+        async function triggerInitialSync() {
+            try {
+                document.getElementById('loading-text').textContent = 'First time setup: syncing with Dropbox...';
+                document.getElementById('loading-progress').textContent = 'This may take 10-15 seconds...';
+                
+                console.log('Triggering initial sync...');
+                const response = await fetch('/.netlify/functions/sync-dropbox-supabase?refresh=true');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Reload the portfolio data after sync
+                    await loadPortfolioData();
+                } else {
+                    throw new Error(data.error || 'Sync failed');
+                }
+            } catch (error) {
+                console.error('Initial sync failed:', error);
+                document.getElementById('loading-progress').textContent = 'Sync failed - using demo data';
+                portfolioData = getDemoData();
             }
-            
-            // Process all batches simultaneously 
-            const batchPromises = batches.map((batch, batchIndex) => 
-                loadImageBatch(batch, `batch-${batchIndex}`)
-            );
-            
-            await Promise.all(batchPromises);
-            
-            isLoadingImages = false;
-            console.log('✓ All images loaded in parallel!');
         }
 
-        async function loadImageBatch(batch, batchName) {
-            console.log(`Loading ${batch.length} images in ${batchName}...`);
-            
-            const promises = batch.map(async (item) => {
-                if (!item.urlEndpoint || imageUrlCache.has(item.path)) return;
-                
-                try {
-                    // Fast fetch with short timeout
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
-                    
-                    const response = await fetch(item.urlEndpoint, {
-                        signal: controller.signal
-                    });
-                    clearTimeout(timeoutId);
-                    
-                    const urlData = await response.json();
-                    
-                    if (urlData.success && urlData.imageUrl) {
-                        imageUrlCache.set(item.path, urlData.imageUrl);
-                        
-                        // Load the actual image
-                        return loadActualImage(item, urlData.imageUrl);
-                    }
-                } catch (error) {
-                    if (error.name === 'AbortError') {
-                        console.warn(`Timeout loading ${item.name}`);
-                    } else {
-                        console.error(`Failed to load URL for ${item.name}:`, error);
-                    }
-                }
-            });
-            
-            await Promise.all(promises);
-            console.log(`✓ Completed ${batchName}`);
-        }
-
-        function loadActualImage(item, imageUrl) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                
-                img.onload = function() {
-                    const itemIndex = portfolioData.indexOf(item);
-                    const imageObj = images[itemIndex];
-                    if (imageObj) {
-                        updateImageTexture(imageObj, imageUrl, item);
-                    }
-                    resolve();
-                };
-                
-                img.onerror = function() {
-                    console.error('✗ Failed to load image:', item.name);
-                    resolve();
-                };
-                
-                // Add timeout for image loading too
-                setTimeout(() => {
-                    if (!img.complete) {
-                        console.warn(`Image timeout: ${item.name}`);
-                        resolve();
-                    }
-                }, 3000);
-                
-                img.src = imageUrl;
-            });
-        }
-
-        function updateImageTexture(imageObj, imageUrl, item) {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            
-            img.onload = function() {
-                // Create new texture
-                const newTexture = new THREE.Texture(img);
-                newTexture.generateMipmaps = false;
-                newTexture.minFilter = THREE.LinearFilter;
-                newTexture.magFilter = THREE.LinearFilter;
-                newTexture.needsUpdate = true;
-                
-                // Replace the material texture
-                if (imageObj.material && imageObj.material.map) {
-                    imageObj.material.map.dispose(); // Clean up old texture
-                }
-                imageObj.material.map = newTexture;
-                imageObj.material.needsUpdate = true;
-                
-                console.log(`✓ Updated: ${item.name}`);
-            };
-            
-            img.onerror = function() {
-                console.error('✗ Failed to load:', item.name);
-            };
-            
-            img.src = imageUrl;
+        function updateStatus(text, className = '') {
+            const statusElement = document.getElementById('status-text');
+            statusElement.textContent = text;
+            statusElement.className = className;
         }
 
         function getDemoData() {
             return [
-                { name: 'Demo Project 1', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectRatio: 16/9, urlEndpoint: null },
-                { name: 'Demo Project 2', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectRatio: 1, urlEndpoint: null },
-                { name: 'Demo Project 3', project: 'Demo Work', tool: 'Blender', type: '3D', time: '2024-Q4', aspectRatio: 4/3, urlEndpoint: null }
+                { name: 'Demo Project 1', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectRatio: 16/9, imageUrl: null },
+                { name: 'Demo Project 2', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectRatio: 1, imageUrl: null },
+                { name: 'Demo Project 3', project: 'Demo Work', tool: 'Blender', type: '3D', time: '2024-Q4', aspectRatio: 4/3, imageUrl: null }
             ];
         }
 
@@ -387,7 +335,45 @@
             const width = baseSize * Math.min(aspectRatio, 2);
             const height = baseSize / Math.max(aspectRatio, 0.5);
             
-            // Create placeholder texture first
+            let texture;
+            
+            if (item.imageUrl) {
+                // Load actual image from Supabase-cached URL
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                
+                texture = new THREE.Texture(img);
+                texture.generateMipmaps = false;
+                texture.minFilter = THREE.LinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                
+                img.onload = function() {
+                    texture.needsUpdate = true;
+                    console.log(`✓ Loaded: ${item.name}`);
+                };
+                img.onerror = function() {
+                    console.error('✗ Failed to load:', item.name);
+                };
+                img.src = item.imageUrl;
+            } else {
+                // Create placeholder texture
+                texture = createPlaceholderTexture(item, aspectRatio);
+            }
+            
+            // Create plane
+            const geometry = new THREE.PlaneGeometry(width, height);
+            const material = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                transparent: true
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.userData = item;
+            
+            return mesh;
+        }
+
+        function createPlaceholderTexture(item, aspectRatio) {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
             canvas.height = 512 / aspectRatio;
@@ -432,17 +418,7 @@
             texture.minFilter = THREE.LinearFilter;
             texture.magFilter = THREE.LinearFilter;
             
-            // Create plane
-            const geometry = new THREE.PlaneGeometry(width, height);
-            const material = new THREE.MeshBasicMaterial({ 
-                map: texture,
-                transparent: true
-            });
-            
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.userData = item;
-            
-            return mesh;
+            return texture;
         }
 
         function organizeByDimension(dimension) {
@@ -615,8 +591,40 @@
                             focusedImage = null;
                         }
                         break;
+                    case 'r':
+                    case 'R':
+                        if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault();
+                            refreshPortfolio();
+                        }
+                        break;
                 }
             });
+        }
+
+        async function refreshPortfolio() {
+            updateStatus('Refreshing...', 'status-loading');
+            try {
+                const response = await fetch('/.netlify/functions/sync-dropbox-supabase?refresh=true');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Reload portfolio data
+                    await loadPortfolioData();
+                    createImages();
+                    organizeByDimension(currentDimension);
+                    updateStatus('Refreshed!', 'status-online');
+                    
+                    setTimeout(() => {
+                        updateStatus('Ready', 'status-online');
+                    }, 2000);
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                console.error('Refresh failed:', error);
+                updateStatus('Refresh failed', 'status-error');
+            }
         }
 
         function onMouseDown(event) {

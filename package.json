@@ -1,23 +1,48 @@
 {
   "name": "portfolio-gallery",
-  "version": "1.0.0",
-  "description": "Martijn's Portfolio Gallery with Dropbox Integration",
+  "version": "2.0.0",
+  "description": "Martijn's Portfolio Gallery with Supabase Database Integration",
   "main": "index.html",
   "scripts": {
     "build": "echo 'Processing functions...' && ls -la netlify/functions/",
-    "start": "echo 'Portfolio gallery ready to deploy'"
+    "start": "echo 'Portfolio gallery ready to deploy'",
+    "sync": "echo 'To sync portfolio: visit /.netlify/functions/sync-dropbox-supabase?refresh=true'",
+    "test": "echo 'Testing portfolio endpoints...'",
+    "dev": "netlify dev"
   },
   "keywords": [
     "portfolio",
     "gallery",
     "dropbox",
+    "supabase",
+    "database",
     "3d",
-    "three.js"
+    "three.js",
+    "netlify"
   ],
   "author": "Martijn",
   "license": "MIT",
   "dependencies": {},
+  "devDependencies": {},
   "engines": {
     "node": "20.x"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/martijn/portfolio-gallery"
+  },
+  "netlify": {
+    "functions": "netlify/functions",
+    "build": {
+      "command": "npm run build",
+      "functions": "netlify/functions"
+    }
+  },
+  "environment": {
+    "required": [
+      "DROPBOX_ACCESS_TOKEN",
+      "SUPABASE_URL", 
+      "SUPABASE_ANON_KEY"
+    ]
   }
 }
