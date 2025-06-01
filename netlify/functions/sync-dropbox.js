@@ -2,7 +2,7 @@
 const https = require('https');
 
 const DROPBOX_ACCESS_TOKEN = process.env.DROPBOX_ACCESS_TOKEN;
-const PORTFOLIO_PATH = '/Portfolio';
+const PORTFOLIO_PATH = '/AboutContact/Website/Portfolio';
 
 exports.handler = async (event, context) => {
   try {
