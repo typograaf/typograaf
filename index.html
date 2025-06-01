@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio - Martijn</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f8f8f6;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            display: block;
+        }
+        
+        #overlay {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            color: #333;
+            font-size: 13px;
+            background: rgba(255,255,255,0.9);
+            padding: 20px;
+            border-radius: 4px;
+            z-index: 100;
+        }
+        
+        #dimensions {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            color: #333;
+            font-size: 12px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 4px;
+            z-index: 100;
+        }
+        
+        .dimension-button {
+            display: inline-block;
+            padding: 8px 12px;
+            margin: 2px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .dimension-button:hover {
+            background: #e0e0e0;
+        }
+        
+        .dimension-button.active {
+            background: #333;
+            color: white;
+        }
+
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #333;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="loading">
+        <div class="loading-spinner"></div>
+        <div>Loading portfolio from Dropbox...</div>
+    </div>
+    
+    <div id="overlay" style="display: none;">
+        <div>Scroll: Change levels</div>
+        <div>Drag: Pan around level</div>
+        <div>Click: Focus image</div>
+        <div>Level: <span id="currentLevel">1</span>/<span id="totalLevels">1</span></div>
+        <div>Organization: <span id="currentDimension">Projects</span></div>
+        <div style="margin-top: 10px; font-size: 11px; color: #666;">
+            Images: <span id="imageCount">0</span> • Last sync: <span id="lastSync">-</span>
+        </div>
+    </div>
+    
+    <div id="dimensions" style="display: none;">
+        <div style="margin-bottom: 8px; font-weight: bold;">Organization:</div>
+        <div class="dimension-button active" data-dimension="projects">Projects</div>
+        <div class="dimension-button" data-dimension="time">Timeline</div>
+        <div class="dimension-button" data-dimension="tools">Tools</div>
+        <div class="dimension-button" data-dimension="type">Content Type</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer;
+        let images = [];
+        let levels = [];
+        let currentLevel = 0;
+        let targetLevel = 0;
+        let currentDimension = 'projects';
+        let isTransitioning = false;
+        let focusedImage = null;
+        let cameraZ = 0;
+        let targetCameraZ = 0;
+        let cameraX = 0;
+        let cameraY = 0;
+        let targetCameraX = 0;
+        let targetCameraY = 0;
+        let scrollCooldown = false;
+        let portfolioData = [];
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        async function init() {
+            // Load portfolio data from Dropbox
+            await loadPortfolioData();
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf8f8f6);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 30);
+            camera.lookAt(0, 0, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: document.getElementById('canvas'),
+                antialias: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            
+            // Simple lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+            scene.add(ambientLight);
+            
+            // Create images from portfolio data
+            createImages();
+            
+            // Organize into levels
+            organizeByDimension('projects');
+            
+            // Events
+            setupEvents();
+            
+            // Hide loading, show controls
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('overlay').style.display = 'block';
+            document.getElementById('dimensions').style.display = 'block';
+            
+            // Update UI
+            document.getElementById('imageCount').textContent = portfolioData.length;
+            document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
+            
+            // Start
+            animate();
+        }
+
+        async function loadPortfolioData() {
+            try {
+                console.log('Loading portfolio data...');
+                
+                // Call our Netlify function to get portfolio data
+                const response = await fetch('/.netlify/functions/sync-dropbox');
+                const data = await response.json();
+                
+                if (data.success) {
+                    portfolioData = data.images;
+                    console.log(`Loaded ${portfolioData.length} images from Dropbox`);
+                } else {
+                    console.error('Failed to load portfolio data:', data.error);
+                    portfolioData = getDemoData();
+                }
+            } catch (error) {
+                console.error('Error loading portfolio:', error);
+                portfolioData = getDemoData();
+            }
+        }
+
+        function getDemoData() {
+            return [
+                { name: 'Demo Project 1', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectRatio: 16/9, imageUrl: null },
+                { name: 'Demo Project 2', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectRatio: 1, imageUrl: null },
+                { name: 'Demo Project 3', project: 'Demo Work', tool: 'Blender', type: '3D', time: '2024-Q4', aspectRatio: 4/3, imageUrl: null }
+            ];
+        }
+
+        function createImages() {
+            // Clear existing images
+            images.forEach(img => scene.remove(img));
+            images = [];
+            
+            portfolioData.forEach((item, index) => {
+                const image = createImage(item);
+                images.push(image);
+                scene.add(image);
+            });
+        }
+
+        function createImage(item) {
+            const aspectRatio = item.aspectRatio;
+            const baseSize = 6;
+            const width = baseSize * Math.min(aspectRatio, 2);
+            const height = baseSize / Math.max(aspectRatio, 0.5);
+            
+            let texture;
+            
+            if (item.imageUrl) {
+                // Load actual image from Dropbox
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                
+                texture = new THREE.Texture(img);
+                
+                img.onload = function() {
+                    texture.needsUpdate = true;
+                };
+                img.onerror = function() {
+                    console.error('Failed to load image:', item.imageUrl);
+                };
+                img.src = item.imageUrl;
+            } else {
+                // Create placeholder texture
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512 / aspectRatio;
+                const ctx = canvas.getContext('2d');
+                
+                // Clean background
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Subtle border
+                ctx.strokeStyle = '#e0e0e0';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+                
+                // Text
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                
+                const words = item.name.split(' ');
+                const lineHeight = 20;
+                let y = canvas.height/2 - (words.length > 2 ? lineHeight/2 : 0);
+                
+                if (words.length <= 2) {
+                    ctx.fillText(item.name, canvas.width/2, y);
+                } else {
+                    const midPoint = Math.ceil(words.length / 2);
+                    const firstLine = words.slice(0, midPoint).join(' ');
+                    const secondLine = words.slice(midPoint).join(' ');
+                    
+                    ctx.fillText(firstLine, canvas.width/2, y);
+                    ctx.fillText(secondLine, canvas.width/2, y + lineHeight);
+                }
+                
+                // Category indicator
+                ctx.fillStyle = '#666';
+                ctx.font = '11px Arial';
+                ctx.fillText(`${item.project} • ${item.tool}`, canvas.width/2, canvas.height - 15);
+                
+                texture = new THREE.CanvasTexture(canvas);
+            }
+            
+            texture.generateMipmaps = false;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            
+            // Create plane
+            const geometry = new THREE.PlaneGeometry(width, height);
+            const material = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                transparent: true
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.userData = item;
+            
+            return mesh;
+        }
+
+        function organizeByDimension(dimension) {
+            if (isTransitioning) return;
+            
+            isTransitioning = true;
+            currentDimension = dimension;
+            document.getElementById('currentDimension').textContent = dimension.charAt(0).toUpperCase() + dimension.slice(1);
+            
+            // Update UI
+            document.querySelectorAll('.dimension-button').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.dimension === dimension) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            let groupedItems = groupByProperty(dimension);
+            animateReorganization(groupedItems);
+        }
+
+        function groupByProperty(property) {
+            const groups = {};
+            portfolioData.forEach(item => {
+                const key = item[property] || 'Unknown';
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(item);
+            });
+            return Object.values(groups);
+        }
+
+        function animateReorganization(groupedItems) {
+            const duration = 1500;
+            const startTime = Date.now();
+            
+            const newPositions = calculateNewPositions(groupedItems);
+            const startPositions = images.map(img => ({
+                x: img.position.x,
+                y: img.position.y,
+                z: img.position.z
+            }));
+            
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                
+                images.forEach((img, index) => {
+                    const start = startPositions[index];
+                    const target = newPositions[index];
+                    
+                    if (target) {
+                        img.position.x = start.x + (target.x - start.x) * eased;
+                        img.position.y = start.y + (target.y - start.y) * eased;
+                        img.position.z = start.z + (target.z - start.z) * eased;
+                        
+                        img.userData.originalPosition = {
+                            x: img.position.x,
+                            y: img.position.y,
+                            z: img.position.z
+                        };
+                    }
+                });
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    levels = groupedItems;
+                    document.getElementById('totalLevels').textContent = levels.length;
+                    isTransitioning = false;
+                    goToLevel(0);
+                }
+            }
+            
+            animate();
+        }
+
+        function calculateNewPositions(groupedItems) {
+            const levelSpacing = 40;
+            const positions = [];
+            
+            for (let i = 0; i < images.length; i++) {
+                positions[i] = null;
+            }
+            
+            groupedItems.forEach((levelItems, levelIndex) => {
+                const cols = Math.ceil(Math.sqrt(levelItems.length));
+                const spacing = 12;
+                
+                levelItems.forEach((item, itemIndex) => {
+                    const imageIndex = portfolioData.indexOf(item);
+                    
+                    if (imageIndex >= 0) {
+                        const row = Math.floor(itemIndex / cols);
+                        const col = itemIndex % cols;
+                        const x = (col - (cols - 1) / 2) * spacing;
+                        const y = ((Math.ceil(levelItems.length / cols) - 1) / 2 - row) * spacing;
+                        const z = -levelIndex * levelSpacing;
+                        
+                        positions[imageIndex] = { x, y, z };
+                    }
+                });
+            });
+            
+            return positions;
+        }
+
+        function goToLevel(levelIndex) {
+            if (levelIndex < 0 || levelIndex >= levels.length) return;
+            if (levelIndex === currentLevel) return;
+            
+            targetLevel = levelIndex;
+            currentLevel = levelIndex;
+            document.getElementById('currentLevel').textContent = currentLevel + 1;
+            
+            const levelSpacing = 40;
+            targetCameraZ = -targetLevel * levelSpacing + 30;
+            targetCameraX = 0;
+            targetCameraY = 0;
+            focusedImage = null;
+        }
+
+        function updateCameraForLevel() {
+            const lerpFactor = 0.08;
+            cameraZ += (targetCameraZ - cameraZ) * lerpFactor;
+            
+            if (focusedImage) {
+                const targetPos = focusedImage.userData.originalPosition;
+                camera.position.x += (targetPos.x - camera.position.x) * lerpFactor;
+                camera.position.y += (targetPos.y - camera.position.y) * lerpFactor;
+                camera.position.z += (targetPos.z + 15 - camera.position.z) * lerpFactor;
+                camera.lookAt(targetPos.x, targetPos.y, targetPos.z);
+            } else {
+                cameraX += (targetCameraX - cameraX) * lerpFactor;
+                cameraY += (targetCameraY - cameraY) * lerpFactor;
+                camera.position.x = cameraX;
+                camera.position.y = cameraY;
+                camera.position.z = cameraZ;
+                camera.lookAt(cameraX, cameraY, cameraZ - 30);
+            }
+        }
+
+        function setupEvents() {
+            const canvas = document.getElementById('canvas');
+            
+            canvas.addEventListener('wheel', onWheel);
+            canvas.addEventListener('click', onImageClick);
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            window.addEventListener('resize', onWindowResize);
+            
+            document.querySelectorAll('.dimension-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const dimension = e.target.dataset.dimension;
+                    organizeByDimension(dimension);
+                });
+            });
+            
+            document.addEventListener('keydown', (e) => {
+                switch(e.key) {
+                    case 'ArrowUp':
+                        goToLevel(currentLevel - 1);
+                        break;
+                    case 'ArrowDown':
+                        goToLevel(currentLevel + 1);
+                        break;
+                    case 'Escape':
+                        if (focusedImage) {
+                            focusedImage = null;
+                        }
+                        break;
+                }
+            });
+        }
+
+        function onMouseDown(event) {
+            isDragging = true;
+            previousMousePosition = {
+                x: event.clientX,
+                y: event.clientY
+            };
+        }
+
+        function onMouseMove(event) {
+            if (isDragging && !focusedImage) {
+                const deltaMove = {
+                    x: event.clientX - previousMousePosition.x,
+                    y: event.clientY - previousMousePosition.y
+                };
+                
+                const panSpeed = 0.05;
+                targetCameraX -= deltaMove.x * panSpeed;
+                targetCameraY += deltaMove.y * panSpeed;
+                
+                previousMousePosition = {
+                    x: event.clientX,
+                    y: event.clientY
+                };
+            }
+        }
+
+        function onMouseUp() {
+            isDragging = false;
+        }
+
+        function onWheel(event) {
+            event.preventDefault();
+            
+            if (focusedImage) {
+                focusedImage = null;
+            } else {
+                if (!scrollCooldown) {
+                    const direction = event.deltaY > 0 ? 1 : -1;
+                    goToLevel(currentLevel + direction);
+                    
+                    scrollCooldown = true;
+                    setTimeout(() => {
+                        scrollCooldown = false;
+                    }, 300);
+                }
+            }
+        }
+
+        function onImageClick(event) {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(images);
+            
+            if (intersects.length > 0) {
+                const clickedImage = intersects[0].object;
+                
+                if (focusedImage === clickedImage) {
+                    focusedImage = null;
+                } else {
+                    focusedImage = clickedImage;
+                }
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateCameraForLevel();
+            renderer.render(scene, camera);
+        }
+
+        // Start the application
+        init();
+    </script>
+</body>
+</html>
