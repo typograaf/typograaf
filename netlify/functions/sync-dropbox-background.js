@@ -135,10 +135,35 @@ async function syncSingleProject(projectName, startTime, timeoutMs) {
     for (let i = 0; i < projectImages.length; i += insertBatchSize) {
       const batch = projectImages.slice(i, i + insertBatchSize);
       
-      const insertResponse = await supabaseRequest('POST', '/rest/v1/portfolio_images', batch);
-      if (insertResponse.status !== 201) {
-        const errorText = await insertResponse.text();
-        console.error(`Insert batch failed:`, errorText);
+      try {
+        const insertResponse = await supabaseRequest('POST', '/rest/v1/portfolio_images', batch);
+        const responseText = await insertResponse.text();
+        
+        console.log(`Insert batch ${Math.floor(i/insertBatchSize) + 1} status: ${insertResponse.status}`);
+        
+        if (insertResponse.status !== 201) {
+          console.error(`Insert batch failed (${insertResponse.status}):`, responseText);
+          
+          // Try inserting one by one to identify problem records
+          console.log('Trying individual inserts...');
+          for (const item of batch) {
+            try {
+              const singleResponse = await supabaseRequest('POST', '/rest/v1/portfolio_images', [item]);
+              if (singleResponse.status !== 201) {
+                const singleText = await singleResponse.text();
+                console.error(`Failed to insert ${item.name}:`, singleText);
+              } else {
+                console.log(`✓ Inserted ${item.name}`);
+              }
+            } catch (singleError) {
+              console.error(`Error inserting ${item.name}:`, singleError.message);
+            }
+          }
+        } else {
+          console.log(`✓ Successfully inserted batch of ${batch.length} images`);
+        }
+      } catch (insertError) {
+        console.error(`Insert batch error:`, insertError.message);
       }
     }
     
@@ -303,6 +328,13 @@ async function supabaseRequest(method, endpoint, data = null) {
   return new Promise((resolve, reject) => {
     const postData = data ? JSON.stringify(data) : null;
     
+    // Log the request for debugging
+    console.log(`Supabase ${method} request to: ${endpoint}`);
+    if (data && Array.isArray(data)) {
+      console.log(`Request data: ${data.length} items`);
+      console.log('First item:', JSON.stringify(data[0], null, 2));
+    }
+    
     const options = {
       hostname: new URL(SUPABASE_URL).hostname,
       port: 443,
@@ -311,7 +343,8 @@ async function supabaseRequest(method, endpoint, data = null) {
       headers: {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal' // Add this header for better performance
       }
     };
     
@@ -327,6 +360,11 @@ async function supabaseRequest(method, endpoint, data = null) {
       });
       
       res.on('end', () => {
+        console.log(`Supabase response: ${res.statusCode}, length: ${responseData.length}`);
+        if (responseData.length > 0 && responseData.length < 500) {
+          console.log('Response data:', responseData);
+        }
+        
         res.text = () => responseData;
         res.json = () => {
           try {
@@ -340,6 +378,7 @@ async function supabaseRequest(method, endpoint, data = null) {
     });
     
     req.on('error', (error) => {
+      console.error('Supabase request error:', error.message);
       reject(new Error(`Supabase request error: ${error.message}`));
     });
     
