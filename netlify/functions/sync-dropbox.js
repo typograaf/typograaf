@@ -141,33 +141,8 @@ async function scanPortfolioStructure(startTime) {
         
         console.log('Processing project:', projectName);
         
-        // Check if this is a direct image folder or has subfolders
-        const contents = await listDropboxFolder(projectPath);
-        const hasImageFiles = contents.some(item => 
-          item['.tag'] === 'file' && isImageFile(item.name)
-        );
-        const hasSubFolders = contents.some(item => 
-          item['.tag'] === 'folder'
-        );
-        
-        if (hasImageFiles && !hasSubFolders) {
-          // Direct image folder (no tool subfolders)
-          await processImageFolder(contents, projectName, 'Mixed', portfolioData, startTime);
-        } else if (hasSubFolders) {
-          // Has tool subfolders
-          for (const toolFolder of contents) {
-            if (Date.now() - startTime > TIMEOUT_BUFFER) break;
-            
-            if (toolFolder['.tag'] === 'folder') {
-              const toolName = toolFolder.name;
-              const toolPath = `${projectPath}/${toolName}`;
-              
-              console.log('Processing tool folder:', `${projectName}/${toolName}`);
-              const files = await listDropboxFolder(toolPath);
-              await processImageFolder(files, projectName, toolName, portfolioData, startTime);
-            }
-          }
-        }
+        // Process this project folder recursively
+        await processProjectFolder(projectPath, projectName, portfolioData, startTime);
       }
     }
   } catch (error) {
@@ -179,35 +154,52 @@ async function scanPortfolioStructure(startTime) {
   return portfolioData;
 }
 
-async function processImageFolder(files, projectName, toolName, portfolioData, startTime) {
-  for (const file of files) {
-    if (Date.now() - startTime > TIMEOUT_BUFFER) {
-      console.log('Timeout reached in processImageFolder');
-      break;
-    }
+async function processProjectFolder(projectPath, projectName, portfolioData, startTime, toolName = 'Mixed') {
+  try {
+    const contents = await listDropboxFolder(projectPath);
     
-    if (file['.tag'] === 'file' && isImageFile(file.name)) {
-      try {
-        const imageData = {
-          id: `${projectName}-${toolName}-${file.name}`.replace(/[^a-zA-Z0-9-]/g, '-'),
-          name: file.name.replace(/\.[^/.]+$/, ""),
-          project: projectName,
-          tool: toolName,
-          type: guessTypeFromName(file.name),
-          time: extractTimeFromFile(file),
-          aspectRatio: guessAspectRatio(file.name),
-          path: file.path_lower,
-          size: file.size,
-          modified: file.server_modified,
-          // Generate image URL on demand to save time
-          urlEndpoint: `/.netlify/functions/get-image?path=${encodeURIComponent(file.path_lower)}`
-        };
-        
-        portfolioData.push(imageData);
-      } catch (imageError) {
-        console.error('Error processing image:', file.name, imageError.message);
+    for (const item of contents) {
+      if (Date.now() - startTime > TIMEOUT_BUFFER) {
+        console.log('Timeout reached in processProjectFolder');
+        break;
+      }
+      
+      if (item['.tag'] === 'file' && isImageFile(item.name)) {
+        // Found an image file
+        await processImageFile(item, projectName, toolName, portfolioData);
+      } else if (item['.tag'] === 'folder') {
+        // Found a subfolder - recurse into it
+        const subFolderPath = `${projectPath}/${item.name}`;
+        console.log('Processing subfolder:', `${projectName}/${item.name}`);
+        await processProjectFolder(subFolderPath, projectName, portfolioData, startTime, item.name);
       }
     }
+  } catch (error) {
+    console.error(`Error processing project folder ${projectPath}:`, error.message);
+  }
+}
+
+async function processImageFile(file, projectName, toolName, portfolioData) {
+  try {
+    const imageData = {
+      id: `${projectName}-${toolName}-${file.name}`.replace(/[^a-zA-Z0-9-]/g, '-'),
+      name: file.name.replace(/\.[^/.]+$/, ""),
+      project: projectName,
+      tool: toolName,
+      type: guessTypeFromName(file.name),
+      time: extractTimeFromFile(file),
+      aspectRatio: guessAspectRatio(file.name),
+      path: file.path_lower,
+      size: file.size,
+      modified: file.server_modified,
+      extension: file.name.toLowerCase().substring(file.name.lastIndexOf('.')),
+      urlEndpoint: `/.netlify/functions/get-image?path=${encodeURIComponent(file.path_lower)}`
+    };
+    
+    portfolioData.push(imageData);
+    console.log(`Added image: ${projectName}/${toolName}/${file.name}`);
+  } catch (imageError) {
+    console.error('Error processing image:', file.name, imageError.message);
   }
 }
 
@@ -261,7 +253,10 @@ async function listDropboxFolder(path) {
 }
 
 function isImageFile(filename) {
-  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg'];
+  const imageExtensions = [
+    '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg', 
+    '.avif', '.heic', '.heif', '.ico', '.jfif', '.pjpeg', '.pjp'
+  ];
   const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
   return imageExtensions.includes(ext);
 }
