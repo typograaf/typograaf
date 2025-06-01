@@ -127,6 +127,7 @@ async function scanPortfolioStructure(startTime) {
   try {
     console.log('Scanning portfolio folder:', PORTFOLIO_PATH);
     const projectFolders = await listDropboxFolder(PORTFOLIO_PATH);
+    console.log(`Found ${projectFolders.length} items in portfolio folder:`, projectFolders.map(f => f.name));
     
     for (const projectFolder of projectFolders) {
       // Check timeout
@@ -139,10 +140,15 @@ async function scanPortfolioStructure(startTime) {
         const projectName = projectFolder.name;
         const projectPath = `${PORTFOLIO_PATH}/${projectName}`;
         
-        console.log('Processing project:', projectName);
+        console.log(`\n=== Processing project: ${projectName} ===`);
+        const imagesBefore = portfolioData.length;
         
-        // Process this project folder recursively
         await processProjectFolder(projectPath, projectName, portfolioData, startTime);
+        
+        const imagesAdded = portfolioData.length - imagesBefore;
+        console.log(`Project ${projectName}: Added ${imagesAdded} images`);
+      } else if (projectFolder['.tag'] === 'file') {
+        console.log(`Skipping file in root: ${projectFolder.name}`);
       }
     }
   } catch (error) {
@@ -150,32 +156,49 @@ async function scanPortfolioStructure(startTime) {
     throw error;
   }
   
+  console.log(`\n=== SCAN COMPLETE ===`);
   console.log(`Found ${portfolioData.length} images total`);
+  console.log('Projects processed:', [...new Set(portfolioData.map(img => img.project))]);
+  console.log('Tools found:', [...new Set(portfolioData.map(img => img.tool))]);
   return portfolioData;
 }
 
-async function processProjectFolder(projectPath, projectName, portfolioData, startTime, toolName = 'Mixed') {
+async function processProjectFolder(projectPath, projectName, portfolioData, startTime, toolName = 'Mixed', depth = 0) {
+  const indent = '  '.repeat(depth);
+  
   try {
+    console.log(`${indent}Scanning folder: ${projectPath}`);
     const contents = await listDropboxFolder(projectPath);
+    console.log(`${indent}Found ${contents.length} items:`, contents.map(item => `${item.name} (${item['.tag']})`));
     
-    for (const item of contents) {
+    const imageFiles = contents.filter(item => item['.tag'] === 'file' && isImageFile(item.name));
+    const subFolders = contents.filter(item => item['.tag'] === 'folder');
+    
+    console.log(`${indent}→ ${imageFiles.length} images, ${subFolders.length} subfolders`);
+    
+    // Process image files first
+    for (const file of imageFiles) {
       if (Date.now() - startTime > TIMEOUT_BUFFER) {
-        console.log('Timeout reached in processProjectFolder');
+        console.log(`${indent}Timeout reached while processing images`);
+        break;
+      }
+      await processImageFile(file, projectName, toolName, portfolioData);
+    }
+    
+    // Then recurse into subfolders
+    for (const folder of subFolders) {
+      if (Date.now() - startTime > TIMEOUT_BUFFER) {
+        console.log(`${indent}Timeout reached while processing subfolders`);
         break;
       }
       
-      if (item['.tag'] === 'file' && isImageFile(item.name)) {
-        // Found an image file
-        await processImageFile(item, projectName, toolName, portfolioData);
-      } else if (item['.tag'] === 'folder') {
-        // Found a subfolder - recurse into it
-        const subFolderPath = `${projectPath}/${item.name}`;
-        console.log('Processing subfolder:', `${projectName}/${item.name}`);
-        await processProjectFolder(subFolderPath, projectName, portfolioData, startTime, item.name);
-      }
+      const subFolderPath = `${projectPath}/${folder.name}`;
+      console.log(`${indent}→ Entering subfolder: ${folder.name}`);
+      await processProjectFolder(subFolderPath, projectName, portfolioData, startTime, folder.name, depth + 1);
     }
+    
   } catch (error) {
-    console.error(`Error processing project folder ${projectPath}:`, error.message);
+    console.error(`${indent}Error processing folder ${projectPath}:`, error.message);
   }
 }
 
