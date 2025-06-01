@@ -6,7 +6,7 @@ exports.handler = async (event, context) => {
       'Access-Control-Allow-Origin': '*'
     },
     body: JSON.stringify({
-      message: 'Hello from test function!',
+      message: 'Hello World!',
       timestamp: new Date().toISOString()
     })
   };
