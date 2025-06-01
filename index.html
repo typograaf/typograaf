@@ -232,7 +232,7 @@
                     console.log(`Loading batch ${currentBatch}...`);
                     document.getElementById('loading-progress').textContent = `Loading batch ${currentBatch + 1}...`;
                     
-                    const response = await fetch(`/.netlify/functions/sync-dropbox-supabase?batch=${currentBatch}`);
+                    const response = await fetch(`/.netlify/functions/sync-dropbox-simple-supabase?batch=${currentBatch}`);
                     const data = await response.json();
                     
                     if (data.success) {
@@ -287,7 +287,7 @@
                 document.getElementById('loading-progress').textContent = 'This may take 10-15 seconds...';
                 
                 console.log('Triggering initial sync...');
-                const response = await fetch('/.netlify/functions/sync-dropbox-supabase?refresh=true');
+                const response = await fetch('/.netlify/functions/sync-dropbox-simple-supabase?refresh=true');
                 const data = await response.json();
                 
                 if (data.success) {
@@ -605,7 +605,7 @@
         async function refreshPortfolio() {
             updateStatus('Refreshing...', 'status-loading');
             try {
-                const response = await fetch('/.netlify/functions/sync-dropbox-supabase?refresh=true');
+                const response = await fetch('/.netlify/functions/sync-dropbox-simple-supabase?refresh=true');
                 const data = await response.json();
                 
                 if (data.success) {
