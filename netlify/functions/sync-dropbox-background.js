@@ -6,22 +6,21 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 exports.handler = async (event, context) => {
   console.log('🔍 Function started');
-  console.log('Environment check:', {
-    hasSupabaseUrl: !!SUPABASE_URL,
-    hasSupabaseKey: !!SUPABASE_ANON_KEY,
-    supabaseUrlPreview: SUPABASE_URL ? SUPABASE_URL.substring(0, 30) + '...' : 'missing'
-  });
   
   try {
-    // Just try to connect to Supabase and count images
-    console.log('🔗 Testing Supabase connection...');
+    // Get portfolio images from database
+    console.log('🔗 Getting portfolio from database...');
     
-    const response = await supabaseRequest('GET', '/rest/v1/portfolio_images?select=id&limit=5');
-    console.log('📊 Response status:', response.status);
+    const response = await supabaseRequest('GET', '/rest/v1/portfolio_images?select=*&order=project,tool,name&limit=20');
+    const data = await response.json();
     
-    if (response.status === 200) {
-      const data = await response.json();
-      console.log('✅ Success! Found images:', data.length);
+    console.log('📊 Database response:', {
+      status: response.statusCode,
+      imageCount: data ? data.length : 0
+    });
+    
+    if (data && Array.isArray(data) && data.length > 0) {
+      console.log('✅ Successfully loaded images from database');
       
       return {
         statusCode: 200,
@@ -31,14 +30,24 @@ exports.handler = async (event, context) => {
         },
         body: JSON.stringify({
           success: true,
-          message: `Database connected! Found ${data.length} images`,
-          sampleIds: data.map(img => img.id),
+          images: data,
+          batch: {
+            current: 0,
+            total: 1,
+            hasMore: false,
+            nextBatch: null
+          },
+          stats: {
+            totalImages: data.length,
+            batchSize: 20,
+            cached: true,
+            source: 'supabase-database'
+          },
           timestamp: new Date().toISOString()
         })
       };
     } else {
-      const errorText = await response.text();
-      console.error('❌ Database error:', response.status, errorText);
+      console.log('❌ No images found in database');
       
       return {
         statusCode: 200,
@@ -48,8 +57,8 @@ exports.handler = async (event, context) => {
         },
         body: JSON.stringify({
           success: false,
-          message: `Database error: ${response.status}`,
-          error: errorText,
+          message: 'No images found in database',
+          images: [],
           timestamp: new Date().toISOString()
         })
       };
@@ -66,9 +75,9 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify({
         success: false,
-        message: 'Function crashed',
+        message: 'Function error',
         error: error.message,
-        stack: error.stack,
+        images: [],
         timestamp: new Date().toISOString()
       })
     };
@@ -103,11 +112,14 @@ async function supabaseRequest(method, endpoint, data = null) {
       });
       
       res.on('end', () => {
+        // Add statusCode to response object
+        res.statusCode = res.statusCode;
         res.text = () => responseData;
         res.json = () => {
           try {
             return JSON.parse(responseData);
           } catch (e) {
+            console.error('JSON parse error:', e);
             return null;
           }
         };
