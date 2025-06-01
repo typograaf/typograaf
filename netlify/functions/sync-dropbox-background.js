@@ -203,33 +203,45 @@ async function getPortfolioFromDB(requestedBatch = 0) {
     const BATCH_SIZE = 20;
     const offset = requestedBatch * BATCH_SIZE;
     
-    // Get batch of images first
+    console.log(`Getting batch ${requestedBatch} with offset ${offset}`);
+    
+    // Get batch of images with proper error handling
     const response = await supabaseRequest('GET', 
       `/rest/v1/portfolio_images?select=*&order=project,tool,name&limit=${BATCH_SIZE}&offset=${offset}`
     );
     
     if (response.status !== 200) {
-      throw new Error('Failed to fetch from database');
+      const errorText = await response.text();
+      console.error(`Failed to fetch images: ${response.status} - ${errorText}`);
+      throw new Error(`Database fetch failed: ${response.status}`);
     }
     
     const images = await response.json();
-    console.log(`Fetched ${images.length} images for batch ${requestedBatch}`);
+    console.log(`Successfully fetched ${images.length} images for batch ${requestedBatch}`);
     
-    // Get total count using a simpler method
-    const countResponse = await supabaseRequest('GET', '/rest/v1/portfolio_images?select=id');
-    let totalImages = 0;
+    // For total count, use a simple approach - if we got a full batch, there might be more
+    let totalImages = images.length;
+    let hasMore = images.length === BATCH_SIZE;
     
-    if (countResponse.status === 200) {
-      const allData = await countResponse.json();
-      totalImages = allData.length;
-      console.log(`Total images in DB: ${totalImages} (actual count from all IDs)`);
-    } else {
-      console.error('Failed to get count, using batch size');
-      totalImages = images.length; // Fallback
+    // Only try to get exact count if it's the first batch and we got results
+    if (requestedBatch === 0 && images.length > 0) {
+      try {
+        // Get count by trying a large offset
+        const countCheck = await supabaseRequest('GET', 
+          `/rest/v1/portfolio_images?select=id&limit=1000`
+        );
+        if (countCheck.status === 200) {
+          const allIds = await countCheck.json();
+          totalImages = allIds.length;
+          hasMore = requestedBatch < Math.ceil(totalImages / BATCH_SIZE) - 1;
+          console.log(`Accurate total count: ${totalImages} images`);
+        }
+      } catch (countError) {
+        console.log('Count check failed, using batch-based estimation');
+      }
     }
     
     const totalBatches = Math.ceil(totalImages / BATCH_SIZE);
-    const hasMore = requestedBatch < totalBatches - 1;
     
     return {
       statusCode: 200,
@@ -258,7 +270,27 @@ async function getPortfolioFromDB(requestedBatch = 0) {
     
   } catch (error) {
     console.error('Error getting portfolio from DB:', error);
-    throw error;
+    
+    // Return a proper error response
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({
+        success: false,
+        error: error.message,
+        images: [],
+        batch: {
+          current: requestedBatch,
+          total: 0,
+          hasMore: false,
+          nextBatch: null
+        },
+        timestamp: new Date().toISOString()
+      })
+    };
   }
 }
 
