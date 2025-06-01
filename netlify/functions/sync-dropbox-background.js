@@ -1,13 +1,17 @@
 exports.handler = async (event, context) => {
+  console.log('=== FUNCTION START ===');
+  
   try {
-    console.log('Function started');
-    
     // Check environment variables
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_ANON_KEY;
     
+    console.log('Environment check:');
+    console.log('- SUPABASE_URL exists:', !!supabaseUrl);
+    console.log('- SUPABASE_ANON_KEY exists:', !!supabaseKey);
+    
     if (!supabaseUrl || !supabaseKey) {
-      console.error('Missing environment variables');
+      console.log('=== MISSING ENVIRONMENT VARIABLES ===');
       return {
         statusCode: 500,
         headers: {
@@ -16,14 +20,19 @@ exports.handler = async (event, context) => {
         },
         body: JSON.stringify({
           success: false,
-          error: 'Missing Supabase configuration'
+          error: 'Missing Supabase configuration',
+          debug: {
+            hasUrl: !!supabaseUrl,
+            hasKey: !!supabaseKey
+          }
         })
       };
     }
     
-    console.log('Fetching from Supabase...');
+    console.log('=== CALLING SUPABASE ===');
+    console.log('URL:', supabaseUrl.substring(0, 30) + '...');
     
-    // Use fetch API instead of Supabase client
+    // Call Supabase
     const response = await fetch(`${supabaseUrl}/rest/v1/portfolio_images?select=*&order=modified.desc`, {
       headers: {
         'apikey': supabaseKey,
@@ -32,9 +41,15 @@ exports.handler = async (event, context) => {
       }
     });
     
+    console.log('Supabase response status:', response.status);
+    console.log('Supabase response ok:', response.ok);
+    
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Supabase API error:', response.status, errorText);
+      console.error('=== SUPABASE ERROR ===');
+      console.error('Status:', response.status);
+      console.error('Error:', errorText);
+      
       return {
         statusCode: 500,
         headers: {
@@ -43,28 +58,29 @@ exports.handler = async (event, context) => {
         },
         body: JSON.stringify({
           success: false,
-          error: `Supabase API error: ${response.status} ${response.statusText}`
+          error: `Supabase API error: ${response.status}`,
+          details: errorText
         })
       };
     }
     
     const images = await response.json();
-    console.log(`Found ${images.length} images`);
+    console.log('=== SUPABASE SUCCESS ===');
+    console.log('Images found:', images.length);
     
-    // Calculate statistics
+    // Handle empty database gracefully
     const stats = {
       totalImages: images.length,
       imagesWithUrls: images.filter(img => img.image_url).length,
       imagesWithoutUrls: images.filter(img => !img.image_url).length,
-      source: 'database'
+      source: 'database',
+      isEmpty: images.length === 0
     };
     
-    // Get unique projects
     const projects = [...new Set(images.map(img => img.project))].filter(Boolean);
     
-    console.log('Returning response');
+    console.log('=== RETURNING SUCCESS RESPONSE ===');
     
-    // Return successful response
     return {
       statusCode: 200,
       headers: {
@@ -75,15 +91,18 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify({
         success: true,
-        images: images,
+        images: images, // Will be empty array if no data
         stats: stats,
         projects: projects,
+        message: images.length === 0 ? 'Database is empty - no images found' : `Found ${images.length} images`,
         timestamp: new Date().toISOString()
       })
     };
     
   } catch (error) {
-    console.error('Function error:', error);
+    console.error('=== FUNCTION ERROR ===');
+    console.error('Error:', error.message);
+    console.error('Stack:', error.stack);
     
     return {
       statusCode: 500,
@@ -94,7 +113,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: false,
         error: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        timestamp: new Date().toISOString()
       })
     };
   }
