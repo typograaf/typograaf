@@ -88,66 +88,15 @@
             100% { transform: rotate(360deg); }
         }
 
-        .loading-progress {
+        #loadingText {
             margin-top: 10px;
+            font-size: 14px;
+        }
+
+        #loadingDetails {
+            margin-top: 5px;
             font-size: 12px;
             color: #666;
-        }
-
-        #status-indicator {
-            position: fixed;
-            top: 30px;
-            right: 30px;
-            background: rgba(255,255,255,0.9);
-            padding: 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            color: #666;
-            z-index: 100;
-        }
-
-        .status-online {
-            color: #4CAF50;
-        }
-
-        .status-loading {
-            color: #FF9800;
-        }
-
-        .status-syncing {
-            color: #2196F3;
-        }
-
-        #sync-controls {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: rgba(255,255,255,0.9);
-            padding: 15px;
-            border-radius: 4px;
-            z-index: 100;
-            font-size: 12px;
-        }
-
-        .sync-button {
-            display: inline-block;
-            padding: 8px 12px;
-            margin: 2px;
-            background: #2196F3;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .sync-button:hover {
-            background: #1976D2;
-        }
-
-        .sync-button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
         }
     </style>
 </head>
@@ -156,8 +105,8 @@
     
     <div id="loading">
         <div class="loading-spinner"></div>
-        <div id="loading-text">Loading portfolio from database...</div>
-        <div class="loading-progress" id="loading-progress">Connecting...</div>
+        <div id="loadingText">Loading portfolio...</div>
+        <div id="loadingDetails">Getting images from database</div>
     </div>
     
     <div id="overlay" style="display: none;">
@@ -167,29 +116,16 @@
         <div>Level: <span id="currentLevel">1</span>/<span id="totalLevels">1</span></div>
         <div>Organization: <span id="currentDimension">Projects</span></div>
         <div style="margin-top: 10px; font-size: 11px; color: #666;">
-            Images: <span id="imageCount">0</span> • Last sync: <span id="lastSync">-</span>
+            Images: <span id="imageCount">0</span> • Source: <span id="dataSource">-</span>
         </div>
     </div>
     
     <div id="dimensions" style="display: none;">
         <div style="margin-bottom: 8px; font-weight: bold;">Organization:</div>
-        <div class="dimension-button active" data-dimension="projects">Projects</div>
+        <div class="dimension-button active" data-dimension="project">Projects</div>
         <div class="dimension-button" data-dimension="time">Timeline</div>
-        <div class="dimension-button" data-dimension="tools">Tools</div>
+        <div class="dimension-button" data-dimension="tool">Tools</div>
         <div class="dimension-button" data-dimension="type">Content Type</div>
-    </div>
-
-    <div id="status-indicator" style="display: none;">
-        <span id="status-text">Ready</span>
-    </div>
-
-    <div id="sync-controls" style="display: none;">
-        <div style="margin-bottom: 8px; font-weight: bold;">Sync:</div>
-        <button class="sync-button" id="auto-sync-btn" onclick="startAutoSync()">Auto Sync</button>
-        <button class="sync-button" id="manual-sync-btn" onclick="manualSync()">Manual Sync</button>
-        <div style="margin-top: 8px; font-size: 10px; color: #666;">
-            Progress: <span id="sync-progress">Not started</span>
-        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -199,7 +135,7 @@
         let levels = [];
         let currentLevel = 0;
         let targetLevel = 0;
-        let currentDimension = 'projects';
+        let currentDimension = 'project';
         let isTransitioning = false;
         let focusedImage = null;
         let cameraZ = 0;
@@ -212,11 +148,9 @@
         let portfolioData = [];
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
-        let isLoadingImages = false;
-        let isSyncing = false;
 
         async function init() {
-            // Load portfolio data from Supabase
+            // Load portfolio data from the background sync API
             await loadPortfolioData();
             
             // Scene
@@ -244,7 +178,7 @@
             createImages();
             
             // Organize into levels
-            organizeByDimension('projects');
+            organizeByDimension('project');
             
             // Events
             setupEvents();
@@ -253,18 +187,6 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('overlay').style.display = 'block';
             document.getElementById('dimensions').style.display = 'block';
-            document.getElementById('status-indicator').style.display = 'block';
-            document.getElementById('sync-controls').style.display = 'block';
-            
-            // Update UI
-            document.getElementById('imageCount').textContent = portfolioData.length;
-            document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
-            updateStatus('Ready', 'status-online');
-            
-            // Auto-sync if no images found
-            if (portfolioData.length === 0) {
-                startAutoSync();
-            }
             
             // Start
             animate();
@@ -272,172 +194,80 @@
 
         async function loadPortfolioData() {
             try {
-                console.log('Loading portfolio data from Supabase...');
-                document.getElementById('loading-progress').textContent = 'Loading from database...';
+                console.log('Loading portfolio data from database...');
+                document.getElementById('loadingDetails').textContent = 'Checking database...';
                 
-                let allImages = [];
-                let currentBatch = 0;
-                let hasMore = true;
-
-                // Load all batches from Supabase
-                while (hasMore) {
-                    console.log(`Loading batch ${currentBatch}...`);
-                    document.getElementById('loading-progress').textContent = `Loading batch ${currentBatch + 1}...`;
+                // Try to load from database first (fast)
+                let response = await fetch('/.netlify/functions/sync-dropbox-background?batch=0');
+                let data = await response.json();
+                
+                if (data.success && data.images && data.images.length > 0) {
+                    portfolioData = data.images;
+                    console.log(`✅ Loaded ${portfolioData.length} images from database`);
+                    document.getElementById('dataSource').textContent = 'Database (cached)';
                     
-                    const response = await fetch(`/.netlify/functions/sync-dropbox-background?batch=${currentBatch}`);
-                    const data = await response.json();
+                    // Load more batches if available
+                    if (data.batch && data.batch.hasMore) {
+                        await loadMoreBatches(data.batch.nextBatch);
+                    }
+                } else {
+                    // If database is empty, trigger a sync
+                    console.log('Database empty, triggering sync...');
+                    document.getElementById('loadingDetails').textContent = 'Syncing from Dropbox...';
                     
-                    if (data.success) {
-                        // Map database field names to frontend field names
-                        const mappedImages = data.images.map(img => ({
-                            id: img.id,
-                            name: img.name,
-                            project: img.project,
-                            tool: img.tool,
-                            type: img.type,
-                            time: img.time,
-                            aspectRatio: img.aspectratio || 4/3,
-                            path: img.path,
-                            size: img.size,
-                            modified: img.modified,
-                            extension: img.extension,
-                            imageUrl: img.image_url, // Pre-fetched URL from database
-                            scanned: img.scanned
-                        }));
-
-                        allImages = allImages.concat(mappedImages);
-                        hasMore = data.batch.hasMore;
-                        currentBatch = data.batch.nextBatch || currentBatch + 1;
-                        
-                        console.log(`Batch ${currentBatch}: Loaded ${mappedImages.length} images (${allImages.length} total)`);
-                        document.getElementById('loading-progress').textContent = `Loaded ${allImages.length} images...`;
+                    response = await fetch('/.netlify/functions/sync-dropbox-background?refresh=true');
+                    data = await response.json();
+                    
+                    if (data.success && data.images) {
+                        portfolioData = data.images;
+                        console.log(`✅ Synced ${portfolioData.length} images from Dropbox`);
+                        document.getElementById('dataSource').textContent = 'Dropbox (fresh sync)';
                     } else {
-                        console.error('Failed to load batch:', data.error);
-                        hasMore = false;
+                        throw new Error('Failed to load from both database and Dropbox');
                     }
                 }
-
-                portfolioData = allImages;
-                console.log(`Successfully loaded ${portfolioData.length} images from database`);
-                document.getElementById('loading-progress').textContent = `Found ${portfolioData.length} images total`;
+                
+                // Update UI
+                document.getElementById('imageCount').textContent = portfolioData.length;
                 
             } catch (error) {
                 console.error('Error loading portfolio:', error);
-                document.getElementById('loading-progress').textContent = 'Error loading - will trigger sync';
-                portfolioData = [];
+                document.getElementById('loadingDetails').textContent = 'Loading demo data...';
+                portfolioData = getDemoData();
+                document.getElementById('dataSource').textContent = 'Demo data';
+                document.getElementById('imageCount').textContent = portfolioData.length;
             }
         }
 
-        async function startAutoSync() {
-            if (isSyncing) return;
-            
-            isSyncing = true;
-            updateStatus('Auto-syncing...', 'status-syncing');
-            document.getElementById('auto-sync-btn').disabled = true;
-            document.getElementById('manual-sync-btn').disabled = true;
-            
+        async function loadMoreBatches(nextBatch) {
             try {
-                let syncRound = 1;
-                let previousImageCount = portfolioData.length;
-                
-                while (syncRound <= 10) { // Max 10 rounds to avoid infinite loop
-                    document.getElementById('sync-progress').textContent = `Round ${syncRound}...`;
-                    
-                    console.log(`Auto-sync round ${syncRound}`);
-                    const response = await fetch('/.netlify/functions/sync-dropbox-background?refresh=true');
+                while (nextBatch !== null) {
+                    console.log(`Loading batch ${nextBatch}...`);
+                    const response = await fetch(`/.netlify/functions/sync-dropbox-background?batch=${nextBatch}`);
                     const data = await response.json();
                     
                     if (data.success && data.images) {
-                        const newImageCount = data.stats?.totalImages || data.images.length;
+                        portfolioData = portfolioData.concat(data.images);
+                        nextBatch = data.batch.hasMore ? data.batch.nextBatch : null;
                         
-                        console.log(`Round ${syncRound}: ${newImageCount} images in database`);
-                        
-                        // If no new images were added, sync is probably complete
-                        if (newImageCount === previousImageCount && newImageCount > 0) {
-                            console.log('Sync appears complete - no new images added');
-                            break;
-                        }
-                        
-                        previousImageCount = newImageCount;
-                        
-                        // Update display if we got new images
-                        if (newImageCount > portfolioData.length) {
-                            await loadPortfolioData();
-                            createImages();
-                            organizeByDimension(currentDimension);
-                            document.getElementById('imageCount').textContent = portfolioData.length;
-                        }
-                    }
-                    
-                    syncRound++;
-                    
-                    // Wait 3 seconds between sync rounds
-                    if (syncRound <= 10) {
-                        await new Promise(resolve => setTimeout(resolve, 3000));
+                        // Update count in real-time
+                        document.getElementById('imageCount').textContent = portfolioData.length;
+                    } else {
+                        break;
                     }
                 }
-                
-                document.getElementById('sync-progress').textContent = `Complete - ${portfolioData.length} images`;
-                updateStatus('Sync complete!', 'status-online');
-                
-                setTimeout(() => {
-                    updateStatus('Ready', 'status-online');
-                }, 3000);
-                
+                console.log(`✅ Total loaded: ${portfolioData.length} images`);
             } catch (error) {
-                console.error('Auto-sync failed:', error);
-                document.getElementById('sync-progress').textContent = 'Sync failed';
-                updateStatus('Sync failed', 'status-error');
-            } finally {
-                isSyncing = false;
-                document.getElementById('auto-sync-btn').disabled = false;
-                document.getElementById('manual-sync-btn').disabled = false;
+                console.error('Error loading additional batches:', error);
             }
         }
 
-        async function manualSync() {
-            if (isSyncing) return;
-            
-            isSyncing = true;
-            updateStatus('Syncing...', 'status-syncing');
-            document.getElementById('manual-sync-btn').disabled = true;
-            document.getElementById('auto-sync-btn').disabled = true;
-            
-            try {
-                document.getElementById('sync-progress').textContent = 'Running...';
-                
-                const response = await fetch('/.netlify/functions/sync-dropbox-background?refresh=true');
-                const data = await response.json();
-                
-                if (data.success) {
-                    await loadPortfolioData();
-                    createImages();
-                    organizeByDimension(currentDimension);
-                    document.getElementById('imageCount').textContent = portfolioData.length;
-                    document.getElementById('sync-progress').textContent = `Updated - ${portfolioData.length} images`;
-                    updateStatus('Sync updated!', 'status-online');
-                    
-                    setTimeout(() => {
-                        updateStatus('Ready', 'status-online');
-                    }, 2000);
-                } else {
-                    throw new Error(data.error || 'Sync failed');
-                }
-            } catch (error) {
-                console.error('Manual sync failed:', error);
-                document.getElementById('sync-progress').textContent = 'Failed';
-                updateStatus('Sync failed', 'status-error');
-            } finally {
-                isSyncing = false;
-                document.getElementById('manual-sync-btn').disabled = false;
-                document.getElementById('auto-sync-btn').disabled = false;
-            }
-        }
-
-        function updateStatus(text, className = '') {
-            const statusElement = document.getElementById('status-text');
-            statusElement.textContent = text;
-            statusElement.className = className;
+        function getDemoData() {
+            return [
+                { name: 'Demo Project 1', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectratio: 16/9, image_url: null },
+                { name: 'Demo Project 2', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectratio: 1, image_url: null },
+                { name: 'Demo Project 3', project: 'Demo Work', tool: 'Blender', type: '3D', time: '2024-Q4', aspectratio: 4/3, image_url: null }
+            ];
         }
 
         function createImages() {
@@ -453,35 +283,74 @@
         }
 
         function createImage(item) {
-            const aspectRatio = item.aspectRatio || 4/3;
+            const aspectRatio = item.aspectratio || 1.33;
             const baseSize = 6;
             const width = baseSize * Math.min(aspectRatio, 2);
             const height = baseSize / Math.max(aspectRatio, 0.5);
             
             let texture;
             
-            if (item.imageUrl) {
-                // Load actual image from Supabase-cached URL
+            if (item.image_url) {
+                // Load actual image from Dropbox
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
                 
                 texture = new THREE.Texture(img);
-                texture.generateMipmaps = false;
-                texture.minFilter = THREE.LinearFilter;
-                texture.magFilter = THREE.LinearFilter;
                 
                 img.onload = function() {
                     texture.needsUpdate = true;
-                    console.log(`✓ Loaded: ${item.name}`);
                 };
                 img.onerror = function() {
-                    console.error('✗ Failed to load:', item.name);
+                    console.error('Failed to load image:', item.image_url);
                 };
-                img.src = item.imageUrl;
+                img.src = item.image_url;
             } else {
                 // Create placeholder texture
-                texture = createPlaceholderTexture(item, aspectRatio);
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512 / aspectRatio;
+                const ctx = canvas.getContext('2d');
+                
+                // Clean background
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Subtle border
+                ctx.strokeStyle = '#e0e0e0';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+                
+                // Text
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                
+                const words = item.name.split(' ');
+                const lineHeight = 20;
+                let y = canvas.height/2 - (words.length > 2 ? lineHeight/2 : 0);
+                
+                if (words.length <= 2) {
+                    ctx.fillText(item.name, canvas.width/2, y);
+                } else {
+                    const midPoint = Math.ceil(words.length / 2);
+                    const firstLine = words.slice(0, midPoint).join(' ');
+                    const secondLine = words.slice(midPoint).join(' ');
+                    
+                    ctx.fillText(firstLine, canvas.width/2, y);
+                    ctx.fillText(secondLine, canvas.width/2, y + lineHeight);
+                }
+                
+                // Category indicator
+                ctx.fillStyle = '#666';
+                ctx.font = '11px Arial';
+                ctx.fillText(`${item.project} • ${item.tool}`, canvas.width/2, canvas.height - 15);
+                
+                texture = new THREE.CanvasTexture(canvas);
             }
+            
+            texture.generateMipmaps = false;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
             
             // Create plane
             const geometry = new THREE.PlaneGeometry(width, height);
@@ -494,54 +363,6 @@
             mesh.userData = item;
             
             return mesh;
-        }
-
-        function createPlaceholderTexture(item, aspectRatio) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 512;
-            canvas.height = 512 / aspectRatio;
-            const ctx = canvas.getContext('2d');
-            
-            // Clean background
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Subtle border
-            ctx.strokeStyle = '#e0e0e0';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(0, 0, canvas.width, canvas.height);
-            
-            // Text
-            ctx.fillStyle = '#333';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'center';
-            
-            const words = item.name.split(' ');
-            const lineHeight = 20;
-            let y = canvas.height/2 - (words.length > 2 ? lineHeight/2 : 0);
-            
-            if (words.length <= 2) {
-                ctx.fillText(item.name, canvas.width/2, y);
-            } else {
-                const midPoint = Math.ceil(words.length / 2);
-                const firstLine = words.slice(0, midPoint).join(' ');
-                const secondLine = words.slice(midPoint).join(' ');
-                
-                ctx.fillText(firstLine, canvas.width/2, y);
-                ctx.fillText(secondLine, canvas.width/2, y + lineHeight);
-            }
-            
-            // Category indicator
-            ctx.fillStyle = '#666';
-            ctx.font = '11px Arial';
-            ctx.fillText(`${item.project} • ${item.tool}`, canvas.width/2, canvas.height - 15);
-            
-            const texture = new THREE.CanvasTexture(canvas);
-            texture.generateMipmaps = false;
-            texture.minFilter = THREE.LinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            
-            return texture;
         }
 
         function organizeByDimension(dimension) {
@@ -712,13 +533,6 @@
                     case 'Escape':
                         if (focusedImage) {
                             focusedImage = null;
-                        }
-                        break;
-                    case 's':
-                    case 'S':
-                        if (e.ctrlKey || e.metaKey) {
-                            e.preventDefault();
-                            startAutoSync();
                         }
                         break;
                 }
