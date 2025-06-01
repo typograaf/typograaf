@@ -3,38 +3,71 @@ const https = require('https');
 
 const DROPBOX_ACCESS_TOKEN = process.env.DROPBOX_ACCESS_TOKEN;
 const PORTFOLIO_PATH = '/AboutContact/Website/Portfolio';
-const MAX_IMAGES = 50; // Limit to prevent timeout
-const TIMEOUT_BUFFER = 8000; // Leave 2 seconds buffer
+const BATCH_SIZE = 20; // Process 20 images per request
+const TIMEOUT_BUFFER = 8000; // 8 seconds max processing
+
+// In-memory cache (will reset on cold starts)
+let portfolioCache = null;
+let lastSyncTime = null;
+let isProcessing = false;
 
 exports.handler = async (event, context) => {
   const startTime = Date.now();
   
   try {
-    console.log('Starting Dropbox sync...');
+    console.log('Dropbox sync request received');
     
     if (!DROPBOX_ACCESS_TOKEN) {
       throw new Error('DROPBOX_ACCESS_TOKEN environment variable not set');
     }
     
+    // Parse query parameters
+    const queryParams = event.queryStringParameters || {};
+    const requestedBatch = parseInt(queryParams.batch) || 0;
+    const forceRefresh = queryParams.refresh === 'true';
+    
+    // If we have cached data and it's recent (less than 1 hour old), use it
+    const cacheMaxAge = 60 * 60 * 1000; // 1 hour
+    const isCacheValid = portfolioCache && lastSyncTime && 
+                        (Date.now() - lastSyncTime < cacheMaxAge) && !forceRefresh;
+    
+    if (isCacheValid) {
+      console.log('Using cached portfolio data');
+      return returnBatchedResponse(portfolioCache, requestedBatch, startTime);
+    }
+    
+    // If already processing, return current progress
+    if (isProcessing) {
+      return {
+        statusCode: 202, // Accepted, still processing
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({
+          success: false,
+          message: 'Still processing portfolio. Please try again in a few seconds.',
+          processing: true,
+          timestamp: new Date().toISOString()
+        })
+      };
+    }
+    
+    // Start fresh scan
+    isProcessing = true;
+    console.log('Starting fresh portfolio scan...');
+    
     const portfolioData = await scanPortfolioStructure(startTime);
     
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
-      },
-      body: JSON.stringify({
-        success: true,
-        images: portfolioData,
-        timestamp: new Date().toISOString(),
-        count: portfolioData.length,
-        message: portfolioData.length >= MAX_IMAGES ? `Limited to ${MAX_IMAGES} images to prevent timeout` : `Found ${portfolioData.length} images`
-      })
-    };
+    // Cache the results
+    portfolioCache = portfolioData;
+    lastSyncTime = Date.now();
+    isProcessing = false;
+    
+    return returnBatchedResponse(portfolioData, requestedBatch, startTime);
+    
   } catch (error) {
+    isProcessing = false;
     console.error('Sync error:', error);
     return {
       statusCode: 500,
@@ -50,6 +83,43 @@ exports.handler = async (event, context) => {
     };
   }
 };
+
+function returnBatchedResponse(portfolioData, requestedBatch, startTime) {
+  const totalImages = portfolioData.length;
+  const startIndex = requestedBatch * BATCH_SIZE;
+  const endIndex = Math.min(startIndex + BATCH_SIZE, totalImages);
+  const batchData = portfolioData.slice(startIndex, endIndex);
+  
+  const totalBatches = Math.ceil(totalImages / BATCH_SIZE);
+  const hasMore = requestedBatch < totalBatches - 1;
+  
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+    },
+    body: JSON.stringify({
+      success: true,
+      images: batchData,
+      batch: {
+        current: requestedBatch,
+        total: totalBatches,
+        hasMore: hasMore,
+        nextBatch: hasMore ? requestedBatch + 1 : null
+      },
+      stats: {
+        totalImages: totalImages,
+        batchSize: BATCH_SIZE,
+        processingTime: Date.now() - startTime
+      },
+      timestamp: new Date().toISOString(),
+      cached: lastSyncTime ? new Date(lastSyncTime).toISOString() : null
+    })
+  };
+}
 
 async function scanPortfolioStructure(startTime) {
   const portfolioData = [];
@@ -71,55 +141,30 @@ async function scanPortfolioStructure(startTime) {
         
         console.log('Processing project:', projectName);
         
-        // Get tool folders within project
-        const toolFolders = await listDropboxFolder(projectPath);
+        // Check if this is a direct image folder or has subfolders
+        const contents = await listDropboxFolder(projectPath);
+        const hasImageFiles = contents.some(item => 
+          item['.tag'] === 'file' && isImageFile(item.name)
+        );
+        const hasSubFolders = contents.some(item => 
+          item['.tag'] === 'folder'
+        );
         
-        for (const toolFolder of toolFolders) {
-          // Check timeout and image limit
-          if (Date.now() - startTime > TIMEOUT_BUFFER || portfolioData.length >= MAX_IMAGES) {
-            console.log('Stopping due to timeout or image limit');
-            break;
-          }
-          
-          if (toolFolder['.tag'] === 'folder') {
-            const toolName = toolFolder.name;
-            const toolPath = `${projectPath}/${toolName}`;
+        if (hasImageFiles && !hasSubFolders) {
+          // Direct image folder (no tool subfolders)
+          await processImageFolder(contents, projectName, 'Mixed', portfolioData, startTime);
+        } else if (hasSubFolders) {
+          // Has tool subfolders
+          for (const toolFolder of contents) {
+            if (Date.now() - startTime > TIMEOUT_BUFFER) break;
             
-            console.log('Processing tool folder:', `${projectName}/${toolName}`);
-            
-            // Get images in tool folder
-            const files = await listDropboxFolder(toolPath);
-            
-            for (const file of files) {
-              // Check limits
-              if (Date.now() - startTime > TIMEOUT_BUFFER || portfolioData.length >= MAX_IMAGES) {
-                break;
-              }
+            if (toolFolder['.tag'] === 'folder') {
+              const toolName = toolFolder.name;
+              const toolPath = `${projectPath}/${toolName}`;
               
-              if (file['.tag'] === 'file' && isImageFile(file.name)) {
-                console.log('Processing image:', file.name);
-                
-                try {
-                  // Skip getting image URL for now to speed up - just store metadata
-                  const imageData = {
-                    name: file.name.replace(/\.[^/.]+$/, ""),
-                    project: projectName,
-                    tool: toolName,
-                    type: guessTypeFromName(file.name),
-                    time: extractTimeFromFile(file),
-                    aspectRatio: await guessAspectRatio(file.name),
-                    path: file.path_lower,
-                    size: file.size,
-                    modified: file.server_modified,
-                    // We'll generate imageUrl on demand later
-                    needsUrl: true
-                  };
-                  
-                  portfolioData.push(imageData);
-                } catch (imageError) {
-                  console.error('Error processing image:', file.name, imageError.message);
-                }
-              }
+              console.log('Processing tool folder:', `${projectName}/${toolName}`);
+              const files = await listDropboxFolder(toolPath);
+              await processImageFolder(files, projectName, toolName, portfolioData, startTime);
             }
           }
         }
@@ -132,6 +177,38 @@ async function scanPortfolioStructure(startTime) {
   
   console.log(`Found ${portfolioData.length} images total`);
   return portfolioData;
+}
+
+async function processImageFolder(files, projectName, toolName, portfolioData, startTime) {
+  for (const file of files) {
+    if (Date.now() - startTime > TIMEOUT_BUFFER) {
+      console.log('Timeout reached in processImageFolder');
+      break;
+    }
+    
+    if (file['.tag'] === 'file' && isImageFile(file.name)) {
+      try {
+        const imageData = {
+          id: `${projectName}-${toolName}-${file.name}`.replace(/[^a-zA-Z0-9-]/g, '-'),
+          name: file.name.replace(/\.[^/.]+$/, ""),
+          project: projectName,
+          tool: toolName,
+          type: guessTypeFromName(file.name),
+          time: extractTimeFromFile(file),
+          aspectRatio: guessAspectRatio(file.name),
+          path: file.path_lower,
+          size: file.size,
+          modified: file.server_modified,
+          // Generate image URL on demand to save time
+          urlEndpoint: `/.netlify/functions/get-image?path=${encodeURIComponent(file.path_lower)}`
+        };
+        
+        portfolioData.push(imageData);
+      } catch (imageError) {
+        console.error('Error processing image:', file.name, imageError.message);
+      }
+    }
+  }
 }
 
 async function listDropboxFolder(path) {
@@ -200,7 +277,7 @@ function guessTypeFromName(filename) {
   return 'Design';
 }
 
-async function guessAspectRatio(filename) {
+function guessAspectRatio(filename) {
   const lower = filename.toLowerCase();
   if (lower.includes('portrait') || lower.includes('vertical')) return 3/4;
   if (lower.includes('square') || lower.includes('1x1')) return 1;
