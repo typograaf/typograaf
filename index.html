@@ -197,16 +197,23 @@
                 console.log('Loading portfolio data from database...');
                 document.getElementById('loadingDetails').textContent = 'Checking database...';
                 
-                // Try the old API first (known to work)
-                let response = await fetch('/.netlify/functions/sync-dropbox');
+                // Call the CORRECT API endpoint
+                let response = await fetch('/.netlify/functions/sync-dropbox-background');
+                
+                // Check if response is ok
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                // Parse JSON
                 let data = await response.json();
                 
                 if (data.success && data.images && data.images.length > 0) {
                     portfolioData = data.images;
-                    console.log(`✅ Loaded ${portfolioData.length} images from Dropbox`);
-                    document.getElementById('dataSource').textContent = 'Dropbox (direct)';
+                    console.log(`✅ Loaded ${portfolioData.length} images from database`);
+                    document.getElementById('dataSource').textContent = 'Database';
                 } else {
-                    throw new Error('Failed to load from Dropbox API');
+                    throw new Error(data.message || 'No images found in database');
                 }
                 
                 // Update UI
@@ -218,29 +225,6 @@
                 portfolioData = getDemoData();
                 document.getElementById('dataSource').textContent = 'Demo data';
                 document.getElementById('imageCount').textContent = portfolioData.length;
-            }
-        }
-
-        async function loadMoreBatches(nextBatch) {
-            try {
-                while (nextBatch !== null) {
-                    console.log(`Loading batch ${nextBatch}...`);
-                    const response = await fetch(`/.netlify/functions/sync-dropbox-background?batch=${nextBatch}`);
-                    const data = await response.json();
-                    
-                    if (data.success && data.images) {
-                        portfolioData = portfolioData.concat(data.images);
-                        nextBatch = data.batch.hasMore ? data.batch.nextBatch : null;
-                        
-                        // Update count in real-time
-                        document.getElementById('imageCount').textContent = portfolioData.length;
-                    } else {
-                        break;
-                    }
-                }
-                console.log(`✅ Total loaded: ${portfolioData.length} images`);
-            } catch (error) {
-                console.error('Error loading additional batches:', error);
             }
         }
 
