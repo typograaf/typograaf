@@ -197,34 +197,16 @@
                 console.log('Loading portfolio data from database...');
                 document.getElementById('loadingDetails').textContent = 'Checking database...';
                 
-                // Try to load from database first (fast)
-                let response = await fetch('/.netlify/functions/sync-dropbox-background?batch=0');
+                // Try the old API first (known to work)
+                let response = await fetch('/.netlify/functions/sync-dropbox');
                 let data = await response.json();
                 
                 if (data.success && data.images && data.images.length > 0) {
                     portfolioData = data.images;
-                    console.log(`✅ Loaded ${portfolioData.length} images from database`);
-                    document.getElementById('dataSource').textContent = 'Database (cached)';
-                    
-                    // Load more batches if available
-                    if (data.batch && data.batch.hasMore) {
-                        await loadMoreBatches(data.batch.nextBatch);
-                    }
+                    console.log(`✅ Loaded ${portfolioData.length} images from Dropbox`);
+                    document.getElementById('dataSource').textContent = 'Dropbox (direct)';
                 } else {
-                    // If database is empty, trigger a sync
-                    console.log('Database empty, triggering sync...');
-                    document.getElementById('loadingDetails').textContent = 'Syncing from Dropbox...';
-                    
-                    response = await fetch('/.netlify/functions/sync-dropbox-background?refresh=true');
-                    data = await response.json();
-                    
-                    if (data.success && data.images) {
-                        portfolioData = data.images;
-                        console.log(`✅ Synced ${portfolioData.length} images from Dropbox`);
-                        document.getElementById('dataSource').textContent = 'Dropbox (fresh sync)';
-                    } else {
-                        throw new Error('Failed to load from both database and Dropbox');
-                    }
+                    throw new Error('Failed to load from Dropbox API');
                 }
                 
                 // Update UI
@@ -264,9 +246,9 @@
 
         function getDemoData() {
             return [
-                { name: 'Demo Project 1', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectratio: 16/9, image_url: null },
-                { name: 'Demo Project 2', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectratio: 1, image_url: null },
-                { name: 'Demo Project 3', project: 'Demo Work', tool: 'Blender', type: '3D', time: '2024-Q4', aspectratio: 4/3, image_url: null }
+                { name: 'Demo Project 1', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectratio: 16/9, imageUrl: null },
+                { name: 'Demo Project 2', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectratio: 1, imageUrl: null },
+                { name: 'Demo Project 3', project: 'Demo Work', tool: 'Blender', type: '3D', time: '2024-Q4', aspectratio: 4/3, imageUrl: null }
             ];
         }
 
@@ -290,7 +272,7 @@
             
             let texture;
             
-            if (item.image_url) {
+            if (item.imageUrl || item.image_url) {
                 // Load actual image from Dropbox
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
@@ -301,9 +283,9 @@
                     texture.needsUpdate = true;
                 };
                 img.onerror = function() {
-                    console.error('Failed to load image:', item.image_url);
+                    console.error('Failed to load image:', item.imageUrl || item.image_url);
                 };
-                img.src = item.image_url;
+                img.src = item.imageUrl || item.image_url;
             } else {
                 // Create placeholder texture
                 const canvas = document.createElement('canvas');
