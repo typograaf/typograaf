@@ -87,6 +87,12 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .loading-progress {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -94,7 +100,8 @@
     
     <div id="loading">
         <div class="loading-spinner"></div>
-        <div>Loading portfolio from Dropbox...</div>
+        <div id="loading-text">Loading portfolio from Dropbox...</div>
+        <div class="loading-progress" id="loading-progress">Initializing...</div>
     </div>
     
     <div id="overlay" style="display: none;">
@@ -136,6 +143,10 @@
         let portfolioData = [];
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
+        let isLoadingImages = false;
+
+        // Image URL cache
+        let imageUrlCache = new Map();
 
         async function init() {
             // Load portfolio data from Dropbox
@@ -180,6 +191,9 @@
             document.getElementById('imageCount').textContent = portfolioData.length;
             document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
             
+            // Start loading actual images
+            loadImageUrls();
+            
             // Start
             animate();
         }
@@ -187,29 +201,114 @@
         async function loadPortfolioData() {
             try {
                 console.log('Loading portfolio data...');
+                document.getElementById('loading-progress').textContent = 'Fetching portfolio data...';
                 
-                // Call our Netlify function to get portfolio data
-                const response = await fetch('/.netlify/functions/sync-dropbox');
-                const data = await response.json();
-                
-                if (data.success) {
-                    portfolioData = data.images;
-                    console.log(`Loaded ${portfolioData.length} images from Dropbox`);
-                } else {
-                    console.error('Failed to load portfolio data:', data.error);
-                    portfolioData = getDemoData();
+                let allImages = [];
+                let currentBatch = 0;
+                let hasMore = true;
+
+                // Load all batches
+                while (hasMore) {
+                    console.log(`Loading batch ${currentBatch}...`);
+                    document.getElementById('loading-progress').textContent = `Loading batch ${currentBatch + 1}...`;
+                    
+                    const response = await fetch(`/.netlify/functions/sync-dropbox?batch=${currentBatch}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        allImages = allImages.concat(data.images);
+                        hasMore = data.batch.hasMore;
+                        currentBatch = data.batch.nextBatch || currentBatch + 1;
+                        
+                        console.log(`Batch ${currentBatch}: Loaded ${data.images.length} images (${allImages.length} total)`);
+                        document.getElementById('loading-progress').textContent = `Loaded ${allImages.length} images...`;
+                    } else {
+                        console.error('Failed to load batch:', data.error);
+                        hasMore = false;
+                    }
                 }
+
+                portfolioData = allImages;
+                console.log(`Successfully loaded ${portfolioData.length} images from Dropbox`);
+                document.getElementById('loading-progress').textContent = `Found ${portfolioData.length} images total`;
+                
             } catch (error) {
                 console.error('Error loading portfolio:', error);
+                document.getElementById('loading-progress').textContent = 'Error loading - using demo data';
                 portfolioData = getDemoData();
             }
         }
 
+        async function loadImageUrls() {
+            if (isLoadingImages) return;
+            isLoadingImages = true;
+
+            console.log('Starting to load image URLs...');
+            
+            for (let i = 0; i < portfolioData.length; i++) {
+                const item = portfolioData[i];
+                
+                if (item.urlEndpoint && !imageUrlCache.has(item.path)) {
+                    try {
+                        console.log(`Loading URL for: ${item.name}`);
+                        const response = await fetch(item.urlEndpoint);
+                        const urlData = await response.json();
+                        
+                        if (urlData.success && urlData.imageUrl) {
+                            imageUrlCache.set(item.path, urlData.imageUrl);
+                            
+                            // Update the corresponding image in the scene
+                            const imageObj = images[i];
+                            if (imageObj) {
+                                updateImageTexture(imageObj, urlData.imageUrl, item);
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`Failed to load URL for ${item.name}:`, error);
+                    }
+                    
+                    // Small delay to prevent overwhelming the API
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+            
+            isLoadingImages = false;
+            console.log('Finished loading image URLs');
+        }
+
+        function updateImageTexture(imageObj, imageUrl, item) {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            const newTexture = new THREE.Texture(img);
+            newTexture.generateMipmaps = false;
+            newTexture.minFilter = THREE.LinearFilter;
+            newTexture.magFilter = THREE.LinearFilter;
+            
+            img.onload = function() {
+                newTexture.needsUpdate = true;
+                
+                // Replace the material
+                imageObj.material.dispose(); // Clean up old material
+                imageObj.material.map.dispose(); // Clean up old texture
+                imageObj.material.map = newTexture;
+                imageObj.material.needsUpdate = true;
+                
+                console.log(`Updated texture for: ${item.name}`);
+            };
+            
+            img.onerror = function() {
+                console.error('Failed to load image:', imageUrl);
+            };
+            
+            img.src = imageUrl;
+        }
+
         function getDemoData() {
             return [
-                { name: 'Demo Project 1', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectRatio: 16/9, imageUrl: null },
-                { name: 'Demo Project 2', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectRatio: 1, imageUrl: null },
-                { name: 'Demo Project 3', project: 'Demo Work', tool: 'Blender', type: '3D', time: '2024-Q4', aspectRatio: 4/3, imageUrl: null }
+                { name: 'Demo Project 1', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectRatio: 16/9, urlEndpoint: null },
+                { name: 'Demo Project 2', project: 'Demo Work', tool: 'Figma', type: 'Design', time: '2024-Q4', aspectRatio: 1, urlEndpoint: null },
+                { name: 'Demo Project 3', project: 'Demo Work', tool: 'Blender', type: '3D', time: '2024-Q4', aspectRatio: 4/3, urlEndpoint: null }
             ];
         }
 
@@ -226,71 +325,52 @@
         }
 
         function createImage(item) {
-            const aspectRatio = item.aspectRatio;
+            const aspectRatio = item.aspectRatio || 4/3;
             const baseSize = 6;
             const width = baseSize * Math.min(aspectRatio, 2);
             const height = baseSize / Math.max(aspectRatio, 0.5);
             
-            let texture;
+            // Create placeholder texture first
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512 / aspectRatio;
+            const ctx = canvas.getContext('2d');
             
-            if (item.imageUrl) {
-                // Load actual image from Dropbox
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                
-                texture = new THREE.Texture(img);
-                
-                img.onload = function() {
-                    texture.needsUpdate = true;
-                };
-                img.onerror = function() {
-                    console.error('Failed to load image:', item.imageUrl);
-                };
-                img.src = item.imageUrl;
+            // Clean background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Subtle border
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            
+            // Text
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            
+            const words = item.name.split(' ');
+            const lineHeight = 20;
+            let y = canvas.height/2 - (words.length > 2 ? lineHeight/2 : 0);
+            
+            if (words.length <= 2) {
+                ctx.fillText(item.name, canvas.width/2, y);
             } else {
-                // Create placeholder texture
-                const canvas = document.createElement('canvas');
-                canvas.width = 512;
-                canvas.height = 512 / aspectRatio;
-                const ctx = canvas.getContext('2d');
+                const midPoint = Math.ceil(words.length / 2);
+                const firstLine = words.slice(0, midPoint).join(' ');
+                const secondLine = words.slice(midPoint).join(' ');
                 
-                // Clean background
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Subtle border
-                ctx.strokeStyle = '#e0e0e0';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(0, 0, canvas.width, canvas.height);
-                
-                // Text
-                ctx.fillStyle = '#333';
-                ctx.font = 'bold 16px Arial';
-                ctx.textAlign = 'center';
-                
-                const words = item.name.split(' ');
-                const lineHeight = 20;
-                let y = canvas.height/2 - (words.length > 2 ? lineHeight/2 : 0);
-                
-                if (words.length <= 2) {
-                    ctx.fillText(item.name, canvas.width/2, y);
-                } else {
-                    const midPoint = Math.ceil(words.length / 2);
-                    const firstLine = words.slice(0, midPoint).join(' ');
-                    const secondLine = words.slice(midPoint).join(' ');
-                    
-                    ctx.fillText(firstLine, canvas.width/2, y);
-                    ctx.fillText(secondLine, canvas.width/2, y + lineHeight);
-                }
-                
-                // Category indicator
-                ctx.fillStyle = '#666';
-                ctx.font = '11px Arial';
-                ctx.fillText(`${item.project} • ${item.tool}`, canvas.width/2, canvas.height - 15);
-                
-                texture = new THREE.CanvasTexture(canvas);
+                ctx.fillText(firstLine, canvas.width/2, y);
+                ctx.fillText(secondLine, canvas.width/2, y + lineHeight);
             }
             
+            // Category indicator
+            ctx.fillStyle = '#666';
+            ctx.font = '11px Arial';
+            ctx.fillText(`${item.project} • ${item.tool}`, canvas.width/2, canvas.height - 15);
+            
+            const texture = new THREE.CanvasTexture(canvas);
             texture.generateMipmaps = false;
             texture.minFilter = THREE.LinearFilter;
             texture.magFilter = THREE.LinearFilter;
