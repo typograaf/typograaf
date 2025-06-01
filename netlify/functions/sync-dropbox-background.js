@@ -11,16 +11,35 @@ exports.handler = async (event, context) => {
     // Get portfolio images from database
     console.log('🔗 Getting portfolio from database...');
     
-    const response = await supabaseRequest('GET', '/rest/v1/portfolio_images?select=*&order=project,tool,name&limit=20');
+    const response = await supabaseRequest('GET', '/rest/v1/portfolio_images?select=*&order=project,tool,name');
     const data = await response.json();
     
     console.log('📊 Database response:', {
-      status: response.statusCode,
-      imageCount: data ? data.length : 0
+      imageCount: data ? data.length : 0,
+      withUrls: data ? data.filter(img => img.image_url).length : 0,
+      withoutUrls: data ? data.filter(img => !img.image_url).length : 0
     });
     
     if (data && Array.isArray(data) && data.length > 0) {
       console.log('✅ Successfully loaded images from database');
+      
+      // Process the data to match your website's expected format
+      const processedImages = data.map(img => ({
+        id: img.id,
+        name: img.name,
+        project: img.project,
+        tool: img.tool,
+        type: img.type,
+        time: img.time,
+        aspectratio: img.aspectratio,
+        path: img.path,
+        size: img.size,
+        modified: img.modified,
+        extension: img.extension,
+        image_url: img.image_url, // This is the key field for actual images
+        scanned: img.scanned,
+        url_fetched: img.url_fetched
+      }));
       
       return {
         statusCode: 200,
@@ -30,7 +49,7 @@ exports.handler = async (event, context) => {
         },
         body: JSON.stringify({
           success: true,
-          images: data,
+          images: processedImages,
           batch: {
             current: 0,
             total: 1,
@@ -38,11 +57,16 @@ exports.handler = async (event, context) => {
             nextBatch: null
           },
           stats: {
-            totalImages: data.length,
-            batchSize: 20,
+            totalImages: processedImages.length,
+            imagesWithUrls: processedImages.filter(img => img.image_url).length,
+            imagesWithoutUrls: processedImages.filter(img => !img.image_url).length,
+            batchSize: processedImages.length,
             cached: true,
             source: 'supabase-database'
           },
+          projects: [...new Set(processedImages.map(img => img.project))],
+          tools: [...new Set(processedImages.map(img => img.tool))],
+          types: [...new Set(processedImages.map(img => img.type))],
           timestamp: new Date().toISOString()
         })
       };
