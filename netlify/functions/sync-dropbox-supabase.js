@@ -60,13 +60,23 @@ exports.handler = async (event, context) => {
 async function shouldRefreshCache() {
   try {
     const response = await supabaseRequest('GET', '/rest/v1/portfolio_meta?select=last_sync&order=last_sync.desc&limit=1');
+    
+    if (response.status !== 200) {
+      console.log('No meta data found, need to sync');
+      return true; // No data, need to sync
+    }
+    
     const data = await response.json();
     
-    if (data.length === 0) return true; // No data, need to sync
+    if (data.length === 0) {
+      console.log('Empty meta table, need to sync');
+      return true; // No data, need to sync
+    }
     
     const lastSync = new Date(data[0].last_sync);
     const hoursSinceSync = (Date.now() - lastSync.getTime()) / (1000 * 60 * 60);
     
+    console.log(`Last sync: ${hoursSinceSync.toFixed(1)} hours ago`);
     return hoursSinceSync > 2; // Refresh every 2 hours
   } catch (error) {
     console.error('Error checking cache status:', error);
@@ -79,9 +89,18 @@ async function getPortfolioFromDB(requestedBatch = 0) {
     const BATCH_SIZE = 20;
     const offset = requestedBatch * BATCH_SIZE;
     
-    // Get total count
-    const countResponse = await supabaseRequest('GET', '/rest/v1/portfolio_images?select=count');
-    const totalImages = countResponse.status === 200 ? (await countResponse.json())[0]?.count || 0 : 0;
+    // Get total count (fixed query)
+    const countResponse = await supabaseRequest('GET', '/rest/v1/portfolio_images?select=*&limit=1');
+    let totalImages = 0;
+    
+    if (countResponse.status === 200) {
+      // Get actual count by querying all IDs and counting them
+      const allResponse = await supabaseRequest('GET', '/rest/v1/portfolio_images?select=id');
+      if (allResponse.status === 200) {
+        const allData = await allResponse.json();
+        totalImages = allData.length;
+      }
+    }
     
     // Get batch of images
     const response = await supabaseRequest('GET', 
