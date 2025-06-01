@@ -1,0 +1,23 @@
+{
+  "name": "portfolio-gallery",
+  "version": "1.0.0",
+  "description": "Martijn's Portfolio Gallery with Dropbox Integration",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'Processing functions...' && ls -la netlify/functions/",
+    "start": "echo 'Portfolio gallery ready to deploy'"
+  },
+  "keywords": [
+    "portfolio",
+    "gallery",
+    "dropbox",
+    "3d",
+    "three.js"
+  ],
+  "author": "Martijn",
+  "license": "MIT",
+  "dependencies": {},
+  "engines": {
+    "node": "20.x"
+  }
+}
