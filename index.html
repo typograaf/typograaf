@@ -228,8 +228,18 @@
         function createImage(item) {
             const aspectRatio = item.aspectRatio;
             const baseSize = 6;
-            const width = baseSize * Math.min(aspectRatio, 2);
-            const height = baseSize / Math.max(aspectRatio, 0.5);
+            
+            // Calculate size that maintains aspect ratio - FIXED VERSION
+            let width, height;
+            if (aspectRatio >= 1) {
+                // Landscape or square - constrain by width
+                width = baseSize;
+                height = baseSize / aspectRatio;
+            } else {
+                // Portrait - constrain by height
+                height = baseSize;
+                width = baseSize * aspectRatio;
+            }
             
             let texture;
             
@@ -248,10 +258,10 @@
                 };
                 img.src = item.imageUrl;
             } else {
-                // Create placeholder texture
+                // Create placeholder texture with correct aspect ratio
                 const canvas = document.createElement('canvas');
                 canvas.width = 512;
-                canvas.height = 512 / aspectRatio;
+                canvas.height = Math.round(512 / aspectRatio);
                 const ctx = canvas.getContext('2d');
                 
                 // Clean background
@@ -295,7 +305,7 @@
             texture.minFilter = THREE.LinearFilter;
             texture.magFilter = THREE.LinearFilter;
             
-            // Create plane
+            // Create plane with exact aspect ratio dimensions - FIXED VERSION
             const geometry = new THREE.PlaneGeometry(width, height);
             const material = new THREE.MeshBasicMaterial({ 
                 map: texture,
@@ -351,7 +361,7 @@
             function animate() {
                 const elapsed = Date.now() - startTime;
                 const progress = Math.min(elapsed / duration, 1);
-                const eased = 1 - Math.pow(1 - progress, 3);
+                const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
                 
                 images.forEach((img, index) => {
                     const start = startPositions[index];
@@ -433,6 +443,7 @@
             cameraZ += (targetCameraZ - cameraZ) * lerpFactor;
             
             if (focusedImage) {
+                // Focused on specific image - smooth movement to it
                 const targetPos = focusedImage.userData.originalPosition;
                 camera.position.x += (targetPos.x - camera.position.x) * lerpFactor;
                 camera.position.y += (targetPos.y - camera.position.y) * lerpFactor;
