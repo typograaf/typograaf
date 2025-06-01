@@ -1,5 +1,3 @@
-const { createClient } = require('@supabase/supabase-js');
-
 exports.handler = async (event, context) => {
   try {
     console.log('Function started');
@@ -23,19 +21,20 @@ exports.handler = async (event, context) => {
       };
     }
     
-    console.log('Connecting to Supabase...');
+    console.log('Fetching from Supabase...');
     
-    // Initialize Supabase client
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Use fetch API instead of Supabase client
+    const response = await fetch(`${supabaseUrl}/rest/v1/portfolio_images?select=*&order=modified.desc`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
     
-    // Query the database
-    const { data: images, error } = await supabase
-      .from('portfolio_images')
-      .select('*')
-      .order('modified', { ascending: false });
-    
-    if (error) {
-      console.error('Database error:', error);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Supabase API error:', response.status, errorText);
       return {
         statusCode: 500,
         headers: {
@@ -44,11 +43,12 @@ exports.handler = async (event, context) => {
         },
         body: JSON.stringify({
           success: false,
-          error: error.message
+          error: `Supabase API error: ${response.status} ${response.statusText}`
         })
       };
     }
     
+    const images = await response.json();
     console.log(`Found ${images.length} images`);
     
     // Calculate statistics
