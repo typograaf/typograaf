@@ -4,7 +4,7 @@ const https = require('https');
 const DROPBOX_ACCESS_TOKEN = process.env.DROPBOX_ACCESS_TOKEN;
 const PORTFOLIO_PATH = '/AboutContact/Website/Portfolio';
 const BATCH_SIZE = 20; // Process 20 images per request
-const TIMEOUT_BUFFER = 8000; // 8 seconds max processing
+const TIMEOUT_BUFFER = 9000; // 9 seconds max processing
 
 // In-memory cache (will reset on cold starts)
 let portfolioCache = null;
@@ -180,21 +180,25 @@ async function processProjectFolder(projectPath, projectName, portfolioData, sta
     for (const file of imageFiles) {
       if (Date.now() - startTime > TIMEOUT_BUFFER) {
         console.log(`${indent}Timeout reached while processing images`);
-        break;
+        return; // Stop processing this folder
       }
       await processImageFile(file, projectName, toolName, portfolioData);
     }
     
-    // Then recurse into subfolders
-    for (const folder of subFolders) {
-      if (Date.now() - startTime > TIMEOUT_BUFFER) {
-        console.log(`${indent}Timeout reached while processing subfolders`);
-        break;
+    // Then recurse into subfolders (up to 3 levels deep to prevent infinite loops)
+    if (depth < 3) {
+      for (const folder of subFolders) {
+        if (Date.now() - startTime > TIMEOUT_BUFFER) {
+          console.log(`${indent}Timeout reached while processing subfolders`);
+          return; // Stop processing this folder
+        }
+        
+        const subFolderPath = `${projectPath}/${folder.name}`;
+        console.log(`${indent}→ Entering subfolder: ${folder.name}`);
+        await processProjectFolder(subFolderPath, projectName, portfolioData, startTime, folder.name, depth + 1);
       }
-      
-      const subFolderPath = `${projectPath}/${folder.name}`;
-      console.log(`${indent}→ Entering subfolder: ${folder.name}`);
-      await processProjectFolder(subFolderPath, projectName, portfolioData, startTime, folder.name, depth + 1);
+    } else {
+      console.log(`${indent}Max depth reached, skipping deeper subfolders`);
     }
     
   } catch (error) {
@@ -220,9 +224,9 @@ async function processImageFile(file, projectName, toolName, portfolioData) {
     };
     
     portfolioData.push(imageData);
-    console.log(`Added image: ${projectName}/${toolName}/${file.name}`);
+    console.log(`    ✓ Added: ${file.name} (${file.size} bytes, ${imageData.extension})`);
   } catch (imageError) {
-    console.error('Error processing image:', file.name, imageError.message);
+    console.error('    ✗ Error processing image:', file.name, imageError.message);
   }
 }
 
