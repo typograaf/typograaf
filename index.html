@@ -243,38 +243,93 @@
             if (isLoadingImages) return;
             isLoadingImages = true;
 
-            console.log('Loading all images in parallel...');
+            console.log('Loading images in fast parallel mode...');
             
-            // Load ALL images at once in parallel
-            const imagePromises = portfolioData.map(async (item, index) => {
-                if (!item.imageUrl) return; // Skip if no URL
-                
-                return new Promise((resolve) => {
-                    const img = new Image();
-                    img.crossOrigin = 'anonymous';
-                    
-                    img.onload = function() {
-                        const imageObj = images[index];
-                        if (imageObj) {
-                            updateImageTexture(imageObj, item.imageUrl, item);
-                        }
-                        resolve();
-                    };
-                    
-                    img.onerror = function() {
-                        console.error('✗ Failed to load:', item.name);
-                        resolve();
-                    };
-                    
-                    img.src = item.imageUrl;
-                });
-            });
+            // Load ALL images in parallel with high concurrency
+            const batchSize = 20; // Higher concurrency
+            const batches = [];
             
-            // Wait for all images to load
-            await Promise.all(imagePromises);
+            for (let i = 0; i < portfolioData.length; i += batchSize) {
+                batches.push(portfolioData.slice(i, i + batchSize));
+            }
+            
+            // Process all batches simultaneously 
+            const batchPromises = batches.map((batch, batchIndex) => 
+                loadImageBatch(batch, `batch-${batchIndex}`)
+            );
+            
+            await Promise.all(batchPromises);
             
             isLoadingImages = false;
-            console.log('✓ All images loaded!');
+            console.log('✓ All images loaded in parallel!');
+        }
+
+        async function loadImageBatch(batch, batchName) {
+            console.log(`Loading ${batch.length} images in ${batchName}...`);
+            
+            const promises = batch.map(async (item) => {
+                if (!item.urlEndpoint || imageUrlCache.has(item.path)) return;
+                
+                try {
+                    // Fast fetch with short timeout
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+                    
+                    const response = await fetch(item.urlEndpoint, {
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+                    
+                    const urlData = await response.json();
+                    
+                    if (urlData.success && urlData.imageUrl) {
+                        imageUrlCache.set(item.path, urlData.imageUrl);
+                        
+                        // Load the actual image
+                        return loadActualImage(item, urlData.imageUrl);
+                    }
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        console.warn(`Timeout loading ${item.name}`);
+                    } else {
+                        console.error(`Failed to load URL for ${item.name}:`, error);
+                    }
+                }
+            });
+            
+            await Promise.all(promises);
+            console.log(`✓ Completed ${batchName}`);
+        }
+
+        function loadActualImage(item, imageUrl) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                
+                img.onload = function() {
+                    const itemIndex = portfolioData.indexOf(item);
+                    const imageObj = images[itemIndex];
+                    if (imageObj) {
+                        updateImageTexture(imageObj, imageUrl, item);
+                    }
+                    resolve();
+                };
+                
+                img.onerror = function() {
+                    console.error('✗ Failed to load image:', item.name);
+                    resolve();
+                };
+                
+                // Add timeout for image loading too
+                setTimeout(() => {
+                    if (!img.complete) {
+                        console.warn(`Image timeout: ${item.name}`);
+                        resolve();
+                    }
+                }, 3000);
+                
+                img.src = imageUrl;
+            });
         }
 
         function updateImageTexture(imageObj, imageUrl, item) {

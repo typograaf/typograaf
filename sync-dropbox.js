@@ -313,9 +313,6 @@ async function processProjectFolder(projectPath, projectName, portfolioData, sta
 
 async function processImageFile(file, projectName, toolName, portfolioData) {
   try {
-    // Get image URL immediately during scanning
-    const imageUrl = await getDropboxImageUrl(file.path_lower);
-    
     const imageData = {
       id: `${projectName}-${toolName}-${file.name}`.replace(/[^a-zA-Z0-9-]/g, '-'),
       name: file.name.replace(/\.[^/.]+$/, ""),
@@ -328,16 +325,11 @@ async function processImageFile(file, projectName, toolName, portfolioData) {
       size: file.size,
       modified: file.server_modified,
       extension: file.name.toLowerCase().substring(file.name.lastIndexOf('.')),
-      imageUrl: imageUrl, // Direct URL instead of endpoint
       urlEndpoint: `/.netlify/functions/get-image?path=${encodeURIComponent(file.path_lower)}`
     };
     
-    if (imageUrl) {
-      portfolioData.push(imageData);
-      console.log(`    ✓ Added: ${file.name} (${file.size} bytes, ${imageData.extension})`);
-    } else {
-      console.log(`    ⚠ Skipped: ${file.name} (no URL)`);
-    }
+    portfolioData.push(imageData);
+    console.log(`    ✓ Added: ${file.name} (${file.size} bytes, ${imageData.extension})`);
   } catch (imageError) {
     console.error('    ✗ Error processing image:', file.name, imageError.message);
   }
