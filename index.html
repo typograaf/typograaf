@@ -191,8 +191,8 @@
             document.getElementById('imageCount').textContent = portfolioData.length;
             document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
             
-            // Start loading actual images
-            loadImageUrls();
+            // Start loading actual images (prioritize visible ones)
+            setTimeout(() => loadImageUrls(), 1000); // Delay to let interface load first
             
             // Start
             animate();
@@ -243,62 +243,89 @@
             if (isLoadingImages) return;
             isLoadingImages = true;
 
-            console.log('Starting to load image URLs...');
+            console.log('Starting to load image URLs in parallel...');
             
-            for (let i = 0; i < portfolioData.length; i++) {
-                const item = portfolioData[i];
+            // Load visible images first (current level)
+            const visibleImages = getVisibleImages();
+            await loadImageBatch(visibleImages, 'visible');
+            
+            // Then load remaining images in batches
+            const remainingImages = portfolioData.filter(item => !visibleImages.includes(item));
+            const batchSize = 10;
+            
+            for (let i = 0; i < remainingImages.length; i += batchSize) {
+                const batch = remainingImages.slice(i, i + batchSize);
+                await loadImageBatch(batch, `batch ${Math.floor(i/batchSize) + 1}`);
                 
-                if (item.urlEndpoint && !imageUrlCache.has(item.path)) {
-                    try {
-                        console.log(`Loading URL for: ${item.name}`);
-                        const response = await fetch(item.urlEndpoint);
-                        const urlData = await response.json();
-                        
-                        if (urlData.success && urlData.imageUrl) {
-                            imageUrlCache.set(item.path, urlData.imageUrl);
-                            
-                            // Update the corresponding image in the scene
-                            const imageObj = images[i];
-                            if (imageObj) {
-                                updateImageTexture(imageObj, urlData.imageUrl, item);
-                            }
-                        }
-                    } catch (error) {
-                        console.error(`Failed to load URL for ${item.name}:`, error);
-                    }
-                    
-                    // Small delay to prevent overwhelming the API
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
+                // Short delay between batches
+                await new Promise(resolve => setTimeout(resolve, 200));
             }
             
             isLoadingImages = false;
-            console.log('Finished loading image URLs');
+            console.log('Finished loading all image URLs');
+        }
+
+        function getVisibleImages() {
+            if (levels.length === 0) return portfolioData.slice(0, 20); // First 20 if no levels yet
+            
+            const currentLevelItems = levels[currentLevel] || [];
+            return currentLevelItems;
+        }
+
+        async function loadImageBatch(batch, batchName) {
+            console.log(`Loading ${batch.length} images in ${batchName}...`);
+            
+            const promises = batch.map(async (item, index) => {
+                if (!item.urlEndpoint || imageUrlCache.has(item.path)) return;
+                
+                try {
+                    const response = await fetch(item.urlEndpoint);
+                    const urlData = await response.json();
+                    
+                    if (urlData.success && urlData.imageUrl) {
+                        imageUrlCache.set(item.path, urlData.imageUrl);
+                        
+                        // Find the corresponding image object
+                        const itemIndex = portfolioData.indexOf(item);
+                        const imageObj = images[itemIndex];
+                        if (imageObj) {
+                            updateImageTexture(imageObj, urlData.imageUrl, item);
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Failed to load URL for ${item.name}:`, error);
+                }
+            });
+            
+            // Load all images in this batch in parallel
+            await Promise.all(promises);
+            console.log(`Completed ${batchName}`);
         }
 
         function updateImageTexture(imageObj, imageUrl, item) {
             const img = new Image();
             img.crossOrigin = 'anonymous';
             
-            const newTexture = new THREE.Texture(img);
-            newTexture.generateMipmaps = false;
-            newTexture.minFilter = THREE.LinearFilter;
-            newTexture.magFilter = THREE.LinearFilter;
-            
             img.onload = function() {
+                // Create new texture
+                const newTexture = new THREE.Texture(img);
+                newTexture.generateMipmaps = false;
+                newTexture.minFilter = THREE.LinearFilter;
+                newTexture.magFilter = THREE.LinearFilter;
                 newTexture.needsUpdate = true;
                 
-                // Replace the material
-                imageObj.material.dispose(); // Clean up old material
-                imageObj.material.map.dispose(); // Clean up old texture
+                // Replace the material texture
+                if (imageObj.material && imageObj.material.map) {
+                    imageObj.material.map.dispose(); // Clean up old texture
+                }
                 imageObj.material.map = newTexture;
                 imageObj.material.needsUpdate = true;
                 
-                console.log(`Updated texture for: ${item.name}`);
+                console.log(`✓ Updated: ${item.name}`);
             };
             
             img.onerror = function() {
-                console.error('Failed to load image:', imageUrl);
+                console.error('✗ Failed to load:', item.name);
             };
             
             img.src = imageUrl;
