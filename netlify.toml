@@ -1,8 +1,0 @@
-[build]
-  functions = "netlify/functions"
-
-# Optional: redirect for manual testing
-[[redirects]]
-  from = "/admin/sync"
-  to = "/.netlify/functions/scheduled-sync"
-  status = 200
