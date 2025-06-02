@@ -123,14 +123,14 @@
     </div>
     
     <div id="sync">
-        <div style="margin-bottom: 8px; font-weight: bold;">Portfolio Sync:</div>
-        <button id="syncButton" class="sync-button" onclick="syncFromDatabase()">
+        <div style="margin-bottom: 8px; font-weight: bold;">Database Status:</div>
+        <div class="sync-button" id="syncButton" onclick="loadFromDatabase()">
             Load from Database
-        </button>
-        <button id="refreshButton" class="sync-button" onclick="refreshDropbox()">
-            Refresh from Dropbox
-        </button>
-        <div id="syncStatus">Ready to sync</div>
+        </div>
+        <div class="sync-button" onclick="triggerFullSync()" style="background: #ffe6e6;">
+            Trigger Full Sync
+        </div>
+        <div id="syncStatus">Ready</div>
         <div style="font-size: 10px; margin-top: 5px;">
             Last sync: <span id="lastSync">Never</span>
         </div>
@@ -208,11 +208,17 @@
             const ambientLight = new THREE.AmbientLight(0xffffff, 1);
             scene.add(ambientLight);
             
+            // Try to load from database automatically on start
+            loadFromDatabase();
+            
             // Create all images
             createImages();
             
-            // Load from database on startup
-            syncFromDatabase();
+            // Set up upload functionality
+            setupUpload();
+            
+            // Organize into levels
+            organizeByDimension('projects');
             
             // Events
             setupEvents();
@@ -222,8 +228,14 @@
         }
 
         function createImages() {
-            // Use portfolio data from database if available, otherwise fallback to placeholder
-            const itemsToUse = portfolioData.length > 0 ? portfolioData : workItems;
+            // Priority: Database > Uploaded > Default
+            let itemsToUse = workItems; // Default fallback
+            
+            if (portfolioData.length > 0) {
+                itemsToUse = portfolioData;
+            } else if (actualWorkItems.length > 0) {
+                itemsToUse = actualWorkItems;
+            }
             
             // Clear existing images
             images.forEach(img => scene.remove(img));
@@ -234,8 +246,6 @@
                 images.push(image);
                 scene.add(image);
             });
-            
-            console.log(`Created ${images.length} images from ${itemsToUse.length} items`);
         }
 
         function setupUpload() {
@@ -484,7 +494,14 @@
         function calculateNewPositions(groupedItems) {
             const levelSpacing = 40;
             const positions = [];
-            const itemsToUse = portfolioData.length > 0 ? portfolioData : workItems;
+            
+            // Priority: Database > Uploaded > Default
+            let itemsToUse = workItems;
+            if (portfolioData.length > 0) {
+                itemsToUse = portfolioData;
+            } else if (actualWorkItems.length > 0) {
+                itemsToUse = actualWorkItems;
+            }
             
             // Initialize positions array
             for (let i = 0; i < images.length; i++) {
@@ -499,20 +516,7 @@
                     const imageIndex = itemsToUse.indexOf(item);
                     
                     if (imageIndex >= 0) {
-                        // Grid position within level
                         const row = Math.floor(itemIndex / cols);
-                        const col = itemIndex % cols;
-                        const x = (col - (cols - 1) / 2) * spacing;
-                        const y = ((Math.ceil(levelItems.length / cols) - 1) / 2 - row) * spacing;
-                        const z = -levelIndex * levelSpacing;
-                        
-                        positions[imageIndex] = { x, y, z };
-                    }
-                });
-            });
-            
-            return positions;
-        } = Math.floor(itemIndex / cols);
                         const col = itemIndex % cols;
                         const x = (col - (cols - 1) / 2) * spacing;
                         const y = ((Math.ceil(levelItems.length / cols) - 1) / 2 - row) * spacing;
@@ -527,7 +531,15 @@
         }
 
         function groupByProperty(property) {
-            const itemsToUse = portfolioData.length > 0 ? portfolioData : workItems;
+            // Priority: Database > Uploaded > Default
+            let itemsToUse = workItems;
+            
+            if (portfolioData.length > 0) {
+                itemsToUse = portfolioData;
+            } else if (actualWorkItems.length > 0) {
+                itemsToUse = actualWorkItems;
+            }
+            
             const groups = {};
             itemsToUse.forEach(item => {
                 const key = item[property];
@@ -553,7 +565,7 @@
                 const spacing = 12;
                 
                 levelItems.forEach((item, itemIndex) => {
-                    const imageIndex = (portfolioData.length > 0 ? portfolioData : workItems).indexOf(item);
+                    const imageIndex = (actualWorkItems.length > 0 ? actualWorkItems : workItems).indexOf(item);
                     const img = images[imageIndex];
                     
                     if (img) {
