@@ -324,13 +324,29 @@ async function scanDropboxPortfolioContinuous(token, basePath, timeLimit, startF
             const files = await listDropboxFolder(token, toolPath);
             console.log(`Found ${files.length} files in ${projectName}/${toolName}`);
             
-            // Filter to image files - be more permissive
+            // Filter to image files - be more permissive and add debugging
             const imageFiles = files.filter(file => {
               if (file['.tag'] !== 'file') return false;
-              return isImageFile(file.name);
+              
+              const filename = file.name;
+              const isImage = isImageFile(filename);
+              
+              // Debug: log files that aren't detected as images
+              if (!isImage) {
+                console.log(`Skipping non-image file: ${filename} (extension: ${filename.split('.').pop().toLowerCase()})`);
+              }
+              
+              return isImage;
             });
             
             console.log(`Found ${imageFiles.length} image files in ${projectName}/${toolName}`);
+            
+            // Debug: log the actual filenames we found
+            if (imageFiles.length > 0) {
+              console.log(`Image files: ${imageFiles.map(f => f.name).join(', ')}`);
+            } else if (files.length > 0) {
+              console.log(`All files in folder: ${files.map(f => f.name).join(', ')}`);
+            }
             
             // Process all images in this folder (no artificial limits)
             for (const file of imageFiles) {
@@ -409,8 +425,21 @@ async function scanDropboxPortfolioContinuous(token, basePath, timeLimit, startF
 }
 
 function isImageFile(filename) {
-  const extension = filename.split('.').pop().toLowerCase();
-  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'svg', 'heic', 'heif'].includes(extension);
+  if (!filename || typeof filename !== 'string') return false;
+  
+  // Handle files without extensions or weird naming
+  const parts = filename.toLowerCase().split('.');
+  if (parts.length < 2) return false;
+  
+  const extension = parts[parts.length - 1];
+  
+  const imageExtensions = [
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'tiff', 'tif', 'svg', 
+    'heic', 'heif', 'jfif', 'pjpeg', 'pjp', 'ico', 'cur', 'dds', 'raw', 'cr2', 
+    'nef', 'arw', 'dng', 'orf', 'rw2', 'pef', 'srw', 'x3f'
+  ];
+  
+  return imageExtensions.includes(extension);
 }
 
 async function listDropboxFolder(token, path) {
