@@ -1,25 +1,20 @@
 [build]
   functions = "netlify/functions"
+  publish = "."
 
-# Scheduled function - runs every 3 hours
-[[plugins]]
-  package = "@netlify/plugin-scheduled-functions"
-
-  [plugins.inputs]
-    schedule = "0 */3 * * *"  # Every 3 hours at minute 0
-
-# Function settings
 [functions]
-  # Increase timeout for scheduled sync
-  "scheduled-sync" = { timeout = 30 }
-  
-# Redirects for cleaner URLs
+  node_bundler = "esbuild"
+
+# Redirect for automatic sync endpoint
 [[redirects]]
-  from = "/sync"
-  to = "/.netlify/functions/scheduled-sync"
+  from = "/api/sync"
+  to = "/.netlify/functions/sync-dropbox"
   status = 200
 
-[[redirects]]
-  from = "/portfolio"
-  to = "/.netlify/functions/get-portfolio"
-  status = 200
+# Headers for CORS
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"

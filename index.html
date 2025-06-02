@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portfolio Gallery</title>
+    <title>Level Gallery</title>
     <style>
         body {
             margin: 0;
@@ -27,6 +27,24 @@
             padding: 20px;
             border-radius: 4px;
             z-index: 100;
+        }
+        
+        #status {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            color: #333;
+            font-size: 12px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 4px;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        #status.visible {
+            opacity: 1;
         }
         
         #dimensions {
@@ -60,18 +78,6 @@
             background: #333;
             color: white;
         }
-
-        #status {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            color: #666;
-            font-size: 11px;
-            background: rgba(255,255,255,0.9);
-            padding: 10px;
-            border-radius: 4px;
-            z-index: 100;
-        }
     </style>
 </head>
 <body>
@@ -85,16 +91,17 @@
         <div>Organization: <span id="currentDimension">Projects</span></div>
     </div>
     
+    <div id="status">
+        <div id="statusText">Loading portfolio...</div>
+        <div id="statusDetails" style="font-size: 10px; color: #666; margin-top: 5px;"></div>
+    </div>
+    
     <div id="dimensions">
         <div style="margin-bottom: 8px; font-weight: bold;">Organization:</div>
         <div class="dimension-button active" data-dimension="projects">Projects</div>
         <div class="dimension-button" data-dimension="time">Timeline</div>
         <div class="dimension-button" data-dimension="tools">Tools</div>
         <div class="dimension-button" data-dimension="type">Content Type</div>
-    </div>
-
-    <div id="status">
-        Loading portfolio...
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -117,9 +124,10 @@
         let portfolioData = [];
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
+        let loadingPhase = 'initial';
 
-        // Fallback data for when database is empty
-        const fallbackData = [
+        // Fallback work data for when no real data is available
+        const placeholderData = [
             { name: 'Physics Soap Bubbles', project: 'Research', tool: 'Figma', type: 'Research', time: '2024-Q1', aspectRatio: 16/9 },
             { name: 'COLDCHAIN Logo', project: 'COLDCHAIN', tool: 'Figma', type: 'Brand', time: '2024-Q2', aspectRatio: 16/10 },
             { name: 'Blender 3D Scene', project: '3D Visual', tool: 'Blender', type: '3D', time: '2024-Q2', aspectRatio: 16/10 },
@@ -139,7 +147,9 @@
         ];
 
         async function init() {
-            // Scene setup
+            showStatus('Initializing gallery...', true);
+            
+            // Scene
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xf8f8f6);
             
@@ -148,7 +158,7 @@
             camera.position.set(0, 0, 30);
             camera.lookAt(0, 0, 0);
             
-            // Renderer
+            // Renderer - clean, no shadows
             renderer = new THREE.WebGLRenderer({ 
                 canvas: document.getElementById('canvas'),
                 antialias: true
@@ -156,66 +166,175 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             
-            // Lighting
+            // Simple lighting - no shadows
             const ambientLight = new THREE.AmbientLight(0xffffff, 1);
             scene.add(ambientLight);
             
-            // Load portfolio data
+            // Load portfolio data and create images
             await loadPortfolioData();
-            
-            // Create images
-            createImages();
             
             // Organize into levels
             organizeByDimension('projects');
             
-            // Setup events
+            // Events
             setupEvents();
             
-            // Start animation
+            // Start
             animate();
+            
+            hideStatus();
         }
 
         async function loadPortfolioData() {
+            showStatus('Loading portfolio data...', true);
+            
             try {
-                updateStatus('Loading from database...');
-                
-                const response = await fetch('/.netlify/functions/get-portfolio');
+                const response = await fetch('/.netlify/functions/sync-dropbox-background');
                 const data = await response.json();
                 
                 if (data.success && data.images && data.images.length > 0) {
+                    // Use real data from database
                     portfolioData = data.images.map(img => ({
-                        name: img.name,
-                        project: img.project,
-                        tool: img.tool,
-                        type: img.type,
-                        time: img.time,
+                        name: img.name || 'Untitled',
+                        project: img.project || 'Unknown Project',
+                        tool: img.tool || 'Unknown Tool',
+                        type: img.type || 'Unknown Type',
+                        time: img.time || '2024-Q1',
                         aspectRatio: img.aspectratio || 1.33,
-                        imageUrl: img.image_url
+                        imageUrl: img.image_url,
+                        isReal: true
                     }));
                     
-                    updateStatus(`Loaded ${portfolioData.length} images from portfolio`);
-                    console.log(`Loaded ${portfolioData.length} images from database`);
+                    console.log(`Loaded ${portfolioData.length} real images from database`);
+                    showStatus(`Loaded ${portfolioData.length} portfolio images`, false, 2000);
+                    loadingPhase = 'real-data';
+                    
                 } else {
-                    portfolioData = fallbackData;
-                    updateStatus('Using sample portfolio data');
-                    console.log('No database data found, using fallback');
+                    // No data yet - use placeholders and trigger background sync
+                    console.log('No portfolio data found, using placeholders');
+                    portfolioData = placeholderData.map(item => ({...item, isReal: false}));
+                    showStatus('Using sample data, syncing in background...', false, 3000);
+                    loadingPhase = 'placeholder';
+                    
+                    // Trigger background sync
+                    triggerBackgroundSync();
                 }
             } catch (error) {
-                portfolioData = fallbackData;
-                updateStatus('Using sample portfolio data');
-                console.log('Database connection failed, using fallback:', error.message);
+                console.log('Error loading portfolio data, using placeholders:', error.message);
+                portfolioData = placeholderData.map(item => ({...item, isReal: false}));
+                showStatus('Using sample data', false, 2000);
+                loadingPhase = 'placeholder';
+                
+                // Still try to trigger sync
+                triggerBackgroundSync();
+            }
+            
+            // Create images with current data
+            createImages();
+        }
+
+        async function triggerBackgroundSync() {
+            try {
+                console.log('Triggering background sync...');
+                
+                // Fire and forget - don't wait for response
+                fetch('/.netlify/functions/sync-dropbox', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source: 'auto-trigger' })
+                }).catch(err => console.log('Background sync request sent'));
+                
+                // Start checking for updates
+                setTimeout(checkForUpdates, 30000); // Check after 30 seconds
+                
+            } catch (error) {
+                console.log('Could not trigger background sync:', error.message);
             }
         }
 
-        function updateStatus(message) {
-            const statusEl = document.getElementById('status');
-            statusEl.textContent = message;
+        async function checkForUpdates() {
+            if (loadingPhase === 'real-data') {
+                return; // Already have real data
+            }
             
-            // Hide status after 3 seconds
-            setTimeout(() => {
-                statusEl.style.opacity = '0.3';
-            }, 3000);
+            try {
+                const response = await fetch('/.netlify/functions/sync-dropbox-background');
+                const data = await response.json();
+                
+                if (data.success && data.images && data.images.length > 0) {
+                    // Check if we have new/more images
+                    const currentCount = portfolioData.filter(item => item.isReal).length;
+                    const newCount = data.images.length;
+                    
+                    if (newCount > currentCount) {
+                        console.log(`Found ${newCount} images (was ${currentCount}), updating gallery`);
+                        showStatus(`Updating with ${newCount} portfolio images...`, true);
+                        
+                        // Update portfolio data
+                        portfolioData = data.images.map(img => ({
+                            name: img.name || 'Untitled',
+                            project: img.project || 'Unknown Project',
+                            tool: img.tool || 'Unknown Tool',
+                            type: img.type || 'Unknown Type',
+                            time: img.time || '2024-Q1',
+                            aspectRatio: img.aspectratio || 1.33,
+                            imageUrl: img.image_url,
+                            isReal: true
+                        }));
+                        
+                        loadingPhase = 'real-data';
+                        
+                        // Recreate gallery with real images
+                        await replaceWithRealImages();
+                        
+                        showStatus(`Portfolio updated with ${newCount} images!`, false, 3000);
+                        return;
+                    }
+                }
+                
+                // Continue checking if still using placeholders
+                if (loadingPhase === 'placeholder') {
+                    setTimeout(checkForUpdates, 15000); // Check again in 15 seconds
+                }
+                
+            } catch (error) {
+                console.log('Update check failed:', error.message);
+                // Continue checking
+                if (loadingPhase === 'placeholder') {
+                    setTimeout(checkForUpdates, 30000);
+                }
+            }
+        }
+
+        async function replaceWithRealImages() {
+            // Clear existing images
+            images.forEach(img => scene.remove(img));
+            images = [];
+            
+            // Create new images with real data
+            createImages();
+            
+            // Reorganize with current dimension
+            organizeByDimension(currentDimension);
+        }
+
+        function showStatus(message, showSpinner = false, hideAfter = 0) {
+            const status = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            const statusDetails = document.getElementById('statusDetails');
+            
+            statusText.textContent = message;
+            statusDetails.textContent = showSpinner ? 'Please wait...' : '';
+            status.classList.add('visible');
+            
+            if (hideAfter > 0) {
+                setTimeout(hideStatus, hideAfter);
+            }
+        }
+
+        function hideStatus() {
+            const status = document.getElementById('status');
+            status.classList.remove('visible');
         }
 
         function createImages() {
@@ -234,21 +353,28 @@
             const aspectRatio = item.aspectRatio;
             const baseSize = 6;
             
+            // Calculate size that maintains aspect ratio
             let width, height;
             if (aspectRatio >= 1) {
+                // Landscape or square - constrain by width
                 width = baseSize;
                 height = baseSize / aspectRatio;
             } else {
+                // Portrait - constrain by height
                 height = baseSize;
                 width = baseSize * aspectRatio;
             }
             
             let texture;
             
-            if (item.imageUrl) {
+            if (item.imageUrl && item.isReal) {
                 // Try to load real image
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
+                
+                // Create placeholder first
+                texture = createPlaceholderTexture(item, aspectRatio);
+                
                 img.onload = function() {
                     const realTexture = new THREE.Texture(this);
                     realTexture.needsUpdate = true;
@@ -256,28 +382,51 @@
                     realTexture.minFilter = THREE.LinearFilter;
                     realTexture.magFilter = THREE.LinearFilter;
                     
-                    // Replace placeholder texture
-                    mesh.material.map = realTexture;
-                    mesh.material.needsUpdate = true;
+                    // Replace placeholder with real image
+                    const mesh = images.find(m => m.userData === item);
+                    if (mesh) {
+                        mesh.material.map.dispose();
+                        mesh.material.map = realTexture;
+                        mesh.material.needsUpdate = true;
+                    }
                 };
+                
                 img.onerror = function() {
-                    console.log('Failed to load image:', item.imageUrl);
+                    console.log(`Failed to load image: ${item.imageUrl}`);
                 };
+                
                 img.src = item.imageUrl;
+                
+            } else {
+                // Create placeholder texture
+                texture = createPlaceholderTexture(item, aspectRatio);
             }
             
-            // Create placeholder texture
+            // Create plane with exact aspect ratio dimensions
+            const geometry = new THREE.PlaneGeometry(width, height);
+            const material = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                transparent: true
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.userData = item;
+            
+            return mesh;
+        }
+
+        function createPlaceholderTexture(item, aspectRatio) {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
             canvas.height = Math.round(512 / aspectRatio);
             const ctx = canvas.getContext('2d');
             
-            // Background
-            ctx.fillStyle = '#ffffff';
+            // Clean background
+            ctx.fillStyle = item.isReal ? '#f0f0f0' : '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Border
-            ctx.strokeStyle = '#e0e0e0';
+            // Subtle border
+            ctx.strokeStyle = item.isReal ? '#ccc' : '#e0e0e0';
             ctx.lineWidth = 1;
             ctx.strokeRect(0, 0, canvas.width, canvas.height);
             
@@ -306,22 +455,19 @@
             ctx.font = '11px Arial';
             ctx.fillText(item[currentDimension], canvas.width/2, canvas.height - 15);
             
-            texture = new THREE.CanvasTexture(canvas);
+            // Loading indicator for real images
+            if (item.isReal && item.imageUrl) {
+                ctx.fillStyle = '#999';
+                ctx.font = '10px Arial';
+                ctx.fillText('Loading...', canvas.width/2, canvas.height - 30);
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
             texture.generateMipmaps = false;
             texture.minFilter = THREE.LinearFilter;
             texture.magFilter = THREE.LinearFilter;
             
-            // Create mesh
-            const geometry = new THREE.PlaneGeometry(width, height);
-            const material = new THREE.MeshBasicMaterial({ 
-                map: texture,
-                transparent: true
-            });
-            
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.userData = item;
-            
-            return mesh;
+            return texture;
         }
 
         function organizeByDimension(dimension) {
@@ -356,6 +502,7 @@
                     break;
             }
             
+            // Animate reorganization
             animateReorganization(groupedItems);
         }
 
@@ -363,7 +510,10 @@
             const duration = 1500;
             const startTime = Date.now();
             
+            // Calculate new positions for all images
             const newPositions = calculateNewPositions(groupedItems);
+            
+            // Store starting positions
             const startPositions = images.map(img => ({
                 x: img.position.x,
                 y: img.position.y,
@@ -373,7 +523,7 @@
             function animate() {
                 const elapsed = Date.now() - startTime;
                 const progress = Math.min(elapsed / duration, 1);
-                const eased = 1 - Math.pow(1 - progress, 3);
+                const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
                 
                 images.forEach((img, index) => {
                     const start = startPositions[index];
@@ -384,6 +534,7 @@
                         img.position.y = start.y + (target.y - start.y) * eased;
                         img.position.z = start.z + (target.z - start.z) * eased;
                         
+                        // Update stored original position
                         img.userData.originalPosition = {
                             x: img.position.x,
                             y: img.position.y,
@@ -395,9 +546,12 @@
                 if (progress < 1) {
                     requestAnimationFrame(animate);
                 } else {
+                    // Animation complete
                     levels = groupedItems;
                     document.getElementById('totalLevels').textContent = levels.length;
                     isTransitioning = false;
+                    
+                    // Reset to first level after reorganization
                     goToLevel(0);
                 }
             }
@@ -409,6 +563,7 @@
             const levelSpacing = 40;
             const positions = [];
             
+            // Initialize positions array
             for (let i = 0; i < images.length; i++) {
                 positions[i] = null;
             }
@@ -421,6 +576,7 @@
                     const imageIndex = portfolioData.indexOf(item);
                     
                     if (imageIndex >= 0) {
+                        // Grid position within level
                         const row = Math.floor(itemIndex / cols);
                         const col = itemIndex % cols;
                         const x = (col - (cols - 1) / 2) * spacing;
@@ -453,25 +609,32 @@
             currentLevel = levelIndex;
             document.getElementById('currentLevel').textContent = currentLevel + 1;
             
+            // Animate camera to this level
             const levelSpacing = 40;
             targetCameraZ = -targetLevel * levelSpacing + 30;
             
+            // Reset lateral position when changing levels
             targetCameraX = 0;
             targetCameraY = 0;
+            
+            // Reset focus
             focusedImage = null;
         }
 
         function updateCameraForLevel() {
+            // Smooth camera interpolation
             const lerpFactor = 0.08;
             cameraZ += (targetCameraZ - cameraZ) * lerpFactor;
             
             if (focusedImage) {
+                // Focused on specific image - smooth movement to it
                 const targetPos = focusedImage.userData.originalPosition;
                 camera.position.x += (targetPos.x - camera.position.x) * lerpFactor;
                 camera.position.y += (targetPos.y - camera.position.y) * lerpFactor;
                 camera.position.z += (targetPos.z + 15 - camera.position.z) * lerpFactor;
                 camera.lookAt(targetPos.x, targetPos.y, targetPos.z);
             } else {
+                // Overview - allow panning around the level
                 cameraX += (targetCameraX - cameraX) * lerpFactor;
                 cameraY += (targetCameraY - cameraY) * lerpFactor;
                 camera.position.x = cameraX;
@@ -491,6 +654,7 @@
             canvas.addEventListener('mouseup', onMouseUp);
             window.addEventListener('resize', onWindowResize);
             
+            // Dimension switching
             document.querySelectorAll('.dimension-button').forEach(button => {
                 button.addEventListener('click', (e) => {
                     const dimension = e.target.dataset.dimension;
@@ -498,6 +662,7 @@
                 });
             });
             
+            // Keyboard navigation
             document.addEventListener('keydown', (e) => {
                 switch(e.key) {
                     case 'ArrowUp':
@@ -530,6 +695,7 @@
                     y: event.clientY - previousMousePosition.y
                 };
                 
+                // Pan around the current level
                 const panSpeed = 0.05;
                 targetCameraX -= deltaMove.x * panSpeed;
                 targetCameraY += deltaMove.y * panSpeed;
@@ -549,12 +715,15 @@
             event.preventDefault();
             
             if (focusedImage) {
+                // If focused, just zoom out (unfocus)
                 focusedImage = null;
             } else {
+                // Change levels with cooldown
                 if (!scrollCooldown) {
                     const direction = event.deltaY > 0 ? 1 : -1;
                     goToLevel(currentLevel + direction);
                     
+                    // Add cooldown to prevent rapid scrolling
                     scrollCooldown = true;
                     setTimeout(() => {
                         scrollCooldown = false;
@@ -577,8 +746,10 @@
                 const clickedImage = intersects[0].object;
                 
                 if (focusedImage === clickedImage) {
+                    // Click again to zoom out
                     focusedImage = null;
                 } else {
+                    // Focus on this image
                     focusedImage = clickedImage;
                 }
             }
@@ -597,7 +768,7 @@
             renderer.render(scene, camera);
         }
 
-        // Initialize
+        // Start
         init();
     </script>
 </body>
