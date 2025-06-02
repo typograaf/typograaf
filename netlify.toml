@@ -1,0 +1,25 @@
+[build]
+  functions = "netlify/functions"
+
+# Scheduled function - runs every 3 hours
+[[plugins]]
+  package = "@netlify/plugin-scheduled-functions"
+
+  [plugins.inputs]
+    schedule = "0 */3 * * *"  # Every 3 hours at minute 0
+
+# Function settings
+[functions]
+  # Increase timeout for scheduled sync
+  "scheduled-sync" = { timeout = 30 }
+  
+# Redirects for cleaner URLs
+[[redirects]]
+  from = "/sync"
+  to = "/.netlify/functions/scheduled-sync"
+  status = 200
+
+[[redirects]]
+  from = "/portfolio"
+  to = "/.netlify/functions/get-portfolio"
+  status = 200

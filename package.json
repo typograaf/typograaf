@@ -1,0 +1,29 @@
+{
+  "name": "portfolio-gallery",
+  "version": "1.0.0",
+  "description": "Scheduled Portfolio Gallery with Dropbox Sync",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'Portfolio gallery build complete'",
+    "start": "echo 'Portfolio gallery ready'"
+  },
+  "keywords": [
+    "portfolio",
+    "gallery",
+    "dropbox",
+    "3d",
+    "three.js",
+    "scheduled"
+  ],
+  "author": "Martijn",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "@netlify/plugin-scheduled-functions": "^1.0.0"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
