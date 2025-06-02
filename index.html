@@ -29,55 +29,6 @@
             z-index: 100;
         }
         
-        #upload {
-            position: fixed;
-            top: 30px;
-            right: 30px;
-            color: #333;
-            font-size: 12px;
-            background: rgba(255,255,255,0.9);
-            padding: 15px;
-            border-radius: 4px;
-            z-index: 100;
-            width: 200px;
-        }
-        
-        #fileInput {
-            display: none;
-        }
-        
-        .upload-button {
-            width: 100%;
-            padding: 10px;
-            background: #f0f0f0;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            cursor: pointer;
-            text-align: center;
-            margin-bottom: 10px;
-            transition: background 0.2s;
-        }
-        
-        .upload-button:hover {
-            background: #e0e0e0;
-        }
-        
-        .upload-button.dragover {
-            background: #d0e0ff;
-            border-color: #0066cc;
-        }
-        
-        #imageList {
-            max-height: 150px;
-            overflow-y: auto;
-            font-size: 11px;
-        }
-        
-        .image-item {
-            padding: 2px 0;
-            border-bottom: 1px solid #eee;
-        }
-        
         #dimensions {
             position: fixed;
             bottom: 30px;
@@ -109,6 +60,18 @@
             background: #333;
             color: white;
         }
+
+        #status {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            color: #666;
+            font-size: 11px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px;
+            border-radius: 4px;
+            z-index: 100;
+        }
     </style>
 </head>
 <body>
@@ -122,26 +85,16 @@
         <div>Organization: <span id="currentDimension">Projects</span></div>
     </div>
     
-    <div id="sync">
-        <div style="margin-bottom: 8px; font-weight: bold;">Database Status:</div>
-        <div class="sync-button" id="syncButton" onclick="loadFromDatabase()">
-            Load from Database
-        </div>
-        <div class="sync-button" onclick="triggerFullSync()" style="background: #ffe6e6;">
-            Trigger Full Sync
-        </div>
-        <div id="syncStatus">Ready</div>
-        <div style="font-size: 10px; margin-top: 5px;">
-            Last sync: <span id="lastSync">Never</span>
-        </div>
-    </div>
-    
     <div id="dimensions">
         <div style="margin-bottom: 8px; font-weight: bold;">Organization:</div>
         <div class="dimension-button active" data-dimension="projects">Projects</div>
         <div class="dimension-button" data-dimension="time">Timeline</div>
         <div class="dimension-button" data-dimension="tools">Tools</div>
         <div class="dimension-button" data-dimension="type">Content Type</div>
+    </div>
+
+    <div id="status">
+        <div id="statusText">Loading...</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -161,13 +114,12 @@
         let targetCameraX = 0;
         let targetCameraY = 0;
         let scrollCooldown = false;
-        let uploadedImages = [];
-        let actualWorkItems = [];
+        let portfolioData = [];
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
-        
-        // Your work data
-        const workItems = [
+
+        // Fallback work data for when database is empty
+        const fallbackWorkItems = [
             { name: 'Physics Soap Bubbles', project: 'Research', tool: 'Figma', type: 'Research', time: '2024-Q1', aspectRatio: 16/9 },
             { name: 'COLDCHAIN Logo', project: 'COLDCHAIN', tool: 'Figma', type: 'Brand', time: '2024-Q2', aspectRatio: 16/10 },
             { name: 'Blender 3D Scene', project: '3D Visual', tool: 'Blender', type: '3D', time: '2024-Q2', aspectRatio: 16/10 },
@@ -186,7 +138,9 @@
             { name: 'Lisbon Bridgeport', project: 'Typography', tool: 'Figma', type: 'Typography', time: '2024-Q2', aspectRatio: 16/9 }
         ];
 
-        function init() {
+        async function init() {
+            updateStatus('Initializing 3D gallery...');
+            
             // Scene
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xf8f8f6);
@@ -208,14 +162,11 @@
             const ambientLight = new THREE.AmbientLight(0xffffff, 1);
             scene.add(ambientLight);
             
-            // Try to load from database automatically on start
-            loadFromDatabase();
+            // Load portfolio data
+            await loadPortfolioData();
             
             // Create all images
             createImages();
-            
-            // Set up upload functionality
-            setupUpload();
             
             // Organize into levels
             organizeByDimension('projects');
@@ -225,171 +176,128 @@
             
             // Start
             animate();
+            
+            updateStatus('Gallery ready');
+        }
+
+        async function loadPortfolioData() {
+            updateStatus('Loading portfolio data...');
+            
+            try {
+                const response = await fetch('/.netlify/functions/sync-dropbox-background');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.images && data.images.length > 0) {
+                    // Convert database format to our format
+                    portfolioData = data.images.map(img => ({
+                        name: img.name || 'Untitled',
+                        project: img.project || 'Unknown Project',
+                        tool: img.tool || 'Unknown Tool',
+                        type: img.type || 'Unknown Type',
+                        time: img.time || '2024-Q1',
+                        aspectRatio: img.aspectratio || 1.33,
+                        imageUrl: img.image_url,
+                        hasRealImage: !!img.image_url
+                    }));
+                    
+                    updateStatus(`Loaded ${portfolioData.length} images from database`);
+                    console.log(`Loaded ${portfolioData.length} real images from database`);
+                    
+                    // Show stats
+                    const projects = [...new Set(portfolioData.map(item => item.project))];
+                    console.log(`Projects: ${projects.join(', ')}`);
+                    
+                } else {
+                    throw new Error('No images in database');
+                }
+                
+            } catch (error) {
+                console.log('Database load failed, using fallback data:', error.message);
+                portfolioData = fallbackWorkItems.map(item => ({
+                    ...item,
+                    hasRealImage: false
+                }));
+                updateStatus(`Using ${portfolioData.length} placeholder images`);
+            }
+        }
+
+        function updateStatus(message) {
+            const statusElement = document.getElementById('statusText');
+            if (statusElement) {
+                statusElement.textContent = message;
+                console.log('Status:', message);
+            }
         }
 
         function createImages() {
-            // Priority: Database > Uploaded > Default
-            let itemsToUse = workItems; // Default fallback
-            
-            if (portfolioData.length > 0) {
-                itemsToUse = portfolioData;
-            } else if (actualWorkItems.length > 0) {
-                itemsToUse = actualWorkItems;
-            }
-            
             // Clear existing images
             images.forEach(img => scene.remove(img));
             images = [];
             
-            itemsToUse.forEach((item, index) => {
+            portfolioData.forEach((item, index) => {
                 const image = createImage(item);
                 images.push(image);
                 scene.add(image);
             });
         }
 
-        function setupUpload() {
-            const fileInput = document.getElementById('fileInput');
-            const uploadButton = document.querySelector('.upload-button');
-            const imageList = document.getElementById('imageList');
-            
-            // File input change
-            fileInput.addEventListener('change', handleFiles);
-            
-            // Drag and drop
-            uploadButton.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadButton.classList.add('dragover');
-            });
-            
-            uploadButton.addEventListener('dragleave', () => {
-                uploadButton.classList.remove('dragover');
-            });
-            
-            uploadButton.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadButton.classList.remove('dragover');
-                handleFiles({ target: { files: e.dataTransfer.files } });
-            });
-        }
-
-        function handleFiles(event) {
-            const files = Array.from(event.target.files);
-            const imageList = document.getElementById('imageList');
-            
-            files.forEach((file, index) => {
-                if (file.type.startsWith('image/')) {
-                    const img = new Image();
-                    img.onload = function() {
-                        const aspectRatio = this.width / this.height;
-                        
-                        // Create work item from uploaded image
-                        const workItem = {
-                            name: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
-                            project: `Project ${Math.floor(index / 3) + 1}`, // Group every 3 images
-                            tool: guessToolFromFilename(file.name),
-                            type: guessTypeFromAspectRatio(aspectRatio),
-                            time: `2024-Q${Math.floor(index / 5) + 1}`, // Group every 5 images
-                            aspectRatio: aspectRatio,
-                            imageElement: this
-                        };
-                        
-                        actualWorkItems.push(workItem);
-                        
-                        // Update image list
-                        const listItem = document.createElement('div');
-                        listItem.className = 'image-item';
-                        listItem.textContent = `${workItem.name} (${workItem.aspectRatio.toFixed(2)})`;
-                        imageList.appendChild(listItem);
-                        
-                        // Recreate gallery when all images are loaded
-                        if (actualWorkItems.length === files.length) {
-                            createImages();
-                            organizeByDimension(currentDimension);
-                        }
-                    };
-                    
-                    img.src = URL.createObjectURL(file);
-                }
-            });
-        }
-
-        function guessToolFromFilename(filename) {
-            const lower = filename.toLowerCase();
-            if (lower.includes('figma') || lower.includes('fig')) return 'Figma';
-            if (lower.includes('blender') || lower.includes('blend')) return 'Blender';
-            if (lower.includes('photo') || lower.includes('img_') || lower.includes('dsc_')) return 'Photography';
-            if (lower.includes('type') || lower.includes('font')) return 'Typography';
-            return 'Unknown';
-        }
-
-        function guessTypeFromAspectRatio(aspectRatio) {
-            if (aspectRatio > 1.5) return 'Landscape';
-            if (aspectRatio < 0.8) return 'Portrait';
-            return 'Square';
-        }
-
         function createImage(item) {
             const aspectRatio = item.aspectRatio;
             const baseSize = 6;
-            const width = baseSize * Math.min(aspectRatio, 2);
-            const height = baseSize / Math.max(aspectRatio, 0.5);
+            
+            // Calculate size that maintains aspect ratio
+            let width, height;
+            if (aspectRatio >= 1) {
+                width = baseSize;
+                height = baseSize / aspectRatio;
+            } else {
+                height = baseSize;
+                width = baseSize * aspectRatio;
+            }
             
             let texture;
             
-            if (item.imageElement) {
-                // Use actual uploaded image
-                texture = new THREE.Texture(item.imageElement);
-                texture.needsUpdate = true;
+            if (item.hasRealImage && item.imageUrl) {
+                // Load real image asynchronously
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                
+                // Create placeholder texture first
+                texture = createPlaceholderTexture(item, aspectRatio);
+                
+                // Replace with real image when loaded
+                img.onload = function() {
+                    const realTexture = new THREE.Texture(this);
+                    realTexture.needsUpdate = true;
+                    realTexture.generateMipmaps = false;
+                    realTexture.minFilter = THREE.LinearFilter;
+                    realTexture.magFilter = THREE.LinearFilter;
+                    
+                    // Replace the material's texture
+                    const mesh = images.find(m => m.userData === item);
+                    if (mesh) {
+                        mesh.material.map = realTexture;
+                        console.log(`Loaded real image: ${item.name}`);
+                    }
+                };
+                
+                img.onerror = function() {
+                    console.log(`Failed to load image: ${item.name}`);
+                };
+                
+                img.src = item.imageUrl;
+                
             } else {
                 // Create placeholder texture
-                const canvas = document.createElement('canvas');
-                canvas.width = 512;
-                canvas.height = 512 / aspectRatio;
-                const ctx = canvas.getContext('2d');
-                
-                // Clean background
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Subtle border
-                ctx.strokeStyle = '#e0e0e0';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(0, 0, canvas.width, canvas.height);
-                
-                // Text
-                ctx.fillStyle = '#333';
-                ctx.font = 'bold 16px Arial';
-                ctx.textAlign = 'center';
-                
-                const words = item.name.split(' ');
-                const lineHeight = 20;
-                let y = canvas.height/2 - (words.length > 2 ? lineHeight/2 : 0);
-                
-                if (words.length <= 2) {
-                    ctx.fillText(item.name, canvas.width/2, y);
-                } else {
-                    const midPoint = Math.ceil(words.length / 2);
-                    const firstLine = words.slice(0, midPoint).join(' ');
-                    const secondLine = words.slice(midPoint).join(' ');
-                    
-                    ctx.fillText(firstLine, canvas.width/2, y);
-                    ctx.fillText(secondLine, canvas.width/2, y + lineHeight);
-                }
-                
-                // Category indicator
-                ctx.fillStyle = '#666';
-                ctx.font = '11px Arial';
-                ctx.fillText(item[currentDimension], canvas.width/2, canvas.height - 15);
-                
-                texture = new THREE.CanvasTexture(canvas);
+                texture = createPlaceholderTexture(item, aspectRatio);
             }
             
-            texture.generateMipmaps = false;
-            texture.minFilter = THREE.LinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            
-            // Create plane with correct aspect ratio
+            // Create plane with exact aspect ratio dimensions
             const geometry = new THREE.PlaneGeometry(width, height);
             const material = new THREE.MeshBasicMaterial({ 
                 map: texture,
@@ -400,6 +308,61 @@
             mesh.userData = item;
             
             return mesh;
+        }
+
+        function createPlaceholderTexture(item, aspectRatio) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = Math.round(512 / aspectRatio);
+            const ctx = canvas.getContext('2d');
+            
+            // Clean background
+            ctx.fillStyle = item.hasRealImage ? '#f0f0f0' : '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Subtle border
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            
+            // Text
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            
+            const words = item.name.split(' ');
+            const lineHeight = 20;
+            let y = canvas.height/2 - (words.length > 2 ? lineHeight/2 : 0);
+            
+            if (words.length <= 2) {
+                ctx.fillText(item.name, canvas.width/2, y);
+            } else {
+                const midPoint = Math.ceil(words.length / 2);
+                const firstLine = words.slice(0, midPoint).join(' ');
+                const secondLine = words.slice(midPoint).join(' ');
+                
+                ctx.fillText(firstLine, canvas.width/2, y);
+                ctx.fillText(secondLine, canvas.width/2, y + lineHeight);
+            }
+            
+            // Category indicator
+            ctx.fillStyle = '#666';
+            ctx.font = '11px Arial';
+            ctx.fillText(item[currentDimension], canvas.width/2, canvas.height - 15);
+            
+            // Loading indicator for real images
+            if (item.hasRealImage) {
+                ctx.fillStyle = '#999';
+                ctx.font = '10px Arial';
+                ctx.fillText('Loading...', canvas.width/2, canvas.height - 30);
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.generateMipmaps = false;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            
+            return texture;
         }
 
         function organizeByDimension(dimension) {
@@ -426,338 +389,3 @@
                 case 'time':
                     groupedItems = groupByProperty('time');
                     break;
-                case 'tools':
-                    groupedItems = groupByProperty('tool');
-                    break;
-                case 'type':
-                    groupedItems = groupByProperty('type');
-                    break;
-            }
-            
-            // Animate reorganization
-            animateReorganization(groupedItems);
-        }
-
-        function animateReorganization(groupedItems) {
-            const duration = 1500;
-            const startTime = Date.now();
-            
-            // Calculate new positions for all images
-            const newPositions = calculateNewPositions(groupedItems);
-            
-            // Store starting positions
-            const startPositions = images.map(img => ({
-                x: img.position.x,
-                y: img.position.y,
-                z: img.position.z
-            }));
-            
-            function animate() {
-                const elapsed = Date.now() - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
-                
-                images.forEach((img, index) => {
-                    const start = startPositions[index];
-                    const target = newPositions[index];
-                    
-                    if (target) {
-                        img.position.x = start.x + (target.x - start.x) * eased;
-                        img.position.y = start.y + (target.y - start.y) * eased;
-                        img.position.z = start.z + (target.z - start.z) * eased;
-                        
-                        // Update stored original position
-                        img.userData.originalPosition = {
-                            x: img.position.x,
-                            y: img.position.y,
-                            z: img.position.z
-                        };
-                    }
-                });
-                
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
-                } else {
-                    // Animation complete
-                    levels = groupedItems;
-                    document.getElementById('totalLevels').textContent = levels.length;
-                    isTransitioning = false;
-                    
-                    // Reset to first level after reorganization
-                    goToLevel(0);
-                }
-            }
-            
-            animate();
-        }
-
-        function calculateNewPositions(groupedItems) {
-            const levelSpacing = 40;
-            const positions = [];
-            
-            // Priority: Database > Uploaded > Default
-            let itemsToUse = workItems;
-            if (portfolioData.length > 0) {
-                itemsToUse = portfolioData;
-            } else if (actualWorkItems.length > 0) {
-                itemsToUse = actualWorkItems;
-            }
-            
-            // Initialize positions array
-            for (let i = 0; i < images.length; i++) {
-                positions[i] = null;
-            }
-            
-            groupedItems.forEach((levelItems, levelIndex) => {
-                const cols = Math.ceil(Math.sqrt(levelItems.length));
-                const spacing = 12;
-                
-                levelItems.forEach((item, itemIndex) => {
-                    const imageIndex = itemsToUse.indexOf(item);
-                    
-                    if (imageIndex >= 0) {
-                        const row = Math.floor(itemIndex / cols);
-                        const col = itemIndex % cols;
-                        const x = (col - (cols - 1) / 2) * spacing;
-                        const y = ((Math.ceil(levelItems.length / cols) - 1) / 2 - row) * spacing;
-                        const z = -levelIndex * levelSpacing;
-                        
-                        positions[imageIndex] = { x, y, z };
-                    }
-                });
-            });
-            
-            return positions;
-        }
-
-        function groupByProperty(property) {
-            // Priority: Database > Uploaded > Default
-            let itemsToUse = workItems;
-            
-            if (portfolioData.length > 0) {
-                itemsToUse = portfolioData;
-            } else if (actualWorkItems.length > 0) {
-                itemsToUse = actualWorkItems;
-            }
-            
-            const groups = {};
-            itemsToUse.forEach(item => {
-                const key = item[property];
-                if (!groups[key]) groups[key] = [];
-                groups[key].push(item);
-            });
-            return Object.values(groups);
-        }
-
-        function createLevels(groupedItems) {
-            levels = groupedItems;
-            document.getElementById('totalLevels').textContent = levels.length;
-            
-            // Position all levels in 3D space
-            positionAllLevels();
-        }
-
-        function positionAllLevels() {
-            const levelSpacing = 40; // Distance between levels
-            
-            levels.forEach((levelItems, levelIndex) => {
-                const cols = Math.ceil(Math.sqrt(levelItems.length));
-                const spacing = 12;
-                
-                levelItems.forEach((item, itemIndex) => {
-                    const imageIndex = (actualWorkItems.length > 0 ? actualWorkItems : workItems).indexOf(item);
-                    const img = images[imageIndex];
-                    
-                    if (img) {
-                        // Grid position within level
-                        const row = Math.floor(itemIndex / cols);
-                        const col = itemIndex % cols;
-                        const x = (col - (cols - 1) / 2) * spacing;
-                        const y = ((Math.ceil(levelItems.length / cols) - 1) / 2 - row) * spacing;
-                        const z = -levelIndex * levelSpacing; // Each level deeper
-                        
-                        img.position.set(x, y, z);
-                        img.rotation.set(0, 0, 0);
-                        img.scale.set(1, 1, 1);
-                        img.visible = true;
-                        
-                        // Store level info
-                        img.userData.level = levelIndex;
-                        img.userData.originalPosition = { x, y, z };
-                    }
-                });
-            });
-        }
-
-        function goToLevel(levelIndex) {
-            if (levelIndex < 0 || levelIndex >= levels.length) return;
-            if (levelIndex === currentLevel) return;
-            
-            targetLevel = levelIndex;
-            currentLevel = levelIndex;
-            document.getElementById('currentLevel').textContent = currentLevel + 1;
-            
-            // Animate camera to this level
-            const levelSpacing = 40;
-            targetCameraZ = -targetLevel * levelSpacing + 30;
-            
-            // Reset lateral position when changing levels
-            targetCameraX = 0;
-            targetCameraY = 0;
-            
-            // Reset focus
-            focusedImage = null;
-        }
-
-        function updateCameraForLevel() {
-            // Smooth camera interpolation
-            const lerpFactor = 0.08;
-            cameraZ += (targetCameraZ - cameraZ) * lerpFactor;
-            
-            if (focusedImage) {
-                // Focused on specific image - smooth movement to it
-                const targetPos = focusedImage.userData.originalPosition;
-                camera.position.x += (targetPos.x - camera.position.x) * lerpFactor;
-                camera.position.y += (targetPos.y - camera.position.y) * lerpFactor;
-                camera.position.z += (targetPos.z + 15 - camera.position.z) * lerpFactor;
-                camera.lookAt(targetPos.x, targetPos.y, targetPos.z);
-            } else {
-                // Overview - allow panning around the level
-                cameraX += (targetCameraX - cameraX) * lerpFactor;
-                cameraY += (targetCameraY - cameraY) * lerpFactor;
-                camera.position.x = cameraX;
-                camera.position.y = cameraY;
-                camera.position.z = cameraZ;
-                camera.lookAt(cameraX, cameraY, cameraZ - 30);
-            }
-        }
-
-        function setupEvents() {
-            const canvas = document.getElementById('canvas');
-            
-            canvas.addEventListener('wheel', onWheel);
-            canvas.addEventListener('click', onImageClick);
-            canvas.addEventListener('mousedown', onMouseDown);
-            canvas.addEventListener('mousemove', onMouseMove);
-            canvas.addEventListener('mouseup', onMouseUp);
-            window.addEventListener('resize', onWindowResize);
-            
-            // Dimension switching
-            document.querySelectorAll('.dimension-button').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const dimension = e.target.dataset.dimension;
-                    organizeByDimension(dimension);
-                });
-            });
-            
-            // Keyboard navigation
-            document.addEventListener('keydown', (e) => {
-                switch(e.key) {
-                    case 'ArrowUp':
-                        goToLevel(currentLevel - 1);
-                        break;
-                    case 'ArrowDown':
-                        goToLevel(currentLevel + 1);
-                        break;
-                    case 'Escape':
-                        if (focusedImage) {
-                            focusedImage = null;
-                        }
-                        break;
-                }
-            });
-        }
-
-        function onMouseDown(event) {
-            isDragging = true;
-            previousMousePosition = {
-                x: event.clientX,
-                y: event.clientY
-            };
-        }
-
-        function onMouseMove(event) {
-            if (isDragging && !focusedImage) {
-                const deltaMove = {
-                    x: event.clientX - previousMousePosition.x,
-                    y: event.clientY - previousMousePosition.y
-                };
-                
-                // Pan around the current level
-                const panSpeed = 0.05;
-                targetCameraX -= deltaMove.x * panSpeed;
-                targetCameraY += deltaMove.y * panSpeed;
-                
-                previousMousePosition = {
-                    x: event.clientX,
-                    y: event.clientY
-                };
-            }
-        }
-
-        function onMouseUp() {
-            isDragging = false;
-        }
-
-        function onWheel(event) {
-            event.preventDefault();
-            
-            if (focusedImage) {
-                // If focused, just zoom out (unfocus)
-                focusedImage = null;
-            } else {
-                // Change levels with cooldown
-                if (!scrollCooldown) {
-                    const direction = event.deltaY > 0 ? 1 : -1;
-                    goToLevel(currentLevel + direction);
-                    
-                    // Add cooldown to prevent rapid scrolling
-                    scrollCooldown = true;
-                    setTimeout(() => {
-                        scrollCooldown = false;
-                    }, 300); // Slightly longer cooldown for smoother movement
-                }
-            }
-        }
-
-        function onImageClick(event) {
-            const raycaster = new THREE.Raycaster();
-            const mouse = new THREE.Vector2();
-            
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-            
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(images.filter(img => img.visible));
-            
-            if (intersects.length > 0) {
-                const clickedImage = intersects[0].object;
-                
-                if (focusedImage === clickedImage) {
-                    // Click again to zoom out
-                    focusedImage = null;
-                } else {
-                    // Focus on this image
-                    focusedImage = clickedImage;
-                }
-            }
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            updateCameraForLevel(); // Smooth camera animation every frame
-            renderer.render(scene, camera);
-        }
-
-        // Start
-        init();
-    </script>
-</body>
-</html>
