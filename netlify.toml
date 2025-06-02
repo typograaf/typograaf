@@ -1,20 +1,16 @@
 [build]
   functions = "netlify/functions"
 
-# Scheduled function - runs every 6 hours
+# Scheduled function to sync Dropbox every 6 hours
 [[plugins]]
   package = "@netlify/plugin-scheduled-functions"
   
   [plugins.inputs]
-    # Run every 6 hours: at 12:00 AM, 6:00 AM, 12:00 PM, and 6:00 PM UTC
+    # Run every 6 hours at minute 0
     schedule = "0 */6 * * *"
 
-# Alternative schedules you can use:
-# Daily at midnight UTC: "0 0 * * *"
-# Every 3 hours: "0 */3 * * *"
-# Every 12 hours: "0 */12 * * *"
-# Once per week (Sunday at midnight): "0 0 * * 0"
-
-[functions]
-  # Increase timeout for scheduled functions (max 15 minutes for Pro plans)
-  timeout = 900
+# Optional: redirect for manual testing
+[[redirects]]
+  from = "/admin/sync"
+  to = "/.netlify/functions/scheduled-sync"
+  status = 200

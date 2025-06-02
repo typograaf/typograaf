@@ -17,8 +17,10 @@
   "author": "Martijn",
   "license": "MIT",
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.0",
-    "@netlify/plugin-scheduled-functions": "^1.3.0"
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "@netlify/plugin-scheduled-functions": "^1.0.0"
   },
   "engines": {
     "node": "20.x"

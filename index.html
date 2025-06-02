@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Level Gallery</title>
+    <title>Martijn's Portfolio Gallery</title>
     <style>
         body {
             margin: 0;
@@ -27,6 +27,19 @@
             padding: 20px;
             border-radius: 4px;
             z-index: 100;
+        }
+        
+        #status {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            color: #333;
+            font-size: 12px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 4px;
+            z-index: 100;
+            max-width: 200px;
         }
         
         #dimensions {
@@ -60,17 +73,18 @@
             background: #333;
             color: white;
         }
-
-        #status {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
+        
+        .loading {
             color: #666;
-            font-size: 11px;
-            background: rgba(255,255,255,0.9);
-            padding: 10px;
-            border-radius: 4px;
-            z-index: 100;
+            font-style: italic;
+        }
+        
+        .success {
+            color: #2d5016;
+        }
+        
+        .error {
+            color: #8b0000;
         }
     </style>
 </head>
@@ -85,16 +99,18 @@
         <div>Organization: <span id="currentDimension">Projects</span></div>
     </div>
     
+    <div id="status">
+        <div style="margin-bottom: 8px; font-weight: bold;">Portfolio Status</div>
+        <div id="imageCount" class="loading">Loading...</div>
+        <div id="lastUpdate" class="loading">Checking updates...</div>
+    </div>
+    
     <div id="dimensions">
         <div style="margin-bottom: 8px; font-weight: bold;">Organization:</div>
         <div class="dimension-button active" data-dimension="projects">Projects</div>
         <div class="dimension-button" data-dimension="time">Timeline</div>
         <div class="dimension-button" data-dimension="tools">Tools</div>
         <div class="dimension-button" data-dimension="type">Content Type</div>
-    </div>
-
-    <div id="status">
-        <div id="statusText">Loading...</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -118,8 +134,8 @@
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
 
-        // Fallback work data for when database is empty
-        const fallbackWorkItems = [
+        // Fallback data in case database is empty
+        const fallbackData = [
             { name: 'Physics Soap Bubbles', project: 'Research', tool: 'Figma', type: 'Research', time: '2024-Q1', aspectRatio: 16/9 },
             { name: 'COLDCHAIN Logo', project: 'COLDCHAIN', tool: 'Figma', type: 'Brand', time: '2024-Q2', aspectRatio: 16/10 },
             { name: 'Blender 3D Scene', project: '3D Visual', tool: 'Blender', type: '3D', time: '2024-Q2', aspectRatio: 16/10 },
@@ -139,9 +155,7 @@
         ];
 
         async function init() {
-            updateStatus('Initializing 3D gallery...');
-            
-            // Scene
+            // Scene setup
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xf8f8f6);
             
@@ -150,7 +164,7 @@
             camera.position.set(0, 0, 30);
             camera.lookAt(0, 0, 0);
             
-            // Renderer - clean, no shadows
+            // Renderer
             renderer = new THREE.WebGLRenderer({ 
                 canvas: document.getElementById('canvas'),
                 antialias: true
@@ -158,80 +172,74 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             
-            // Simple lighting - no shadows
+            // Lighting
             const ambientLight = new THREE.AmbientLight(0xffffff, 1);
             scene.add(ambientLight);
             
             // Load portfolio data
             await loadPortfolioData();
             
-            // Create all images
+            // Create gallery
             createImages();
-            
-            // Organize into levels
             organizeByDimension('projects');
             
-            // Events
+            // Setup events
             setupEvents();
             
-            // Start
+            // Start animation
             animate();
-            
-            updateStatus('Gallery ready');
         }
 
         async function loadPortfolioData() {
-            updateStatus('Loading portfolio data...');
-            
             try {
+                updateStatus('Loading portfolio...', 'loading');
+                
                 const response = await fetch('/.netlify/functions/sync-dropbox-background');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
                 const data = await response.json();
                 
                 if (data.success && data.images && data.images.length > 0) {
-                    // Convert database format to our format
+                    // Convert database format to gallery format
                     portfolioData = data.images.map(img => ({
-                        name: img.name || 'Untitled',
-                        project: img.project || 'Unknown Project',
-                        tool: img.tool || 'Unknown Tool',
-                        type: img.type || 'Unknown Type',
-                        time: img.time || '2024-Q1',
+                        name: img.name,
+                        project: img.project,
+                        tool: img.tool,
+                        type: img.type,
+                        time: img.time,
                         aspectRatio: img.aspectratio || 1.33,
-                        imageUrl: img.image_url,
-                        hasRealImage: !!img.image_url
+                        imageUrl: img.image_url
                     }));
                     
-                    updateStatus(`Loaded ${portfolioData.length} images from database`);
-                    console.log(`Loaded ${portfolioData.length} real images from database`);
+                    updateStatus(`${portfolioData.length} images loaded`, 'success');
+                    updateLastSync(data.timestamp || 'Unknown');
                     
-                    // Show stats
-                    const projects = [...new Set(portfolioData.map(item => item.project))];
-                    console.log(`Projects: ${projects.join(', ')}`);
-                    
+                    console.log(`Loaded ${portfolioData.length} images from database`);
                 } else {
-                    throw new Error('No images in database');
+                    // Use fallback data
+                    portfolioData = fallbackData;
+                    updateStatus('Using placeholder data', 'loading');
+                    updateLastSync('Scheduled sync will update soon');
+                    
+                    console.log('No database images found, using fallback data');
                 }
-                
             } catch (error) {
-                console.log('Database load failed, using fallback data:', error.message);
-                portfolioData = fallbackWorkItems.map(item => ({
-                    ...item,
-                    hasRealImage: false
-                }));
-                updateStatus(`Using ${portfolioData.length} placeholder images`);
+                portfolioData = fallbackData;
+                updateStatus('Using placeholder data', 'error');
+                updateLastSync('Sync error - will retry automatically');
+                
+                console.log('Error loading portfolio data:', error.message);
             }
         }
 
-        function updateStatus(message) {
-            const statusElement = document.getElementById('statusText');
-            if (statusElement) {
-                statusElement.textContent = message;
-                console.log('Status:', message);
-            }
+        function updateStatus(message, type) {
+            const element = document.getElementById('imageCount');
+            element.textContent = message;
+            element.className = type;
+        }
+
+        function updateLastSync(time) {
+            const element = document.getElementById('lastUpdate');
+            element.textContent = `Last sync: ${time}`;
+            element.className = 'success';
         }
 
         function createImages() {
@@ -250,7 +258,6 @@
             const aspectRatio = item.aspectRatio;
             const baseSize = 6;
             
-            // Calculate size that maintains aspect ratio
             let width, height;
             if (aspectRatio >= 1) {
                 width = baseSize;
@@ -262,42 +269,27 @@
             
             let texture;
             
-            if (item.hasRealImage && item.imageUrl) {
-                // Load real image asynchronously
+            if (item.imageUrl) {
+                // Try to load real image
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
-                
-                // Create placeholder texture first
-                texture = createPlaceholderTexture(item, aspectRatio);
-                
-                // Replace with real image when loaded
                 img.onload = function() {
-                    const realTexture = new THREE.Texture(this);
-                    realTexture.needsUpdate = true;
-                    realTexture.generateMipmaps = false;
-                    realTexture.minFilter = THREE.LinearFilter;
-                    realTexture.magFilter = THREE.LinearFilter;
-                    
-                    // Replace the material's texture
-                    const mesh = images.find(m => m.userData === item);
-                    if (mesh) {
-                        mesh.material.map = realTexture;
-                        console.log(`Loaded real image: ${item.name}`);
-                    }
+                    texture = new THREE.Texture(this);
+                    texture.needsUpdate = true;
+                    mesh.material.map = texture;
                 };
-                
                 img.onerror = function() {
-                    console.log(`Failed to load image: ${item.name}`);
+                    console.log('Failed to load image:', item.imageUrl);
                 };
-                
                 img.src = item.imageUrl;
                 
+                // Create placeholder while loading
+                texture = createPlaceholderTexture(item, aspectRatio);
             } else {
                 // Create placeholder texture
                 texture = createPlaceholderTexture(item, aspectRatio);
             }
             
-            // Create plane with exact aspect ratio dimensions
             const geometry = new THREE.PlaneGeometry(width, height);
             const material = new THREE.MeshBasicMaterial({ 
                 map: texture,
@@ -317,7 +309,7 @@
             const ctx = canvas.getContext('2d');
             
             // Clean background
-            ctx.fillStyle = item.hasRealImage ? '#f0f0f0' : '#ffffff';
+            ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             // Subtle border
@@ -349,13 +341,6 @@
             ctx.fillStyle = '#666';
             ctx.font = '11px Arial';
             ctx.fillText(item[currentDimension], canvas.width/2, canvas.height - 15);
-            
-            // Loading indicator for real images
-            if (item.hasRealImage) {
-                ctx.fillStyle = '#999';
-                ctx.font = '10px Arial';
-                ctx.fillText('Loading...', canvas.width/2, canvas.height - 30);
-            }
             
             const texture = new THREE.CanvasTexture(canvas);
             texture.generateMipmaps = false;
@@ -389,3 +374,146 @@
                 case 'time':
                     groupedItems = groupByProperty('time');
                     break;
+                case 'tools':
+                    groupedItems = groupByProperty('tool');
+                    break;
+                case 'type':
+                    groupedItems = groupByProperty('type');
+                    break;
+            }
+            
+            animateReorganization(groupedItems);
+        }
+
+        function animateReorganization(groupedItems) {
+            const duration = 1500;
+            const startTime = Date.now();
+            
+            const newPositions = calculateNewPositions(groupedItems);
+            const startPositions = images.map(img => ({
+                x: img.position.x,
+                y: img.position.y,
+                z: img.position.z
+            }));
+            
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                
+                images.forEach((img, index) => {
+                    const start = startPositions[index];
+                    const target = newPositions[index];
+                    
+                    if (target) {
+                        img.position.x = start.x + (target.x - start.x) * eased;
+                        img.position.y = start.y + (target.y - start.y) * eased;
+                        img.position.z = start.z + (target.z - start.z) * eased;
+                        
+                        img.userData.originalPosition = {
+                            x: img.position.x,
+                            y: img.position.y,
+                            z: img.position.z
+                        };
+                    }
+                });
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    levels = groupedItems;
+                    document.getElementById('totalLevels').textContent = levels.length;
+                    isTransitioning = false;
+                    goToLevel(0);
+                }
+            }
+            
+            animate();
+        }
+
+        function calculateNewPositions(groupedItems) {
+            const levelSpacing = 40;
+            const positions = [];
+            
+            for (let i = 0; i < images.length; i++) {
+                positions[i] = null;
+            }
+            
+            groupedItems.forEach((levelItems, levelIndex) => {
+                const cols = Math.ceil(Math.sqrt(levelItems.length));
+                const spacing = 12;
+                
+                levelItems.forEach((item, itemIndex) => {
+                    const imageIndex = portfolioData.indexOf(item);
+                    
+                    if (imageIndex >= 0) {
+                        const row = Math.floor(itemIndex / cols);
+                        const col = itemIndex % cols;
+                        const x = (col - (cols - 1) / 2) * spacing;
+                        const y = ((Math.ceil(levelItems.length / cols) - 1) / 2 - row) * spacing;
+                        const z = -levelIndex * levelSpacing;
+                        
+                        positions[imageIndex] = { x, y, z };
+                    }
+                });
+            });
+            
+            return positions;
+        }
+
+        function groupByProperty(property) {
+            const groups = {};
+            portfolioData.forEach(item => {
+                const key = item[property];
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(item);
+            });
+            return Object.values(groups);
+        }
+
+        function goToLevel(levelIndex) {
+            if (levelIndex < 0 || levelIndex >= levels.length) return;
+            if (levelIndex === currentLevel) return;
+            
+            targetLevel = levelIndex;
+            currentLevel = levelIndex;
+            document.getElementById('currentLevel').textContent = currentLevel + 1;
+            
+            const levelSpacing = 40;
+            targetCameraZ = -targetLevel * levelSpacing + 30;
+            
+            targetCameraX = 0;
+            targetCameraY = 0;
+            focusedImage = null;
+        }
+
+        function updateCameraForLevel() {
+            const lerpFactor = 0.08;
+            cameraZ += (targetCameraZ - cameraZ) * lerpFactor;
+            
+            if (focusedImage) {
+                const targetPos = focusedImage.userData.originalPosition;
+                camera.position.x += (targetPos.x - camera.position.x) * lerpFactor;
+                camera.position.y += (targetPos.y - camera.position.y) * lerpFactor;
+                camera.position.z += (targetPos.z + 15 - camera.position.z) * lerpFactor;
+                camera.lookAt(targetPos.x, targetPos.y, targetPos.z);
+            } else {
+                cameraX += (targetCameraX - cameraX) * lerpFactor;
+                cameraY += (targetCameraY - cameraY) * lerpFactor;
+                camera.position.x = cameraX;
+                camera.position.y = cameraY;
+                camera.position.z = cameraZ;
+                camera.lookAt(cameraX, cameraY, cameraZ - 30);
+            }
+        }
+
+        function setupEvents() {
+            const canvas = document.getElementById('canvas');
+            
+            canvas.addEventListener('wheel', onWheel);
+            canvas.addEventListener('click', onImageClick);
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            window.addEventListener('resize', onWindowResize);
+            
