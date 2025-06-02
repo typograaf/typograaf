@@ -9,11 +9,17 @@ exports.handler = async (event, context) => {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_ANON_KEY;
     const dropboxToken = process.env.DROPBOX_ACCESS_TOKEN;
+    const dropboxRefreshToken = process.env.DROPBOX_REFRESH_TOKEN;
+    const dropboxAppKey = process.env.DROPBOX_APP_KEY;
+    const dropboxAppSecret = process.env.DROPBOX_APP_SECRET;
     
     console.log('Environment check:');
     console.log('- SUPABASE_URL exists:', !!supabaseUrl);
     console.log('- SUPABASE_ANON_KEY exists:', !!supabaseKey);
     console.log('- DROPBOX_ACCESS_TOKEN exists:', !!dropboxToken);
+    console.log('- DROPBOX_REFRESH_TOKEN exists:', !!dropboxRefreshToken);
+    console.log('- DROPBOX_APP_KEY exists:', !!dropboxAppKey);
+    console.log('- DROPBOX_APP_SECRET exists:', !!dropboxAppSecret);
     
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Missing Supabase environment variables');
@@ -25,16 +31,30 @@ exports.handler = async (event, context) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Test Dropbox token first
+    // Try to get a fresh access token if we have refresh capability
+    let currentToken = dropboxToken;
+    
+    if (dropboxRefreshToken && dropboxAppKey && dropboxAppSecret) {
+      console.log('Attempting to refresh access token...');
+      try {
+        currentToken = await refreshAccessToken(dropboxRefreshToken, dropboxAppKey, dropboxAppSecret);
+        console.log('Successfully refreshed access token');
+      } catch (refreshError) {
+        console.log('Failed to refresh token, using original:', refreshError.message);
+        currentToken = dropboxToken;
+      }
+    }
+    
+    // Test Dropbox access
     console.log('Testing Dropbox access...');
-    await testDropboxAccess(dropboxToken);
+    await testDropboxAccess(currentToken);
     console.log('Dropbox access OK');
     
     // Scan Dropbox folder
     const portfolioPath = '/AboutContact/Website/Portfolio';
     console.log('Scanning portfolio path:', portfolioPath);
     
-    const images = await scanDropboxPortfolio(dropboxToken, portfolioPath);
+    const images = await scanDropboxPortfolio(currentToken, portfolioPath);
     
     console.log(`Found ${images.length} images to sync`);
     
@@ -43,12 +63,17 @@ exports.handler = async (event, context) => {
       console.log('Clearing existing portfolio data...');
       await supabase.from('portfolio_images').delete().neq('id', '');
       
-      // Insert new data
+      // Insert new data in batches to avoid timeout
       console.log('Inserting new portfolio data...');
-      const { error } = await supabase.from('portfolio_images').insert(images);
-      if (error) {
-        console.error('Supabase insert error:', error);
-        throw error;
+      const batchSize = 50;
+      for (let i = 0; i < images.length; i += batchSize) {
+        const batch = images.slice(i, i + batchSize);
+        const { error } = await supabase.from('portfolio_images').insert(batch);
+        if (error) {
+          console.error('Supabase insert error:', error);
+          throw error;
+        }
+        console.log(`Inserted batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(images.length/batchSize)}`);
       }
     }
     
@@ -96,6 +121,30 @@ exports.handler = async (event, context) => {
   }
 };
 
+async function refreshAccessToken(refreshToken, appKey, appSecret) {
+  const credentials = Buffer.from(`${appKey}:${appSecret}`).toString('base64');
+  
+  const response = await fetch('https://api.dropboxapi.com/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken
+    })
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to refresh token: ${response.status} - ${errorText}`);
+  }
+  
+  const data = await response.json();
+  return data.access_token;
+}
+
 async function testDropboxAccess(token) {
   const response = await fetch('https://api.dropboxapi.com/2/users/get_current_account', {
     method: 'POST',
@@ -108,7 +157,17 @@ async function testDropboxAccess(token) {
   if (!response.ok) {
     const errorText = await response.text();
     console.error('Dropbox test failed:', response.status, errorText);
-    throw new Error(`Dropbox authentication failed: ${response.status} - Check your DROPBOX_ACCESS_TOKEN`);
+    
+    // Provide specific error messages
+    if (response.status === 401) {
+      if (errorText.includes('expired_access_token')) {
+        throw new Error('Access token has expired. You need to set up refresh tokens for long-term access.');
+      } else {
+        throw new Error('Invalid access token. Please regenerate your Dropbox access token.');
+      }
+    }
+    
+    throw new Error(`Dropbox authentication failed: ${response.status} - ${errorText}`);
   }
   
   const data = await response.json();
