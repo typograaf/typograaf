@@ -29,7 +29,7 @@
             z-index: 100;
         }
         
-        #upload {
+        #sync {
             position: fixed;
             top: 30px;
             right: 30px;
@@ -39,14 +39,9 @@
             padding: 15px;
             border-radius: 4px;
             z-index: 100;
-            width: 200px;
         }
         
-        #fileInput {
-            display: none;
-        }
-        
-        .upload-button {
+        .sync-button {
             width: 100%;
             padding: 10px;
             background: #f0f0f0;
@@ -58,24 +53,19 @@
             transition: background 0.2s;
         }
         
-        .upload-button:hover {
+        .sync-button:hover {
             background: #e0e0e0;
         }
         
-        .upload-button.dragover {
-            background: #d0e0ff;
-            border-color: #0066cc;
+        .sync-button:disabled {
+            background: #f8f8f8;
+            cursor: not-allowed;
+            opacity: 0.6;
         }
         
-        #imageList {
-            max-height: 150px;
-            overflow-y: auto;
+        #syncStatus {
             font-size: 11px;
-        }
-        
-        .image-item {
-            padding: 2px 0;
-            border-bottom: 1px solid #eee;
+            color: #666;
         }
         
         #dimensions {
@@ -159,10 +149,41 @@
         let targetCameraX = 0;
         let targetCameraY = 0;
         let scrollCooldown = false;
-        let uploadedImages = [];
-        let actualWorkItems = [];
+        let portfolioData = [];
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
+
+        async function syncDropbox() {
+            const button = document.getElementById('syncButton');
+            const status = document.getElementById('syncStatus');
+            
+            button.disabled = true;
+            button.textContent = 'Syncing...';
+            status.textContent = 'Scanning Dropbox folders...';
+            
+            try {
+                const response = await fetch('/.netlify/functions/sync-dropbox');
+                const data = await response.json();
+                
+                if (data.success) {
+                    status.textContent = `Synced ${data.synced} images from ${data.projects.length} projects`;
+                    
+                    // Reload portfolio data
+                    await loadPortfolioData();
+                    createImages();
+                    organizeByDimension(currentDimension);
+                    
+                    document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
+                } else {
+                    status.textContent = `Sync failed: ${data.error}`;
+                }
+            } catch (error) {
+                status.textContent = `Sync error: ${error.message}`;
+            }
+            
+            button.disabled = false;
+            button.textContent = 'Sync from Dropbox';
+        }
         
         // Your work data
         const workItems = [
