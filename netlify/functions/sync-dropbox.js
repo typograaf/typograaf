@@ -17,9 +17,6 @@ exports.handler = async (event, context) => {
     console.log('- SUPABASE_URL exists:', !!supabaseUrl);
     console.log('- SUPABASE_ANON_KEY exists:', !!supabaseKey);
     console.log('- DROPBOX_ACCESS_TOKEN exists:', !!dropboxToken);
-    console.log('- DROPBOX_REFRESH_TOKEN exists:', !!dropboxRefreshToken);
-    console.log('- DROPBOX_APP_KEY exists:', !!dropboxAppKey);
-    console.log('- DROPBOX_APP_SECRET exists:', !!dropboxAppSecret);
     
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Missing Supabase environment variables');
@@ -63,9 +60,9 @@ exports.handler = async (event, context) => {
       console.log('Clearing existing portfolio data...');
       await supabase.from('portfolio_images').delete().neq('id', '');
       
-      // Insert new data in batches to avoid timeout
+      // Insert new data in batches
       console.log('Inserting new portfolio data...');
-      const batchSize = 50;
+      const batchSize = 25; // Smaller batches for reliability
       for (let i = 0; i < images.length; i += batchSize) {
         const batch = images.slice(i, i + batchSize);
         const { error } = await supabase.from('portfolio_images').insert(batch);
@@ -157,7 +154,6 @@ async function testDropboxAccess(token) {
     const errorText = await response.text();
     console.error('Dropbox test failed:', response.status, errorText);
     
-    // Provide specific error messages
     if (response.status === 401) {
       if (errorText.includes('expired_access_token')) {
         throw new Error('Access token has expired. You need to set up refresh tokens for long-term access.');
@@ -179,13 +175,11 @@ async function scanDropboxPortfolio(token, basePath) {
   
   try {
     console.log('Listing base portfolio folder...');
-    // Get project folders
     const projectFolders = await listDropboxFolder(token, basePath);
     console.log(`Found ${projectFolders.length} items in portfolio folder`);
     
     // Process ALL projects, not just 3
     const projects = projectFolders.filter(item => item['.tag'] === 'folder');
-    
     console.log(`Processing all ${projects.length} projects`);
     
     for (const project of projects) {
@@ -213,42 +207,52 @@ async function scanDropboxPortfolio(token, basePath) {
             const files = await listDropboxFolder(token, toolPath);
             console.log(`Found ${files.length} files in ${projectName}/${toolName}`);
             
-            // Process ALL image files, not just 5
+            // Process ALL images, not just 5
             const imageFiles = files.filter(file => {
               if (file['.tag'] !== 'file') return false;
               const extension = file.name.split('.').pop().toLowerCase();
               return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff'].includes(extension);
             });
             
-            console.log(`Processing all ${imageFiles.length} images from ${projectName}/${toolName}`);
+            console.log(`Processing ${imageFiles.length} images from ${projectName}/${toolName}`);
             
-            for (const file of imageFiles) {
-              console.log(`Processing image: ${file.name}`);
+            // Process images in smaller batches to avoid timeout
+            for (let i = 0; i < imageFiles.length; i += 5) {
+              const batch = imageFiles.slice(i, i + 5);
               
-              // Generate temporary URL
-              const imageUrl = await getDropboxTemporaryUrl(token, file.path_lower);
+              for (const file of batch) {
+                console.log(`Processing image: ${file.name}`);
+                
+                // Generate temporary URL
+                const imageUrl = await getDropboxTemporaryUrl(token, file.path_lower);
+                
+                // Use a default aspect ratio for now (can be improved later)
+                const aspectRatio = 1.33;
+                
+                const imageData = {
+                  id: `${projectName}-${toolName}-${file.name}`.replace(/[^a-zA-Z0-9-._]/g, '-'),
+                  name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+                  project: projectName,
+                  tool: toolName,
+                  type: guessTypeFromTool(toolName),
+                  time: guessTimeFromDate(file.client_modified),
+                  aspectratio: aspectRatio,
+                  path: file.path_lower,
+                  size: file.size,
+                  modified: file.client_modified,
+                  extension: file.name.split('.').pop().toLowerCase(),
+                  image_url: imageUrl,
+                  scanned: new Date().toISOString()
+                };
+                
+                images.push(imageData);
+                console.log(`Added image: ${imageData.name} (${projectName}/${toolName})`);
+              }
               
-              // Use a default aspect ratio for now (can be improved later)
-              const aspectRatio = 1.33;
-              
-              const imageData = {
-                id: `${projectName}-${toolName}-${file.name}`.replace(/[^a-zA-Z0-9-._]/g, '-'),
-                name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
-                project: projectName,
-                tool: toolName,
-                type: guessTypeFromTool(toolName),
-                time: guessTimeFromDate(file.client_modified),
-                aspectratio: aspectRatio,
-                path: file.path_lower,
-                size: file.size,
-                modified: file.client_modified,
-                extension: file.name.split('.').pop().toLowerCase(),
-                image_url: imageUrl,
-                scanned: new Date().toISOString()
-              };
-              
-              images.push(imageData);
-              console.log(`Added image: ${imageData.name} (${projectName}/${toolName})`);
+              // Small delay between batches to avoid rate limiting
+              if (i + 5 < imageFiles.length) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+              }
             }
           } catch (error) {
             console.error(`Error scanning tool folder ${toolPath}:`, error.message);
@@ -263,6 +267,7 @@ async function scanDropboxPortfolio(token, basePath) {
     throw error;
   }
   
+  console.log(`Scan complete: found ${images.length} total images`);
   return images;
 }
 
