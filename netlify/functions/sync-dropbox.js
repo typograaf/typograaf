@@ -183,14 +183,12 @@ async function scanDropboxPortfolio(token, basePath) {
     const projectFolders = await listDropboxFolder(token, basePath);
     console.log(`Found ${projectFolders.length} items in portfolio folder`);
     
-    // Limit to first 3 projects for initial sync to avoid timeout
-    const limitedProjects = projectFolders
-      .filter(item => item['.tag'] === 'folder')
-      .slice(0, 3);
+    // Process ALL projects, not just 3
+    const projects = projectFolders.filter(item => item['.tag'] === 'folder');
     
-    console.log(`Processing ${limitedProjects.length} projects to avoid timeout`);
+    console.log(`Processing all ${projects.length} projects`);
     
-    for (const project of limitedProjects) {
+    for (const project of projects) {
       const projectName = project.name;
       const projectPath = project.path_lower;
       console.log(`Scanning project: ${projectName}`);
@@ -215,16 +213,14 @@ async function scanDropboxPortfolio(token, basePath) {
             const files = await listDropboxFolder(token, toolPath);
             console.log(`Found ${files.length} files in ${projectName}/${toolName}`);
             
-            // Limit images per folder to avoid timeout
-            const imageFiles = files
-              .filter(file => {
-                if (file['.tag'] !== 'file') return false;
-                const extension = file.name.split('.').pop().toLowerCase();
-                return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff'].includes(extension);
-              })
-              .slice(0, 5); // Max 5 images per tool folder
+            // Process ALL image files, not just 5
+            const imageFiles = files.filter(file => {
+              if (file['.tag'] !== 'file') return false;
+              const extension = file.name.split('.').pop().toLowerCase();
+              return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff'].includes(extension);
+            });
             
-            console.log(`Processing ${imageFiles.length} images from ${projectName}/${toolName}`);
+            console.log(`Processing all ${imageFiles.length} images from ${projectName}/${toolName}`);
             
             for (const file of imageFiles) {
               console.log(`Processing image: ${file.name}`);
@@ -253,12 +249,6 @@ async function scanDropboxPortfolio(token, basePath) {
               
               images.push(imageData);
               console.log(`Added image: ${imageData.name} (${projectName}/${toolName})`);
-              
-              // Avoid timeout - break if we have enough images
-              if (images.length >= 15) {
-                console.log('Reached 15 images limit to avoid timeout');
-                return images;
-              }
             }
           } catch (error) {
             console.error(`Error scanning tool folder ${toolPath}:`, error.message);
