@@ -29,7 +29,7 @@
             z-index: 100;
         }
         
-        #sync {
+        #upload {
             position: fixed;
             top: 30px;
             right: 30px;
@@ -39,9 +39,14 @@
             padding: 15px;
             border-radius: 4px;
             z-index: 100;
+            width: 200px;
         }
         
-        .sync-button {
+        #fileInput {
+            display: none;
+        }
+        
+        .upload-button {
             width: 100%;
             padding: 10px;
             background: #f0f0f0;
@@ -53,19 +58,24 @@
             transition: background 0.2s;
         }
         
-        .sync-button:hover {
+        .upload-button:hover {
             background: #e0e0e0;
         }
         
-        .sync-button:disabled {
-            background: #f8f8f8;
-            cursor: not-allowed;
-            opacity: 0.6;
+        .upload-button.dragover {
+            background: #d0e0ff;
+            border-color: #0066cc;
         }
         
-        #syncStatus {
+        #imageList {
+            max-height: 150px;
+            overflow-y: auto;
             font-size: 11px;
-            color: #666;
+        }
+        
+        .image-item {
+            padding: 2px 0;
+            border-bottom: 1px solid #eee;
         }
         
         #dimensions {
@@ -112,16 +122,15 @@
         <div>Organization: <span id="currentDimension">Projects</span></div>
     </div>
     
-    <div id="upload">
-        <div style="margin-bottom: 8px; font-weight: bold;">Upload Images:</div>
-        <div class="upload-button" onclick="document.getElementById('fileInput').click()">
-            Choose Files
+    <div id="sync">
+        <div style="margin-bottom: 8px; font-weight: bold;">Sync Portfolio:</div>
+        <button id="syncButton" class="sync-button" onclick="syncFromDropbox()">
+            Sync from Dropbox
+        </button>
+        <div id="syncStatus">Ready to sync</div>
+        <div style="font-size: 10px; color: #666; margin-top: 5px;">
+            Last sync: <span id="lastSync">Never</span>
         </div>
-        <div style="font-size: 10px; color: #666; margin-bottom: 10px;">
-            Or drag & drop images here
-        </div>
-        <div id="imageList"></div>
-        <input type="file" id="fileInput" multiple accept="image/*">
     </div>
     
     <div id="dimensions">
@@ -149,41 +158,10 @@
         let targetCameraX = 0;
         let targetCameraY = 0;
         let scrollCooldown = false;
-        let portfolioData = [];
+        let uploadedImages = [];
+        let actualWorkItems = [];
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
-
-        async function syncDropbox() {
-            const button = document.getElementById('syncButton');
-            const status = document.getElementById('syncStatus');
-            
-            button.disabled = true;
-            button.textContent = 'Syncing...';
-            status.textContent = 'Scanning Dropbox folders...';
-            
-            try {
-                const response = await fetch('/.netlify/functions/sync-dropbox');
-                const data = await response.json();
-                
-                if (data.success) {
-                    status.textContent = `Synced ${data.synced} images from ${data.projects.length} projects`;
-                    
-                    // Reload portfolio data
-                    await loadPortfolioData();
-                    createImages();
-                    organizeByDimension(currentDimension);
-                    
-                    document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
-                } else {
-                    status.textContent = `Sync failed: ${data.error}`;
-                }
-            } catch (error) {
-                status.textContent = `Sync error: ${error.message}`;
-            }
-            
-            button.disabled = false;
-            button.textContent = 'Sync from Dropbox';
-        }
         
         // Your work data
         const workItems = [
@@ -341,18 +319,8 @@
         function createImage(item) {
             const aspectRatio = item.aspectRatio;
             const baseSize = 6;
-            
-            // Calculate size that maintains aspect ratio
-            let width, height;
-            if (aspectRatio >= 1) {
-                // Landscape or square - constrain by width
-                width = baseSize;
-                height = baseSize / aspectRatio;
-            } else {
-                // Portrait - constrain by height
-                height = baseSize;
-                width = baseSize * aspectRatio;
-            }
+            const width = baseSize * Math.min(aspectRatio, 2);
+            const height = baseSize / Math.max(aspectRatio, 0.5);
             
             let texture;
             
@@ -361,10 +329,10 @@
                 texture = new THREE.Texture(item.imageElement);
                 texture.needsUpdate = true;
             } else {
-                // Create placeholder texture with correct aspect ratio
+                // Create placeholder texture
                 const canvas = document.createElement('canvas');
                 canvas.width = 512;
-                canvas.height = Math.round(512 / aspectRatio);
+                canvas.height = 512 / aspectRatio;
                 const ctx = canvas.getContext('2d');
                 
                 // Clean background
@@ -408,7 +376,7 @@
             texture.minFilter = THREE.LinearFilter;
             texture.magFilter = THREE.LinearFilter;
             
-            // Create plane with exact aspect ratio dimensions
+            // Create plane with correct aspect ratio
             const geometry = new THREE.PlaneGeometry(width, height);
             const material = new THREE.MeshBasicMaterial({ 
                 map: texture,
