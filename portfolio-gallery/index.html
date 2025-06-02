@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Level Gallery</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f8f8f6;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            display: block;
+        }
+        
+        #overlay {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            color: #333;
+            font-size: 13px;
+            background: rgba(255,255,255,0.9);
+            padding: 20px;
+            border-radius: 4px;
+            z-index: 100;
+        }
+        
+        #dimensions {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            color: #333;
+            font-size: 12px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 4px;
+            z-index: 100;
+        }
+        
+        .dimension-button {
+            display: inline-block;
+            padding: 8px 12px;
+            margin: 2px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .dimension-button:hover {
+            background: #e0e0e0;
+        }
+        
+        .dimension-button.active {
+            background: #333;
+            color: white;
+        }
+
+        #status {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            color: #666;
+            font-size: 11px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px;
+            border-radius: 4px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="overlay">
+        <div>Scroll: Change levels</div>
+        <div>Drag: Pan around level</div>
+        <div>Click: Focus image</div>
+        <div>Level: <span id="currentLevel">1</span>/<span id="totalLevels">1</span></div>
+        <div>Organization: <span id="currentDimension">Projects</span></div>
+    </div>
+    
+    <div id="dimensions">
+        <div style="margin-bottom: 8px; font-weight: bold;">Organization:</div>
+        <div class="dimension-button active" data-dimension="projects">Projects</div>
+        <div class="dimension-button" data-dimension="time">Timeline</div>
+        <div class="dimension-button" data-dimension="tools">Tools</div>
+        <div class="dimension-button" data-dimension="type">Content Type</div>
+    </div>
+
+    <div id="status">
+        <div id="statusText">Loading...</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer;
+        let images = [];
+        let levels = [];
+        let currentLevel = 0;
+        let targetLevel = 0;
+        let currentDimension = 'projects';
+        let isTransitioning = false;
+        let focusedImage = null;
+        let cameraZ = 0;
+        let targetCameraZ = 0;
+        let cameraX = 0;
+        let cameraY = 0;
+        let targetCameraX = 0;
+        let targetCameraY = 0;
+        let scrollCooldown = false;
+        let portfolioData = [];
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        // Fallback work data for when database is empty
+        const fallbackWorkItems = [
+            { name: 'Physics Soap Bubbles', project: 'Research', tool: 'Figma', type: 'Research', time: '2024-Q1', aspectRatio: 16/9 },
+            { name: 'COLDCHAIN Logo', project: 'COLDCHAIN', tool: 'Figma', type: 'Brand', time: '2024-Q2', aspectRatio: 16/10 },
+            { name: 'Blender 3D Scene', project: '3D Visual', tool: 'Blender', type: '3D', time: '2024-Q2', aspectRatio: 16/10 },
+            { name: 'Gear Component', project: '3D Visual', tool: 'Blender', type: '3D', time: '2024-Q2', aspectRatio: 1 },
+            { name: 'Photography Setup', project: 'Process', tool: 'Photography', type: 'Process', time: '2024-Q1', aspectRatio: 3/4 },
+            { name: 'Packaging Design', project: 'COLDCHAIN', tool: 'Blender', type: '3D', time: '2024-Q3', aspectRatio: 1 },
+            { name: 'BBODY Product Single', project: 'BBODY', tool: 'Photography', type: 'Product', time: '2024-Q1', aspectRatio: 1 },
+            { name: 'BBODY Product Line', project: 'BBODY', tool: 'Photography', type: 'Product', time: '2024-Q1', aspectRatio: 16/9 },
+            { name: 'Photo Editing', project: 'Process', tool: 'Capture One', type: 'Process', time: '2024-Q2', aspectRatio: 16/10 },
+            { name: 'Typography Flower', project: 'Typography', tool: 'Figma', type: 'Typography', time: '2024-Q1', aspectRatio: 1 },
+            { name: 'Thime Soap Back', project: 'Thime', tool: 'Photography', type: 'Product', time: '2024-Q2', aspectRatio: 1 },
+            { name: 'Thime Soap Front', project: 'Thime', tool: 'Photography', type: 'Product', time: '2024-Q2', aspectRatio: 1 },
+            { name: 'Glyphs Typography', project: 'Typography', tool: 'Glyphs', type: 'Typography', time: '2024-Q3', aspectRatio: 16/10 },
+            { name: 'Fence Photo', project: 'Experimental', tool: 'Photography', type: 'Experimental', time: '2024-Q3', aspectRatio: 3/4 },
+            { name: 'Font Specimen', project: 'Typography', tool: 'Figma', type: 'Typography', time: '2024-Q3', aspectRatio: 16/9 },
+            { name: 'Lisbon Bridgeport', project: 'Typography', tool: 'Figma', type: 'Typography', time: '2024-Q2', aspectRatio: 16/9 }
+        ];
+
+        async function init() {
+            updateStatus('Initializing 3D gallery...');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf8f8f6);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 30);
+            camera.lookAt(0, 0, 0);
+            
+            // Renderer - clean, no shadows
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: document.getElementById('canvas'),
+                antialias: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            
+            // Simple lighting - no shadows
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+            scene.add(ambientLight);
+            
+            // Load portfolio data
+            await loadPortfolioData();
+            
+            // Create all images
+            createImages();
+            
+            // Organize into levels
+            organizeByDimension('projects');
+            
+            // Events
+            setupEvents();
+            
+            // Start
+            animate();
+            
+            updateStatus('Gallery ready');
+        }
+
+        async function loadPortfolioData() {
+            updateStatus('Loading portfolio data...');
+            
+            try {
+                const response = await fetch('/.netlify/functions/sync-dropbox-background');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.images && data.images.length > 0) {
+                    // Convert database format to our format
+                    portfolioData = data.images.map(img => ({
+                        name: img.name || 'Untitled',
+                        project: img.project || 'Unknown Project',
+                        tool: img.tool || 'Unknown Tool',
+                        type: img.type || 'Unknown Type',
+                        time: img.time || '2024-Q1',
+                        aspectRatio: img.aspectratio || 1.33,
+                        imageUrl: img.image_url,
+                        hasRealImage: !!img.image_url
+                    }));
+                    
+                    updateStatus(`Loaded ${portfolioData.length} images from database`);
+                    console.log(`Loaded ${portfolioData.length} real images from database`);
+                    
+                    // Show stats
+                    const projects = [...new Set(portfolioData.map(item => item.project))];
+                    console.log(`Projects: ${projects.join(', ')}`);
+                    
+                } else {
+                    throw new Error('No images in database');
+                }
+                
+            } catch (error) {
+                console.log('Database load failed, using fallback data:', error.message);
+                portfolioData = fallbackWorkItems.map(item => ({
+                    ...item,
+                    hasRealImage: false
+                }));
+                updateStatus(`Using ${portfolioData.length} placeholder images`);
+            }
+        }
+
+        function updateStatus(message) {
+            const statusElement = document.getElementById('statusText');
+            if (statusElement) {
+                statusElement.textContent = message;
+                console.log('Status:', message);
+            }
+        }
+
+        function createImages() {
+            // Clear existing images
+            images.forEach(img => scene.remove(img));
+            images = [];
+            
+            portfolioData.forEach((item, index) => {
+                const image = createImage(item);
+                images.push(image);
+                scene.add(image);
+            });
+        }
+
+        function createImage(item) {
+            const aspectRatio = item.aspectRatio;
+            const baseSize = 6;
+            
+            // Calculate size that maintains aspect ratio
+            let width, height;
+            if (aspectRatio >= 1) {
+                width = baseSize;
+                height = baseSize / aspectRatio;
+            } else {
+                height = baseSize;
+                width = baseSize * aspectRatio;
+            }
+            
+            let texture;
+            
+            if (item.hasRealImage && item.imageUrl) {
+                // Load real image asynchronously
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                
+                // Create placeholder texture first
+                texture = createPlaceholderTexture(item, aspectRatio);
+                
+                // Replace with real image when loaded
+                img.onload = function() {
+                    const realTexture = new THREE.Texture(this);
+                    realTexture.needsUpdate = true;
+                    realTexture.generateMipmaps = false;
+                    realTexture.minFilter = THREE.LinearFilter;
+                    realTexture.magFilter = THREE.LinearFilter;
+                    
+                    // Replace the material's texture
+                    const mesh = images.find(m => m.userData === item);
+                    if (mesh) {
+                        mesh.material.map = realTexture;
+                        console.log(`Loaded real image: ${item.name}`);
+                    }
+                };
+                
+                img.onerror = function() {
+                    console.log(`Failed to load image: ${item.name}`);
+                };
+                
+                img.src = item.imageUrl;
+                
+            } else {
+                // Create placeholder texture
+                texture = createPlaceholderTexture(item, aspectRatio);
+            }
+            
+            // Create plane with exact aspect ratio dimensions
+            const geometry = new THREE.PlaneGeometry(width, height);
+            const material = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                transparent: true
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.userData = item;
+            
+            return mesh;
+        }
+
+        function createPlaceholderTexture(item, aspectRatio) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = Math.round(512 / aspectRatio);
+            const ctx = canvas.getContext('2d');
+            
+            // Clean background
+            ctx.fillStyle = item.hasRealImage ? '#f0f0f0' : '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Subtle border
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            
+            // Text
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            
+            const words = item.name.split(' ');
+            const lineHeight = 20;
+            let y = canvas.height/2 - (words.length > 2 ? lineHeight/2 : 0);
+            
+            if (words.length <= 2) {
+                ctx.fillText(item.name, canvas.width/2, y);
+            } else {
+                const midPoint = Math.ceil(words.length / 2);
+                const firstLine = words.slice(0, midPoint).join(' ');
+                const secondLine = words.slice(midPoint).join(' ');
+                
+                ctx.fillText(firstLine, canvas.width/2, y);
+                ctx.fillText(secondLine, canvas.width/2, y + lineHeight);
+            }
+            
+            // Category indicator
+            ctx.fillStyle = '#666';
+            ctx.font = '11px Arial';
+            ctx.fillText(item[currentDimension], canvas.width/2, canvas.height - 15);
+            
+            // Loading indicator for real images
+            if (item.hasRealImage) {
+                ctx.fillStyle = '#999';
+                ctx.font = '10px Arial';
+                ctx.fillText('Loading...', canvas.width/2, canvas.height - 30);
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.generateMipmaps = false;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            
+            return texture;
+        }
+
+        function organizeByDimension(dimension) {
+            if (isTransitioning) return;
+            
+            isTransitioning = true;
+            currentDimension = dimension;
+            document.getElementById('currentDimension').textContent = dimension.charAt(0).toUpperCase() + dimension.slice(1);
+            
+            // Update UI
+            document.querySelectorAll('.dimension-button').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.dimension === dimension) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            let groupedItems = [];
+            
+            switch(dimension) {
+                case 'projects':
+                    groupedItems = groupByProperty('project');
+                    break;
+                case 'time':
+                    groupedItems = groupByProperty('time');
+                    break;

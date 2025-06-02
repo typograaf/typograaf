@@ -1,0 +1,6 @@
+[build]
+  functions = "netlify/functions"
+
+[functions]
+  # Increase timeout for scheduled functions
+  timeout = 900
