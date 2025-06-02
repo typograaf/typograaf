@@ -149,8 +149,7 @@ async function testDropboxAccess(token) {
   const response = await fetch('https://api.dropboxapi.com/2/users/get_current_account', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Authorization': `Bearer ${token}`
     }
   });
   
@@ -275,7 +274,10 @@ async function listDropboxFolder(token, path) {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ path })
+    body: JSON.stringify({ 
+      path: path === '/AboutContact/Website/Portfolio' ? '' : path,
+      recursive: false 
+    })
   });
   
   if (!response.ok) {
