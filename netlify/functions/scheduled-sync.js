@@ -1,7 +1,8 @@
 // netlify/functions/scheduled-sync.js
 const { createClient } = require('@supabase/supabase-js');
+const { schedule } = require('@netlify/functions');
 
-exports.handler = async (event, context) => {
+const handler = async (event, context) => {
   console.log('=== SCHEDULED SYNC START ===');
   
   try {
@@ -99,6 +100,9 @@ exports.handler = async (event, context) => {
     };
   }
 };
+
+// Schedule to run every 6 hours
+exports.handler = schedule("0 */6 * * *", handler);
 
 async function scanDropboxPortfolioFull(token, basePath) {
   const images = [];
