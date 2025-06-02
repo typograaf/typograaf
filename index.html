@@ -123,12 +123,15 @@
     </div>
     
     <div id="sync">
-        <div style="margin-bottom: 8px; font-weight: bold;">Sync Portfolio:</div>
-        <button id="syncButton" class="sync-button" onclick="syncDropbox()">
-            Sync from Dropbox
+        <div style="margin-bottom: 8px; font-weight: bold;">Portfolio Sync:</div>
+        <button id="syncButton" class="sync-button" onclick="syncFromDatabase()">
+            Load from Database
+        </button>
+        <button id="refreshButton" class="sync-button" onclick="refreshDropbox()">
+            Refresh from Dropbox
         </button>
         <div id="syncStatus">Ready to sync</div>
-        <div style="font-size: 10px; color: #666; margin-top: 8px;">
+        <div style="font-size: 10px; margin-top: 5px;">
             Last sync: <span id="lastSync">Never</span>
         </div>
     </div>
@@ -205,14 +208,11 @@
             const ambientLight = new THREE.AmbientLight(0xffffff, 1);
             scene.add(ambientLight);
             
-            // Load portfolio data from Supabase
-            await loadPortfolioData();
-            
             // Create all images
             createImages();
             
-            // Organize into levels
-            organizeByDimension('projects');
+            // Load from database on startup
+            syncFromDatabase();
             
             // Events
             setupEvents();
@@ -222,6 +222,7 @@
         }
 
         function createImages() {
+            // Use portfolio data from database if available, otherwise fallback to placeholder
             const itemsToUse = portfolioData.length > 0 ? portfolioData : workItems;
             
             // Clear existing images
@@ -233,6 +234,8 @@
                 images.push(image);
                 scene.add(image);
             });
+            
+            console.log(`Created ${images.length} images from ${itemsToUse.length} items`);
         }
 
         function setupUpload() {
@@ -324,20 +327,8 @@
             
             let texture;
             
-            if (item.imageUrl) {
-                // Load actual image from URL
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.onload = function() {
-                    texture.image = this;
-                    texture.needsUpdate = true;
-                };
-                img.src = item.imageUrl;
-                
-                // Create texture placeholder
-                texture = new THREE.Texture();
-            } else if (item.imageElement) {
-                // Use uploaded image
+            if (item.imageElement) {
+                // Use actual uploaded image
                 texture = new THREE.Texture(item.imageElement);
                 texture.needsUpdate = true;
             } else {
@@ -510,6 +501,18 @@
                     if (imageIndex >= 0) {
                         // Grid position within level
                         const row = Math.floor(itemIndex / cols);
+                        const col = itemIndex % cols;
+                        const x = (col - (cols - 1) / 2) * spacing;
+                        const y = ((Math.ceil(levelItems.length / cols) - 1) / 2 - row) * spacing;
+                        const z = -levelIndex * levelSpacing;
+                        
+                        positions[imageIndex] = { x, y, z };
+                    }
+                });
+            });
+            
+            return positions;
+        } = Math.floor(itemIndex / cols);
                         const col = itemIndex % cols;
                         const x = (col - (cols - 1) / 2) * spacing;
                         const y = ((Math.ceil(levelItems.length / cols) - 1) / 2 - row) * spacing;
