@@ -341,8 +341,3 @@ function guessTimeFromDate(dateString) {
   
   return `${year}-Q${quarter}`;
 }
-
-// Export the schedule configuration
-exports.config = {
-  schedule: "0 */6 * * *" // Every 6 hours
-};
