@@ -62,7 +62,7 @@ exports.handler = async (event, context) => {
       throw new Error('Not enough time remaining for sync');
     }
     
-    // Get existing sync state
+    // Get sync progress from database
     const { data: metaData } = await supabase
       .from('portfolio_meta')
       .select('*')
@@ -70,31 +70,26 @@ exports.handler = async (event, context) => {
       .single();
     
     const lastSync = metaData?.last_sync;
-    const isFirstSync = !lastSync;
+    const syncProgress = metaData?.sync_progress || 0; // Track which project we're on
+    const isFirstSync = !lastSync || syncProgress === 0;
     
-    console.log('Sync state:', { isFirstSync, lastSync });
+    console.log('Sync state:', { isFirstSync, lastSync, syncProgress });
     
-    // Scan Dropbox folder - use chunked approach
+    // Scan Dropbox folder with continuation
     const portfolioPath = '/aboutcontact/website/portfolio';
     console.log('Scanning portfolio path:', portfolioPath);
     
-    const images = await scanDropboxPortfolioChunked(
+    const { images, nextProgress, allComplete } = await scanDropboxPortfolioContinuous(
       currentToken, 
       portfolioPath, 
       remainingTime - 1000, // Leave 1 second buffer
-      isFirstSync
+      syncProgress
     );
     
-    console.log(`Found ${images.length} images to sync`);
+    console.log(`Found ${images.length} new images to sync`);
     
     if (images.length > 0) {
-      // For first sync, clear existing data
-      if (isFirstSync) {
-        console.log('First sync - clearing existing portfolio data...');
-        await supabase.from('portfolio_images').delete().neq('id', '');
-      }
-      
-      // Insert new data in small batches
+      // Insert new data in small batches (use upsert to avoid duplicates)
       console.log('Inserting new portfolio data...');
       const batchSize = 20;
       let inserted = 0;
@@ -123,32 +118,34 @@ exports.handler = async (event, context) => {
       }
     }
     
-    // Update metadata
+    // Update metadata with progress
     const projects = [...new Set(images.map(img => img.project))];
-    console.log('Projects found:', projects);
+    console.log('Projects processed in this round:', projects);
     
     await supabase.from('portfolio_meta').upsert({
       last_sync: new Date().toISOString(),
-      total_images: images.length,
+      sync_progress: allComplete ? 0 : nextProgress, // Reset to 0 when complete
       projects: JSON.stringify(projects),
-      sync_incomplete: Date.now() - startTime > timeoutMs - 1000
+      sync_complete: allComplete
     });
     
-    // If sync was incomplete, trigger another round
-    if (Date.now() - startTime > timeoutMs - 1000) {
-      console.log('Sync incomplete, triggering continuation...');
+    // If sync is not complete, trigger continuation
+    if (!allComplete) {
+      console.log(`Sync incomplete, progress: ${nextProgress}. Triggering continuation...`);
       
-      // Fire and forget - trigger another sync
+      // Fire and forget - trigger another sync round after short delay
       setTimeout(() => {
         fetch(`${process.env.URL}/.netlify/functions/sync-dropbox`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ continue: true })
+          body: JSON.stringify({ continue: true, progress: nextProgress })
         }).catch(console.error);
-      }, 1000);
+      }, 2000); // 2 second delay between rounds
+    } else {
+      console.log('Sync complete! All projects processed.');
     }
     
-    console.log('=== SYNC COMPLETE ===');
+    console.log('=== SYNC ROUND COMPLETE ===');
     
     return {
       statusCode: 200,
@@ -160,7 +157,8 @@ exports.handler = async (event, context) => {
         success: true,
         synced: images.length,
         projects: projects,
-        incomplete: Date.now() - startTime > timeoutMs - 1000,
+        complete: allComplete,
+        progress: `${nextProgress}/${20}`, // Assuming ~20 total projects
         timestamp: new Date().toISOString()
       })
     };
@@ -235,48 +233,85 @@ async function testDropboxAccess(token) {
   return data;
 }
 
-async function scanDropboxPortfolioChunked(token, basePath, timeLimit, isFirstSync) {
+async function scanDropboxPortfolioContinuous(token, basePath, timeLimit, startFromProject = 0) {
   const images = [];
   const startTime = Date.now();
   
   try {
     console.log('Listing base portfolio folder...');
-    // Get project folders
-    const projectFolders = await listDropboxFolder(token, basePath);
-    console.log(`Found ${projectFolders.length} items in portfolio folder`);
+    // Get all items in portfolio folder
+    const allItems = await listDropboxFolder(token, basePath);
+    console.log(`Found ${allItems.length} total items in portfolio folder`);
     
-    // Filter to folders only
-    const folders = projectFolders.filter(item => item['.tag'] === 'folder');
+    // Filter to folders only and sort for consistent processing
+    const projectFolders = allItems
+      .filter(item => item['.tag'] === 'folder')
+      .sort((a, b) => a.name.localeCompare(b.name));
     
-    // For first sync, process more folders. For subsequent syncs, focus on recent changes
-    const foldersToProcess = isFirstSync ? folders.slice(0, 6) : folders.slice(0, 3);
+    console.log(`Total project folders: ${projectFolders.length}`);
+    console.log(`Starting from project ${startFromProject}`);
     
-    console.log(`Processing ${foldersToProcess.length} projects (first sync: ${isFirstSync})`);
+    // Process projects starting from the given index
+    let currentProject = startFromProject;
+    let allComplete = false;
     
-    for (const project of foldersToProcess) {
-      // Check time limit
+    for (let i = startFromProject; i < projectFolders.length; i++) {
+      // Check time limit before processing each project
       if (Date.now() - startTime > timeLimit) {
-        console.log('Time limit reached, stopping scan');
+        console.log(`Time limit reached at project ${i}/${projectFolders.length}`);
         break;
       }
       
+      const project = projectFolders[i];
       const projectName = project.name;
       const projectPath = project.path_lower;
-      console.log(`Scanning project: ${projectName}`);
+      
+      console.log(`Processing project ${i + 1}/${projectFolders.length}: ${projectName}`);
       
       try {
         // Get tool subfolders
         const toolFolders = await listDropboxFolder(token, projectPath);
-        console.log(`Found ${toolFolders.length} tool folders in ${projectName}`);
+        console.log(`Found ${toolFolders.length} items in ${projectName}`);
         
+        // Process each tool folder
         for (const tool of toolFolders) {
-          // Check time limit again
+          // Check time limit
           if (Date.now() - startTime > timeLimit) {
-            console.log('Time limit reached in tool scanning');
+            console.log('Time limit reached in tool processing');
             break;
           }
           
           if (tool['.tag'] !== 'folder') {
+            // Sometimes there are files directly in project folder
+            if (tool['.tag'] === 'file' && isImageFile(tool.name)) {
+              console.log(`Found direct image in project: ${tool.name}`);
+              
+              try {
+                const imageUrl = await getDropboxTemporaryUrl(token, tool.path_lower);
+                const aspectRatio = estimateAspectRatio(tool.name);
+                
+                const imageData = {
+                  id: `${projectName}-direct-${tool.name}`.replace(/[^a-zA-Z0-9-._]/g, '-'),
+                  name: tool.name.replace(/\.[^/.]+$/, ''),
+                  project: projectName,
+                  tool: 'Direct', // For files directly in project folder
+                  type: guessTypeFromProjectName(projectName),
+                  time: guessTimeFromDate(tool.client_modified),
+                  aspectratio: aspectRatio,
+                  path: tool.path_lower,
+                  size: tool.size,
+                  modified: tool.client_modified,
+                  extension: tool.name.split('.').pop().toLowerCase(),
+                  image_url: imageUrl,
+                  scanned: new Date().toISOString()
+                };
+                
+                images.push(imageData);
+                console.log(`Added direct image: ${imageData.name}`);
+              } catch (error) {
+                console.error(`Error processing direct image ${tool.name}:`, error.message);
+              }
+            }
             continue;
           }
           
@@ -285,28 +320,24 @@ async function scanDropboxPortfolioChunked(token, basePath, timeLimit, isFirstSy
           console.log(`Scanning tool folder: ${projectName}/${toolName}`);
           
           try {
-            // Get images in tool folder
+            // Get files in tool folder
             const files = await listDropboxFolder(token, toolPath);
             console.log(`Found ${files.length} files in ${projectName}/${toolName}`);
             
-            // Filter to image files
+            // Filter to image files - be more permissive
             const imageFiles = files.filter(file => {
               if (file['.tag'] !== 'file') return false;
-              const extension = file.name.split('.').pop().toLowerCase();
-              return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff'].includes(extension);
+              return isImageFile(file.name);
             });
             
-            // Process images with time limit
-            const maxImagesPerFolder = isFirstSync ? 8 : 5;
-            const imagesToProcess = imageFiles.slice(0, maxImagesPerFolder);
+            console.log(`Found ${imageFiles.length} image files in ${projectName}/${toolName}`);
             
-            console.log(`Processing ${imagesToProcess.length} images from ${projectName}/${toolName}`);
-            
-            for (const file of imagesToProcess) {
+            // Process all images in this folder (no artificial limits)
+            for (const file of imageFiles) {
               // Check time limit for each image
-              if (Date.now() - startTime > timeLimit) {
-                console.log('Time limit reached processing images');
-                return images;
+              if (Date.now() - startTime > timeLimit - 500) {
+                console.log('Time limit approaching, stopping image processing');
+                return { images, nextProgress: currentProject, allComplete: false };
               }
               
               console.log(`Processing image: ${file.name}`);
@@ -316,11 +347,10 @@ async function scanDropboxPortfolioChunked(token, basePath, timeLimit, isFirstSy
                 const imageUrl = await Promise.race([
                   getDropboxTemporaryUrl(token, file.path_lower),
                   new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('URL generation timeout')), 2000)
+                    setTimeout(() => reject(new Error('URL generation timeout')), 3000)
                   )
                 ]);
                 
-                // Estimate aspect ratio from filename or use default
                 const aspectRatio = estimateAspectRatio(file.name);
                 
                 const imageData = {
@@ -342,12 +372,6 @@ async function scanDropboxPortfolioChunked(token, basePath, timeLimit, isFirstSy
                 images.push(imageData);
                 console.log(`Added image: ${imageData.name} (${projectName}/${toolName})`);
                 
-                // Stop if we have enough images for this round
-                if (images.length >= (isFirstSync ? 40 : 20)) {
-                  console.log(`Reached ${images.length} images limit for this sync round`);
-                  return images;
-                }
-                
               } catch (imageError) {
                 console.error(`Error processing image ${file.name}:`, imageError.message);
                 continue; // Skip this image and continue
@@ -357,16 +381,36 @@ async function scanDropboxPortfolioChunked(token, basePath, timeLimit, isFirstSy
             console.error(`Error scanning tool folder ${toolPath}:`, error.message);
           }
         }
+        
+        currentProject = i + 1;
+        
       } catch (error) {
         console.error(`Error scanning project ${projectPath}:`, error.message);
+        currentProject = i + 1; // Move to next project even if this one failed
       }
     }
+    
+    // Check if we completed all projects
+    allComplete = currentProject >= projectFolders.length;
+    
+    console.log(`Processed projects ${startFromProject} to ${currentProject - 1} of ${projectFolders.length}`);
+    console.log(`All complete: ${allComplete}`);
+    
+    return { 
+      images, 
+      nextProgress: currentProject, 
+      allComplete 
+    };
+    
   } catch (error) {
     console.error(`Error scanning base path ${basePath}:`, error.message);
     throw error;
   }
-  
-  return images;
+}
+
+function isImageFile(filename) {
+  const extension = filename.split('.').pop().toLowerCase();
+  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'svg', 'heic', 'heif'].includes(extension);
 }
 
 async function listDropboxFolder(token, path) {
@@ -445,10 +489,24 @@ function guessTypeFromTool(tool) {
     'Photography': 'Photo',
     'Capture One': 'Photo',
     'After Effects': 'Motion',
-    'Premiere': 'Video'
+    'Premiere': 'Video',
+    'Webflow': 'Web',
+    'Cavalry': 'Motion'
   };
   
   return toolMap[tool] || 'Design';
+}
+
+function guessTypeFromProjectName(projectName) {
+  const lower = projectName.toLowerCase();
+  
+  if (lower.includes('wood')) return 'Product';
+  if (lower.includes('body') || lower.includes('bbody')) return 'Product';
+  if (lower.includes('cold') || lower.includes('chain')) return 'Brand';
+  if (lower.includes('typo')) return 'Typography';
+  if (lower.includes('photo')) return 'Photo';
+  
+  return 'Design';
 }
 
 function guessTimeFromDate(dateString) {
