@@ -50,8 +50,8 @@ exports.handler = async (event, context) => {
     await testDropboxAccess(currentToken);
     console.log('Dropbox access OK');
     
-    // Scan Dropbox folder
-    const portfolioPath = '/AboutContact/Website/Portfolio';
+    // Scan Dropbox folder - use the correct lowercase path
+    const portfolioPath = '/aboutcontact/website/portfolio';
     console.log('Scanning portfolio path:', portfolioPath);
     
     const images = await scanDropboxPortfolio(currentToken, portfolioPath);
@@ -275,7 +275,7 @@ async function listDropboxFolder(token, path) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ 
-      path: path === '/AboutContact/Website/Portfolio' ? '' : path,
+      path: path || '',
       recursive: false 
     })
   });
