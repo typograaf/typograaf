@@ -57,20 +57,32 @@ exports.handler = async (event, context) => {
     // Process images - ONLY use Supabase Storage URLs, filter out expired Dropbox URLs
     const images = (data || [])
       .filter(img => img.storage_url) // Only include images with Supabase Storage URLs
-      .map(img => ({
-        id: img.id,
-        name: img.name || 'Untitled',
-        project: img.project || 'Unknown Project',
-        tool: img.tool || 'Unknown Tool',
-        type: img.type || 'Unknown Type',
-        time: img.time || '2024-Q1',
-        aspectratio: parseFloat(img.aspectratio) || 1.33,
-        image_url: img.storage_url, // ONLY use Supabase Storage URLs
-        has_storage_url: true,
-        has_dropbox_url: !!img.image_url,
-        storage_path: img.storage_path,
-        modified: img.modified
-      }));
+      .map(img => {
+        // Detect if this is likely a GIF
+        const isLikelyGif = (img.storage_url && img.storage_url.toLowerCase().includes('.gif')) ||
+                           (img.name && img.name.toLowerCase().includes('gif')) ||
+                           (img.name && (img.name.toLowerCase().includes('animation') || 
+                                        img.name.toLowerCase().includes('anim'))) ||
+                           (img.type && img.type.toLowerCase() === 'gif') ||
+                           (img.extension && img.extension.toLowerCase() === 'gif');
+        
+        return {
+          id: img.id,
+          name: img.name || 'Untitled',
+          project: img.project || 'Unknown Project',
+          tool: img.tool || 'Unknown Tool',
+          type: img.type || 'Unknown Type',
+          time: img.time || '2024-Q1',
+          aspectratio: parseFloat(img.aspectratio) || 1.33,
+          image_url: img.storage_url, // ONLY use Supabase Storage URLs
+          has_storage_url: true,
+          has_dropbox_url: !!img.image_url,
+          storage_path: img.storage_path,
+          modified: img.modified,
+          is_gif: isLikelyGif,
+          extension: img.extension
+        };
+      });
     
     // Get counts for remaining migration work
     const { data: unmigrated } = await supabase
