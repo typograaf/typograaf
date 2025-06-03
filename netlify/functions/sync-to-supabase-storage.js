@@ -1,118 +1,44 @@
-        // Create filename
-        const fileExtension = image.extension || 'jpg';
-        const cleanName = image.name.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
-        const cleanProject = (image.project || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
-        const cleanTool = (image.tool || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
-        const fileName = `${cleanProject}/${cleanTool}/${cleanName}.${fileExtension}`;
-        
-        console.log(`Uploading: ${fileName} (${imageUint8Array.length} bytes)`);
-        
-        // Upload to Supabase Storage
-        const { data: uploadData, error: uploadError } = await Promise.race([
-          supabase.storage
-            .from('portfolio-images')
-            .upload(fileName, imageUint8Array, {
-              contentType: `image/${fileExtension}`,
-              upsert: true
-            }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Upload timeout')), 4000)
-          )
-        ]);
-        
-        if (uploadError) {
-          throw new Error(`Upload failed: ${uploadError.message}`);
-        }
-        
-        // Get public URL
-        const { data: urlData } = supabase.storage
-          .from('portfolio-images')
-          .getPublicUrl(fileName);
-        
-        const publicUrl = urlData.publicUrl;// netlify/functions/sync-to-supabase-storage.js
-// Fixed version using server-side image dimension detection
+// netlify/functions/sync-to-supabase-storage.js
+// Enhanced version that calculates real image dimensions during migration
 
 const { createClient } = require('@supabase/supabase-js');
 
-// Helper function to parse image dimensions from buffer
-function getImageDimensions(buffer) {
-  try {
-    const uint8Array = new Uint8Array(buffer);
-    
-    // JPEG detection
-    if (uint8Array[0] === 0xFF && uint8Array[1] === 0xD8) {
-      return getJPEGDimensions(uint8Array);
-    }
-    
-    // PNG detection
-    if (uint8Array[0] === 0x89 && uint8Array[1] === 0x50 && uint8Array[2] === 0x4E && uint8Array[3] === 0x47) {
-      return getPNGDimensions(uint8Array);
-    }
-    
-    // WebP detection
-    if (uint8Array[8] === 0x57 && uint8Array[9] === 0x45 && uint8Array[10] === 0x42 && uint8Array[11] === 0x50) {
-      return getWebPDimensions(uint8Array);
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Error parsing image dimensions:', error);
-    return null;
-  }
-}
-
-function getJPEGDimensions(uint8Array) {
-  let offset = 2;
-  
-  while (offset < uint8Array.length) {
-    // Find next marker
-    if (uint8Array[offset] !== 0xFF) {
-      offset++;
-      continue;
-    }
-    
-    const marker = uint8Array[offset + 1];
-    
-    // SOF markers (Start of Frame)
-    if ((marker >= 0xC0 && marker <= 0xC3) || (marker >= 0xC5 && marker <= 0xC7) || 
-        (marker >= 0xC9 && marker <= 0xCB) || (marker >= 0xCD && marker <= 0xCF)) {
+// Helper function to calculate image dimensions
+function calculateImageDimensions(imageBuffer) {
+  return new Promise((resolve, reject) => {
+    try {
+      // Create a blob from the buffer
+      const blob = new Blob([imageBuffer]);
+      const img = new Image();
       
-      const height = (uint8Array[offset + 5] << 8) | uint8Array[offset + 6];
-      const width = (uint8Array[offset + 7] << 8) | uint8Array[offset + 8];
+      img.onload = () => {
+        const dimensions = {
+          width: img.width,
+          height: img.height,
+          aspectRatio: img.width / img.height
+        };
+        
+        // Clean up
+        URL.revokeObjectURL(img.src);
+        resolve(dimensions);
+      };
       
-      return { width, height, aspectRatio: width / height };
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src);
+        reject(new Error('Failed to load image for dimension calculation'));
+      };
+      
+      // Create object URL and load image
+      img.src = URL.createObjectURL(blob);
+      
+    } catch (error) {
+      reject(error);
     }
-    
-    // Skip to next marker
-    const length = (uint8Array[offset + 2] << 8) | uint8Array[offset + 3];
-    offset += 2 + length;
-  }
-  
-  return null;
-}
-
-function getPNGDimensions(uint8Array) {
-  // PNG width is at bytes 16-19, height at bytes 20-23
-  const width = (uint8Array[16] << 24) | (uint8Array[17] << 16) | (uint8Array[18] << 8) | uint8Array[19];
-  const height = (uint8Array[20] << 24) | (uint8Array[21] << 16) | (uint8Array[22] << 8) | uint8Array[23];
-  
-  return { width, height, aspectRatio: width / height };
-}
-
-function getWebPDimensions(uint8Array) {
-  // Simple WebP VP8 format
-  if (uint8Array[12] === 0x56 && uint8Array[13] === 0x50 && uint8Array[14] === 0x38) {
-    const width = ((uint8Array[26] | (uint8Array[27] << 8)) & 0x3fff) + 1;
-    const height = ((uint8Array[28] | (uint8Array[29] << 8)) & 0x3fff) + 1;
-    
-    return { width, height, aspectRatio: width / height };
-  }
-  
-  return null;
+  });
 }
 
 exports.handler = async (event, context) => {
-  console.log('=== FIXED STORAGE SYNC WITH DIMENSIONS ===');
+  console.log('=== ENHANCED STORAGE SYNC WITH DIMENSIONS ===');
   
   const headers = {
     'Content-Type': 'application/json',
@@ -126,7 +52,7 @@ exports.handler = async (event, context) => {
   }
   
   const startTime = Date.now();
-  const maxProcessingTime = 8000;
+  const maxProcessingTime = 8000; // 8 seconds to stay under 10s limit
   
   try {
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -146,13 +72,13 @@ exports.handler = async (event, context) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Get images that need migration OR dimension calculation
+    // Get images that need migration - smaller batch
     const { data: images, error } = await supabase
       .from('portfolio_images')
       .select('*')
-      .or('storage_url.is.null,storage_url.eq.,width.is.null,height.is.null')
+      .or('storage_url.is.null,storage_url.eq.')
       .not('path', 'is', null)
-      .limit(3);
+      .limit(3); // Only 3 at a time to avoid timeout
     
     if (error) {
       return {
@@ -177,7 +103,7 @@ exports.handler = async (event, context) => {
       const { data: remainingImages } = await supabase
         .from('portfolio_images')
         .select('name')
-        .or('storage_url.is.null,storage_url.eq.,width.is.null,height.is.null')
+        .or('storage_url.is.null,storage_url.eq.')
         .not('path', 'is', null);
       
       const withDimensions = allImages?.filter(img => img.width && img.height).length || 0;
@@ -206,6 +132,7 @@ exports.handler = async (event, context) => {
     const results = [];
     
     for (const image of images) {
+      // Check if we're running out of time
       if (Date.now() - startTime > maxProcessingTime) {
         console.log('Time limit reached, stopping processing');
         break;
@@ -214,7 +141,7 @@ exports.handler = async (event, context) => {
       try {
         console.log(`Processing: ${image.name}`);
         
-        // Get temporary URL from Dropbox
+        // Get temporary URL with timeout
         const tempUrlResponse = await Promise.race([
           fetch('https://api.dropboxapi.com/2/files/get_temporary_link', {
             method: 'POST',
@@ -237,89 +164,36 @@ exports.handler = async (event, context) => {
         const tempUrlData = await tempUrlResponse.json();
         const dropboxUrl = tempUrlData.link;
         
-        // Skip download if we already have the image in storage and just need dimensions
-        let imageBuffer, imageUint8Array, publicUrl, fileName, uploadData;
-        let needsUpload = !image.storage_url;
+        // Download with timeout
+        console.log(`Downloading: ${image.name}`);
+        const imageResponse = await Promise.race([
+          fetch(dropboxUrl),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Download timeout')), 4000)
+          )
+        ]);
         
-        if (needsUpload) {
-          // Download from Dropbox if we don't have it in storage yet
-          console.log(`Downloading: ${image.name}`);
-          const imageResponse = await Promise.race([
-            fetch(dropboxUrl),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Download timeout')), 4000)
-            )
-          ]);
-          
-          if (!imageResponse.ok) {
-            throw new Error(`Download failed: ${imageResponse.status}`);
-          }
-          
-          imageBuffer = await imageResponse.arrayBuffer();
-          imageUint8Array = new Uint8Array(imageBuffer);
-          
-          // Create filename
-          const fileExtension = image.extension || 'jpg';
-          const cleanName = image.name.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
-          const cleanProject = (image.project || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
-          const cleanTool = (image.tool || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
-          fileName = `${cleanProject}/${cleanTool}/${cleanName}.${fileExtension}`;
-          
-          console.log(`Uploading: ${fileName} (${imageUint8Array.length} bytes)`);
-          
-          // Upload to Supabase Storage
-          const uploadResult = await Promise.race([
-            supabase.storage
-              .from('portfolio-images')
-              .upload(fileName, imageUint8Array, {
-                contentType: `image/${fileExtension}`,
-                upsert: true
-              }),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Upload timeout')), 4000)
-            )
-          ]);
-          
-          if (uploadResult.error) {
-            throw new Error(`Upload failed: ${uploadResult.error.message}`);
-          }
-          
-          uploadData = uploadResult.data;
-          
-          // Get public URL
-          const { data: urlData } = supabase.storage
-            .from('portfolio-images')
-            .getPublicUrl(fileName);
-          
-          publicUrl = urlData.publicUrl;
-          
-        } else {
-          // Image already in storage, download from Supabase Storage for dimension calculation
-          console.log(`Downloading from storage for dimensions: ${image.name}`);
-          const storageResponse = await Promise.race([
-            fetch(image.storage_url),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Storage download timeout')), 4000)
-            )
-          ]);
-          
-          if (!storageResponse.ok) {
-            throw new Error(`Storage download failed: ${storageResponse.status}`);
-          }
-          
-          imageBuffer = await storageResponse.arrayBuffer();
-          publicUrl = image.storage_url;
-          fileName = image.storage_path;
+        if (!imageResponse.ok) {
+          throw new Error(`Download failed: ${imageResponse.status}`);
         }
         
-        // 🆕 Calculate dimensions using server-side parsing
-        console.log(`Calculating dimensions for: ${image.name}`);
-        const dimensions = getImageDimensions(imageBuffer);
+        const imageBuffer = await imageResponse.arrayBuffer();
+        const imageUint8Array = new Uint8Array(imageBuffer);
         
-        if (dimensions) {
-          console.log(`✅ Dimensions: ${dimensions.width}x${dimensions.height} (ratio: ${dimensions.aspectRatio.toFixed(3)})`);
-        } else {
-          console.warn(`⚠️ Could not parse dimensions for ${image.name}`);
+        // 🆕 Calculate real image dimensions
+        console.log(`Calculating dimensions for: ${image.name}`);
+        let dimensions = null;
+        try {
+          dimensions = await Promise.race([
+            calculateImageDimensions(imageBuffer),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Dimension calculation timeout')), 2000)
+            )
+          ]);
+          console.log(`Dimensions: ${dimensions.width}x${dimensions.height} (ratio: ${dimensions.aspectRatio.toFixed(3)})`);
+        } catch (dimError) {
+          console.warn(`Could not calculate dimensions for ${image.name}: ${dimError.message}`);
+          // Continue without dimensions - we'll use the old aspect ratio
         }
         
         // Create filename
@@ -331,7 +205,7 @@ exports.handler = async (event, context) => {
         
         console.log(`Uploading: ${fileName} (${imageUint8Array.length} bytes)`);
         
-        // Upload to Supabase Storage
+        // Upload to Supabase Storage with timeout
         const { data: uploadData, error: uploadError } = await Promise.race([
           supabase.storage
             .from('portfolio-images')
@@ -355,34 +229,29 @@ exports.handler = async (event, context) => {
         
         const publicUrl = urlData.publicUrl;
         
-        // Prepare database update
-        const updateData = {};
+        // 🆕 Prepare database update with dimensions
+        const updateData = {
+          storage_url: publicUrl,
+          storage_path: fileName,
+          migrated_to_storage: new Date().toISOString()
+        };
         
-        // Add storage info if this was a new upload
-        if (needsUpload) {
-          updateData.storage_url = publicUrl;
-          updateData.storage_path = fileName;
-          updateData.migrated_to_storage = new Date().toISOString();
-        }
-        
-        // Add dimensions if we calculated them
+        // Add dimensions if we calculated them successfully
         if (dimensions) {
           updateData.width = dimensions.width;
           updateData.height = dimensions.height;
-          updateData.aspectratio = parseFloat(dimensions.aspectRatio.toFixed(6));
+          updateData.aspectratio = dimensions.aspectRatio;
           updateData.dimensions_calculated = new Date().toISOString();
         }
         
-        // Only update if we have something to update
-        if (Object.keys(updateData).length > 0) {
-          const { error: updateError } = await supabase
-            .from('portfolio_images')
-            .update(updateData)
-            .eq('id', image.id);
-          
-          if (updateError) {
-            throw new Error(`Database update failed: ${updateError.message}`);
-          }
+        // Update database with storage info and dimensions
+        const { error: updateError } = await supabase
+          .from('portfolio_images')
+          .update(updateData)
+          .eq('id', image.id);
+        
+        if (updateError) {
+          throw new Error(`Database update failed: ${updateError.message}`);
         }
         
         uploaded++;
@@ -394,9 +263,9 @@ exports.handler = async (event, context) => {
           aspectRatio: dimensions ? dimensions.aspectRatio.toFixed(3) : 'unknown'
         });
         
-        console.log(`✅ ${needsUpload ? 'Migrated' : 'Updated dimensions for'}: ${image.name}${dimensions ? ` (${dimensions.width}x${dimensions.height})` : ''}`);
+        console.log(`✅ Migrated: ${image.name}${dimensions ? ` (${dimensions.width}x${dimensions.height})` : ''}`);
         
-        // Small delay
+        // Small delay to avoid overwhelming the services
         await new Promise(resolve => setTimeout(resolve, 500));
         
       } catch (error) {
@@ -419,7 +288,7 @@ exports.handler = async (event, context) => {
     const { data: stillRemaining } = await supabase
       .from('portfolio_images')
       .select('id')
-      .or('storage_url.is.null,storage_url.eq.,width.is.null,height.is.null')
+      .or('storage_url.is.null,storage_url.eq.')
       .not('path', 'is', null);
     
     const totalMigrated = allMigrated?.length || 0;
