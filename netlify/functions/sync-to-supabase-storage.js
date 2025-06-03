@@ -1,10 +1,10 @@
 // netlify/functions/sync-to-supabase-storage.js
-// Function to download images from Dropbox and upload to Supabase Storage
+// Fixed version that uses the working token directly
 
 const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async (event, context) => {
-  console.log('=== SUPABASE STORAGE SYNC START ===');
+  console.log('=== SUPABASE STORAGE SYNC START (FIXED) ===');
   
   const headers = {
     'Content-Type': 'application/json',
@@ -34,6 +34,8 @@ exports.handler = async (event, context) => {
       };
     }
     
+    console.log('Using Dropbox token:', dropboxToken.substring(0, 20) + '...');
+    
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Get images that don't have permanent storage URLs yet
@@ -42,7 +44,7 @@ exports.handler = async (event, context) => {
       .select('*')
       .or('storage_url.is.null,storage_url.eq.')
       .not('path', 'is', null)
-      .limit(10); // Process 10 at a time to avoid timeout
+      .limit(5); // Process 5 at a time to avoid timeout
     
     if (error) {
       return {
@@ -57,6 +59,30 @@ exports.handler = async (event, context) => {
     
     console.log(`Found ${images.length} images to migrate to Supabase Storage`);
     
+    if (images.length === 0) {
+      // Check if we already have migrated images
+      const { data: allImages } = await supabase
+        .from('portfolio_images')
+        .select('storage_url')
+        .not('storage_url', 'is', null)
+        .limit(5);
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          uploaded: 0,
+          failed: 0,
+          total: 0,
+          message: allImages?.length > 0 ? 
+            `All images already migrated! Found ${allImages.length} images in Supabase Storage.` :
+            'No images found that need migration.',
+          timestamp: new Date().toISOString()
+        })
+      };
+    }
+    
     let uploaded = 0;
     let failed = 0;
     const results = [];
@@ -65,7 +91,8 @@ exports.handler = async (event, context) => {
       try {
         console.log(`Processing: ${image.name}`);
         
-        // First, get a fresh temporary URL from Dropbox
+        // Use the working token directly - no refresh needed
+        console.log(`Getting temporary URL for: ${image.path}`);
         const tempUrlResponse = await fetch('https://api.dropboxapi.com/2/files/get_temporary_link', {
           method: 'POST',
           headers: {
@@ -75,12 +102,17 @@ exports.handler = async (event, context) => {
           body: JSON.stringify({ path: image.path })
         });
         
+        console.log(`Dropbox API response status: ${tempUrlResponse.status}`);
+        
         if (!tempUrlResponse.ok) {
-          throw new Error(`Failed to get Dropbox URL: ${tempUrlResponse.status}`);
+          const errorText = await tempUrlResponse.text();
+          console.error(`Dropbox API error:`, errorText);
+          throw new Error(`Failed to get Dropbox URL: ${tempUrlResponse.status} - ${errorText}`);
         }
         
         const tempUrlData = await tempUrlResponse.json();
         const dropboxUrl = tempUrlData.link;
+        console.log(`Got temporary URL: ${dropboxUrl.substring(0, 50)}...`);
         
         // Download the image from Dropbox
         console.log(`Downloading: ${image.name}`);
@@ -92,11 +124,14 @@ exports.handler = async (event, context) => {
         
         const imageBuffer = await imageResponse.arrayBuffer();
         const imageUint8Array = new Uint8Array(imageBuffer);
+        console.log(`Downloaded ${imageUint8Array.length} bytes`);
         
         // Create a clean filename
         const fileExtension = image.extension || 'jpg';
         const cleanName = image.name.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
-        const fileName = `${image.project}/${image.tool}/${cleanName}.${fileExtension}`.replace(/[^a-zA-Z0-9-_./]/g, '-');
+        const cleanProject = image.project.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+        const cleanTool = image.tool.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+        const fileName = `${cleanProject}/${cleanTool}/${cleanName}.${fileExtension}`;
         
         console.log(`Uploading to Supabase Storage: ${fileName}`);
         
@@ -109,8 +144,11 @@ exports.handler = async (event, context) => {
           });
         
         if (uploadError) {
+          console.error('Upload error:', uploadError);
           throw new Error(`Upload failed: ${uploadError.message}`);
         }
+        
+        console.log(`Upload successful:`, uploadData);
         
         // Get the public URL
         const { data: urlData } = supabase.storage
@@ -118,6 +156,7 @@ exports.handler = async (event, context) => {
           .getPublicUrl(fileName);
         
         const publicUrl = urlData.publicUrl;
+        console.log(`Public URL: ${publicUrl}`);
         
         // Update the database with the permanent storage URL
         const { error: updateError } = await supabase
@@ -130,6 +169,7 @@ exports.handler = async (event, context) => {
           .eq('id', image.id);
         
         if (updateError) {
+          console.error('Database update error:', updateError);
           throw new Error(`Database update failed: ${updateError.message}`);
         }
         
@@ -137,13 +177,14 @@ exports.handler = async (event, context) => {
         results.push({
           name: image.name,
           status: 'success',
-          url: publicUrl
+          url: publicUrl,
+          path: fileName
         });
         
         console.log(`✅ Successfully migrated: ${image.name}`);
         
         // Small delay to avoid overwhelming the services
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 500));
         
       } catch (error) {
         console.error(`❌ Failed to process ${image.name}:`, error.message);
@@ -169,7 +210,9 @@ exports.handler = async (event, context) => {
         results: results,
         message: uploaded > 0 ? 
           `Successfully migrated ${uploaded} images to Supabase Storage` :
-          'No images needed migration',
+          failed > 0 ? 
+          `Failed to migrate ${failed} images - check the results for details` :
+          'No images processed',
         timestamp: new Date().toISOString()
       })
     };
