@@ -78,19 +78,6 @@
             background: #333;
             color: white;
         }
-        
-        #debug {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            color: #333;
-            font-size: 10px;
-            background: rgba(255,255,255,0.9);
-            padding: 10px;
-            border-radius: 4px;
-            z-index: 100;
-            max-width: 200px;
-        }
     </style>
 </head>
 <body>
@@ -115,13 +102,6 @@
         <div class="dimension-button" data-dimension="time">Timeline</div>
         <div class="dimension-button" data-dimension="tools">Tools</div>
         <div class="dimension-button" data-dimension="type">Content Type</div>
-    </div>
-
-    <div id="debug">
-        <div>Images: <span id="debugImageCount">0</span></div>
-        <div>Loaded: <span id="debugRealCount">0</span></div>
-        <div>Failed: <span id="debugFailCount">0</span></div>
-        <div>Refreshing: <span id="debugRefreshCount">0</span></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -150,11 +130,26 @@
         let debugImageCount = 0;
         let debugRealCount = 0;
         let debugFailCount = 0;
-        let debugRefreshCount = 0;
-        
-        // Failed images tracking
-        let failedImages = [];
-        let refreshInProgress = false;
+
+        // Fallback work data for when no real data is available
+        const placeholderData = [
+            { name: 'Physics Soap Bubbles', project: 'Research', tool: 'Figma', type: 'Research', time: '2024-Q1', aspectRatio: 16/9 },
+            { name: 'COLDCHAIN Logo', project: 'COLDCHAIN', tool: 'Figma', type: 'Brand', time: '2024-Q2', aspectRatio: 16/10 },
+            { name: 'Blender 3D Scene', project: '3D Visual', tool: 'Blender', type: '3D', time: '2024-Q2', aspectRatio: 16/10 },
+            { name: 'Gear Component', project: '3D Visual', tool: 'Blender', type: '3D', time: '2024-Q2', aspectRatio: 1 },
+            { name: 'Photography Setup', project: 'Process', tool: 'Photography', type: 'Process', time: '2024-Q1', aspectRatio: 3/4 },
+            { name: 'Packaging Design', project: 'COLDCHAIN', tool: 'Blender', type: '3D', time: '2024-Q3', aspectRatio: 1 },
+            { name: 'BBODY Product Single', project: 'BBODY', tool: 'Photography', type: 'Product', time: '2024-Q1', aspectRatio: 1 },
+            { name: 'BBODY Product Line', project: 'BBODY', tool: 'Photography', type: 'Product', time: '2024-Q1', aspectRatio: 16/9 },
+            { name: 'Photo Editing', project: 'Process', tool: 'Capture One', type: 'Process', time: '2024-Q2', aspectRatio: 16/10 },
+            { name: 'Typography Flower', project: 'Typography', tool: 'Figma', type: 'Typography', time: '2024-Q1', aspectRatio: 1 },
+            { name: 'Thime Soap Back', project: 'Thime', tool: 'Photography', type: 'Product', time: '2024-Q2', aspectRatio: 1 },
+            { name: 'Thime Soap Front', project: 'Thime', tool: 'Photography', type: 'Product', time: '2024-Q2', aspectRatio: 1 },
+            { name: 'Glyphs Typography', project: 'Typography', tool: 'Glyphs', type: 'Typography', time: '2024-Q3', aspectRatio: 16/10 },
+            { name: 'Fence Photo', project: 'Experimental', tool: 'Photography', type: 'Experimental', time: '2024-Q3', aspectRatio: 3/4 },
+            { name: 'Font Specimen', project: 'Typography', tool: 'Figma', type: 'Typography', time: '2024-Q3', aspectRatio: 16/9 },
+            { name: 'Lisbon Bridgeport', project: 'Typography', tool: 'Figma', type: 'Typography', time: '2024-Q2', aspectRatio: 16/9 }
+        ];
 
         async function init() {
             showStatus('Initializing gallery...', true);
@@ -168,7 +163,7 @@
             camera.position.set(0, 0, 30);
             camera.lookAt(0, 0, 0);
             
-            // Renderer
+            // Renderer - clean, no shadows
             renderer = new THREE.WebGLRenderer({ 
                 canvas: document.getElementById('canvas'),
                 antialias: true
@@ -176,11 +171,11 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             
-            // Simple lighting
+            // Simple lighting - no shadows
             const ambientLight = new THREE.AmbientLight(0xffffff, 1);
             scene.add(ambientLight);
             
-            // Load portfolio data
+            // Load portfolio data and create images
             await loadPortfolioData();
             
             // Organize into levels
@@ -193,16 +188,13 @@
             animate();
             
             hideStatus();
-            
-            // Start automatic URL refresh for failed images
-            setTimeout(startAutoRefresh, 5000);
         }
 
         async function loadPortfolioData() {
             showStatus('Loading portfolio data...', true);
             
             try {
-                console.log('Loading portfolio from get-portfolio function...');
+                console.log('Loading portfolio from Supabase Storage...');
                 const response = await fetch('/.netlify/functions/get-portfolio');
                 
                 if (response.ok) {
@@ -216,30 +208,65 @@
                             type: img.type || 'Unknown Type',
                             time: img.time || '2024-Q1',
                             aspectRatio: img.aspectratio || 1.33,
-                            imageUrl: img.image_url,
+                            imageUrl: img.image_url, // This now uses Supabase Storage URLs
                             isReal: true,
-                            id: img.id,
-                            path: img.path
+                            id: img.id || `${img.name}-${Date.now()}`,
+                            hasStorageUrl: img.has_storage_url
                         }));
                         
-                        console.log(`Loaded ${portfolioData.length} real images`);
+                        const storageCount = portfolioData.filter(img => img.hasStorageUrl).length;
+                        console.log(`Loaded ${portfolioData.length} images (${storageCount} from Supabase Storage)`);
                         showStatus(`Loaded ${portfolioData.length} portfolio images`, false, 3000);
                         loadingPhase = 'real-data';
                     } else {
-                        throw new Error('No images in response');
+                        throw new Error('No images found in response');
                     }
                 } else {
-                    throw new Error(`API error: ${response.status}`);
+                    throw new Error(`API responded with ${response.status}`);
                 }
             } catch (error) {
-                console.error('Failed to load portfolio data:', error);
-                showStatus('Failed to load portfolio data', false, 3000);
-                portfolioData = [];
+                console.error('Failed to load portfolio data:', error.message);
+                
+                // Fallback to placeholders
+                portfolioData = placeholderData.map((item, index) => ({
+                    ...item, 
+                    isReal: false,
+                    id: `placeholder-${index}`
+                }));
+                showStatus('Using sample data - check console for errors', false, 3000);
+                loadingPhase = 'placeholder';
             }
             
-            // Create images
+            // Create images with current data
             createImages();
-            updateDebugInfo();
+            
+            console.log('Portfolio data loaded:', {
+                count: portfolioData.length,
+                phase: loadingPhase,
+                realImages: portfolioData.filter(item => item.isReal).length,
+                storageImages: portfolioData.filter(item => item.hasStorageUrl).length
+            });
+        }
+
+
+
+        function showStatus(message, showSpinner = false, hideAfter = 0) {
+            const status = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            const statusDetails = document.getElementById('statusDetails');
+            
+            statusText.textContent = message;
+            statusDetails.textContent = showSpinner ? 'Please wait...' : '';
+            status.classList.add('visible');
+            
+            if (hideAfter > 0) {
+                setTimeout(hideStatus, hideAfter);
+            }
+        }
+
+        function hideStatus() {
+            const status = document.getElementById('status');
+            status.classList.remove('visible');
         }
 
         function createImages() {
@@ -253,8 +280,6 @@
                 scene.add(image);
                 debugImageCount++;
             });
-            
-            updateDebugInfo();
         }
 
         function createImage(item, index) {
@@ -264,9 +289,11 @@
             // Calculate size that maintains aspect ratio
             let width, height;
             if (aspectRatio >= 1) {
+                // Landscape or square - constrain by width
                 width = baseSize;
                 height = baseSize / aspectRatio;
             } else {
+                // Portrait - constrain by height
                 height = baseSize;
                 width = baseSize * aspectRatio;
             }
@@ -274,7 +301,7 @@
             // Create placeholder texture first
             const texture = createPlaceholderTexture(item, aspectRatio);
             
-            // Create plane
+            // Create plane with exact aspect ratio dimensions
             const geometry = new THREE.PlaneGeometry(width, height);
             const material = new THREE.MeshBasicMaterial({ 
                 map: texture,
@@ -286,8 +313,7 @@
                 item: item,
                 index: index,
                 id: item.id,
-                isReal: item.isReal,
-                loadAttempts: 0
+                isReal: item.isReal
             };
             
             // If this is a real image, try to load it
@@ -299,26 +325,21 @@
         }
 
         function loadRealImage(imageUrl, mesh, item) {
-            if (!imageUrl) {
-                console.log(`No URL for image: ${item.name}`);
-                return;
-            }
-            
-            console.log(`Loading: ${item.name}`);
-            mesh.userData.loadAttempts++;
+            console.log(`Attempting to load real image: ${item.name} from ${imageUrl}`);
             
             const img = new Image();
             img.crossOrigin = 'anonymous';
             
+            // Set up timeout for loading
             const timeoutId = setTimeout(() => {
-                console.log(`Timeout loading: ${item.name}`);
-                handleImageFailure(mesh, item, 'timeout');
-                img.src = '';
-            }, 8000);
+                console.log(`Timeout loading image: ${item.name}`);
+                debugFailCount++;
+                img.src = ''; // Cancel the request
+            }, 10000); // 10 second timeout
             
             img.onload = function() {
                 clearTimeout(timeoutId);
-                console.log(`✅ Loaded: ${item.name}`);
+                console.log(`Successfully loaded image: ${item.name}`);
                 
                 try {
                     const realTexture = new THREE.Texture(this);
@@ -327,53 +348,35 @@
                     realTexture.minFilter = THREE.LinearFilter;
                     realTexture.magFilter = THREE.LinearFilter;
                     
+                    // Replace placeholder with real image
                     if (mesh && mesh.material && mesh.material.map) {
                         mesh.material.map.dispose();
                         mesh.material.map = realTexture;
                         mesh.material.needsUpdate = true;
                         
                         debugRealCount++;
-                        updateDebugInfo();
-                        
-                        // Remove from failed list if it was there
-                        failedImages = failedImages.filter(f => f.id !== item.id);
+                        console.log(`Texture updated for: ${item.name}`);
                     }
                 } catch (error) {
                     console.error(`Error creating texture for ${item.name}:`, error);
-                    handleImageFailure(mesh, item, 'texture_error');
+                    debugFailCount++;
                 }
             };
             
             img.onerror = function(error) {
                 clearTimeout(timeoutId);
-                console.error(`❌ Failed to load: ${item.name} - ${error.type || 'unknown error'}`);
-                handleImageFailure(mesh, item, 'load_error');
+                console.error(`Failed to load image: ${item.name} from ${imageUrl}`, error);
+                debugFailCount++;
+                
+                // Try to load with different approach or create error texture
+                createErrorTexture(mesh, item);
             };
             
+            // Start loading
             img.src = imageUrl;
         }
 
-        function handleImageFailure(mesh, item, reason) {
-            debugFailCount++;
-            updateDebugInfo();
-            
-            // Add to failed images list for potential refresh
-            const existingFailure = failedImages.find(f => f.id === item.id);
-            if (!existingFailure) {
-                failedImages.push({
-                    id: item.id,
-                    item: item,
-                    mesh: mesh,
-                    reason: reason,
-                    attempts: mesh.userData.loadAttempts
-                });
-            }
-            
-            // Create error texture
-            createErrorTexture(mesh, item, reason);
-        }
-
-        function createErrorTexture(mesh, item, reason = 'unknown') {
+        function createErrorTexture(mesh, item) {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
             canvas.height = Math.round(512 / item.aspectRatio);
@@ -388,26 +391,12 @@
             ctx.lineWidth = 2;
             ctx.strokeRect(0, 0, canvas.width, canvas.height);
             
-            // Error icon
-            ctx.fillStyle = '#d32f2f';
-            ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('⚠', canvas.width/2, canvas.height/2 - 20);
-            
             // Error text
-            ctx.font = 'bold 14px Arial';
-            ctx.fillText('Failed to Load', canvas.width/2, canvas.height/2 + 5);
-            
-            ctx.font = '11px Arial';
-            ctx.fillText(item.name, canvas.width/2, canvas.height/2 + 20);
-            
-            // Reason
-            ctx.fillStyle = '#666';
-            ctx.font = '9px Arial';
-            const reasonText = reason === 'timeout' ? 'Timeout' : 
-                              reason === 'load_error' ? 'Load Error' : 
-                              reason === 'texture_error' ? 'Texture Error' : 'Unknown';
-            ctx.fillText(reasonText, canvas.width/2, canvas.height - 15);
+            ctx.fillStyle = '#d32f2f';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Failed to Load', canvas.width/2, canvas.height/2 - 10);
+            ctx.fillText(item.name, canvas.width/2, canvas.height/2 + 10);
             
             const errorTexture = new THREE.CanvasTexture(canvas);
             errorTexture.generateMipmaps = false;
@@ -421,85 +410,17 @@
             }
         }
 
-        async function startAutoRefresh() {
-            if (refreshInProgress || failedImages.length === 0) {
-                // Try again later
-                setTimeout(startAutoRefresh, 10000);
-                return;
-            }
-            
-            console.log(`Starting refresh for ${failedImages.length} failed images`);
-            refreshInProgress = true;
-            debugRefreshCount = failedImages.length;
-            updateDebugInfo();
-            
-            showStatus(`Refreshing ${failedImages.length} failed images...`, true);
-            
-            try {
-                // Get IDs of failed images
-                const imageIds = failedImages.map(f => f.id);
-                
-                // Call refresh function
-                const response = await fetch('/.netlify/functions/refresh-image-urls', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageIds })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    if (data.success && data.images.length > 0) {
-                        console.log(`Refreshed ${data.images.length} URLs`);
-                        
-                        // Update portfolio data with new URLs
-                        data.images.forEach(refreshedImage => {
-                            const portfolioItem = portfolioData.find(p => p.id === refreshedImage.id);
-                            if (portfolioItem) {
-                                portfolioItem.imageUrl = refreshedImage.newUrl;
-                            }
-                            
-                            // Retry loading the image
-                            const failedImage = failedImages.find(f => f.id === refreshedImage.id);
-                            if (failedImage) {
-                                console.log(`Retrying load for: ${failedImage.item.name}`);
-                                loadRealImage(refreshedImage.newUrl, failedImage.mesh, failedImage.item);
-                            }
-                        });
-                        
-                        showStatus(`Refreshed ${data.images.length} image URLs`, false, 3000);
-                    } else {
-                        console.log('No URLs were refreshed');
-                        showStatus('URL refresh completed', false, 2000);
-                    }
-                } else {
-                    console.error('Refresh failed:', response.status);
-                    showStatus('URL refresh failed', false, 2000);
-                }
-            } catch (error) {
-                console.error('Refresh error:', error);
-                showStatus('URL refresh error', false, 2000);
-            }
-            
-            refreshInProgress = false;
-            debugRefreshCount = 0;
-            updateDebugInfo();
-            
-            // Schedule next refresh
-            setTimeout(startAutoRefresh, 30000);
-        }
-
         function createPlaceholderTexture(item, aspectRatio) {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
             canvas.height = Math.round(512 / aspectRatio);
             const ctx = canvas.getContext('2d');
             
-            // Background
+            // Clean background
             ctx.fillStyle = item.isReal ? '#f0f0f0' : '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Border
+            // Subtle border
             ctx.strokeStyle = item.isReal ? '#ccc' : '#e0e0e0';
             ctx.lineWidth = 1;
             ctx.strokeRect(0, 0, canvas.width, canvas.height);
@@ -524,16 +445,26 @@
                 ctx.fillText(secondLine, canvas.width/2, y + lineHeight);
             }
             
-            // Category
+            // Category indicator
             ctx.fillStyle = '#666';
             ctx.font = '11px Arial';
             ctx.fillText(item[currentDimension], canvas.width/2, canvas.height - 15);
             
-            // Loading indicator
+            // Status indicator for real images
             if (item.isReal && item.imageUrl) {
-                ctx.fillStyle = '#4caf50';
+                if (item.hasStorageUrl) {
+                    ctx.fillStyle = '#28a745';
+                    ctx.font = '10px Arial';
+                    ctx.fillText('Loading from Supabase...', canvas.width/2, canvas.height - 30);
+                } else {
+                    ctx.fillStyle = '#ffc107';
+                    ctx.font = '10px Arial';
+                    ctx.fillText('Loading from Dropbox...', canvas.width/2, canvas.height - 30);
+                }
+            } else if (item.isReal) {
+                ctx.fillStyle = '#dc3545';
                 ctx.font = '10px Arial';
-                ctx.fillText('Loading...', canvas.width/2, canvas.height - 30);
+                ctx.fillText('No image URL', canvas.width/2, canvas.height - 30);
             }
             
             const texture = new THREE.CanvasTexture(canvas);
@@ -542,32 +473,6 @@
             texture.magFilter = THREE.LinearFilter;
             
             return texture;
-        }
-
-        function showStatus(message, showSpinner = false, hideAfter = 0) {
-            const status = document.getElementById('status');
-            const statusText = document.getElementById('statusText');
-            const statusDetails = document.getElementById('statusDetails');
-            
-            statusText.textContent = message;
-            statusDetails.textContent = showSpinner ? 'Please wait...' : '';
-            status.classList.add('visible');
-            
-            if (hideAfter > 0) {
-                setTimeout(hideStatus, hideAfter);
-            }
-        }
-
-        function hideStatus() {
-            const status = document.getElementById('status');
-            status.classList.remove('visible');
-        }
-
-        function updateDebugInfo() {
-            document.getElementById('debugImageCount').textContent = debugImageCount;
-            document.getElementById('debugRealCount').textContent = debugRealCount;
-            document.getElementById('debugFailCount').textContent = debugFailCount;
-            document.getElementById('debugRefreshCount').textContent = debugRefreshCount;
         }
 
         function organizeByDimension(dimension) {
@@ -610,7 +515,7 @@
             const duration = 1500;
             const startTime = Date.now();
             
-            // Calculate new positions
+            // Calculate new positions for all images
             const newPositions = calculateNewPositions(groupedItems);
             
             // Store starting positions
@@ -623,7 +528,7 @@
             function animate() {
                 const elapsed = Date.now() - startTime;
                 const progress = Math.min(elapsed / duration, 1);
-                const eased = 1 - Math.pow(1 - progress, 3);
+                const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
                 
                 images.forEach((img, index) => {
                     const start = startPositions[index];
@@ -634,6 +539,7 @@
                         img.position.y = start.y + (target.y - start.y) * eased;
                         img.position.z = start.z + (target.z - start.z) * eased;
                         
+                        // Update stored original position
                         img.userData.originalPosition = {
                             x: img.position.x,
                             y: img.position.y,
@@ -645,9 +551,12 @@
                 if (progress < 1) {
                     requestAnimationFrame(animate);
                 } else {
+                    // Animation complete
                     levels = groupedItems;
                     document.getElementById('totalLevels').textContent = levels.length;
                     isTransitioning = false;
+                    
+                    // Reset to first level after reorganization
                     goToLevel(0);
                 }
             }
@@ -657,156 +566,9 @@
 
         function calculateNewPositions(groupedItems) {
             const levelSpacing = 40;
-            targetCameraZ = -targetLevel * levelSpacing + 30;
-            
-            targetCameraX = 0;
-            targetCameraY = 0;
-            focusedImage = null;
-        }
-
-        function updateCameraForLevel() {
-            const lerpFactor = 0.08;
-            cameraZ += (targetCameraZ - cameraZ) * lerpFactor;
-            
-            if (focusedImage) {
-                const targetPos = focusedImage.userData.originalPosition;
-                camera.position.x += (targetPos.x - camera.position.x) * lerpFactor;
-                camera.position.y += (targetPos.y - camera.position.y) * lerpFactor;
-                camera.position.z += (targetPos.z + 15 - camera.position.z) * lerpFactor;
-                camera.lookAt(targetPos.x, targetPos.y, targetPos.z);
-            } else {
-                cameraX += (targetCameraX - cameraX) * lerpFactor;
-                cameraY += (targetCameraY - cameraY) * lerpFactor;
-                camera.position.x = cameraX;
-                camera.position.y = cameraY;
-                camera.position.z = cameraZ;
-                camera.lookAt(cameraX, cameraY, cameraZ - 30);
-            }
-        }
-
-        function setupEvents() {
-            const canvas = document.getElementById('canvas');
-            
-            canvas.addEventListener('wheel', onWheel);
-            canvas.addEventListener('click', onImageClick);
-            canvas.addEventListener('mousedown', onMouseDown);
-            canvas.addEventListener('mousemove', onMouseMove);
-            canvas.addEventListener('mouseup', onMouseUp);
-            window.addEventListener('resize', onWindowResize);
-            
-            document.querySelectorAll('.dimension-button').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const dimension = e.target.dataset.dimension;
-                    organizeByDimension(dimension);
-                });
-            });
-            
-            document.addEventListener('keydown', (e) => {
-                switch(e.key) {
-                    case 'ArrowUp':
-                        goToLevel(currentLevel - 1);
-                        break;
-                    case 'ArrowDown':
-                        goToLevel(currentLevel + 1);
-                        break;
-                    case 'Escape':
-                        if (focusedImage) {
-                            focusedImage = null;
-                        }
-                        break;
-                }
-            });
-        }
-
-        function onMouseDown(event) {
-            isDragging = true;
-            previousMousePosition = {
-                x: event.clientX,
-                y: event.clientY
-            };
-        }
-
-        function onMouseMove(event) {
-            if (isDragging && !focusedImage) {
-                const deltaMove = {
-                    x: event.clientX - previousMousePosition.x,
-                    y: event.clientY - previousMousePosition.y
-                };
-                
-                const panSpeed = 0.05;
-                targetCameraX -= deltaMove.x * panSpeed;
-                targetCameraY += deltaMove.y * panSpeed;
-                
-                previousMousePosition = {
-                    x: event.clientX,
-                    y: event.clientY
-                };
-            }
-        }
-
-        function onMouseUp() {
-            isDragging = false;
-        }
-
-        function onWheel(event) {
-            event.preventDefault();
-            
-            if (focusedImage) {
-                focusedImage = null;
-            } else {
-                if (!scrollCooldown) {
-                    const direction = event.deltaY > 0 ? 1 : -1;
-                    goToLevel(currentLevel + direction);
-                    
-                    scrollCooldown = true;
-                    setTimeout(() => {
-                        scrollCooldown = false;
-                    }, 300);
-                }
-            }
-        }
-
-        function onImageClick(event) {
-            const raycaster = new THREE.Raycaster();
-            const mouse = new THREE.Vector2();
-            
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-            
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(images.filter(img => img.visible));
-            
-            if (intersects.length > 0) {
-                const clickedImage = intersects[0].object;
-                
-                if (focusedImage === clickedImage) {
-                    focusedImage = null;
-                } else {
-                    focusedImage = clickedImage;
-                }
-            }
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            updateCameraForLevel();
-            renderer.render(scene, camera);
-        }
-
-        // Start
-        init();
-    </script>
-</body>
-</html>
             const positions = [];
             
+            // Initialize positions array
             for (let i = 0; i < images.length; i++) {
                 positions[i] = null;
             }
@@ -819,6 +581,7 @@
                     const imageIndex = portfolioData.findIndex(pItem => pItem.id === item.id);
                     
                     if (imageIndex >= 0) {
+                        // Grid position within level
                         const row = Math.floor(itemIndex / cols);
                         const col = itemIndex % cols;
                         const x = (col - (cols - 1) / 2) * spacing;
@@ -851,4 +614,167 @@
             currentLevel = levelIndex;
             document.getElementById('currentLevel').textContent = currentLevel + 1;
             
+            // Animate camera to this level
             const levelSpacing = 40;
+            targetCameraZ = -targetLevel * levelSpacing + 30;
+            
+            // Reset lateral position when changing levels
+            targetCameraX = 0;
+            targetCameraY = 0;
+            
+            // Reset focus
+            focusedImage = null;
+        }
+
+        function updateCameraForLevel() {
+            // Smooth camera interpolation
+            const lerpFactor = 0.08;
+            cameraZ += (targetCameraZ - cameraZ) * lerpFactor;
+            
+            if (focusedImage) {
+                // Focused on specific image - smooth movement to it
+                const targetPos = focusedImage.userData.originalPosition;
+                camera.position.x += (targetPos.x - camera.position.x) * lerpFactor;
+                camera.position.y += (targetPos.y - camera.position.y) * lerpFactor;
+                camera.position.z += (targetPos.z + 15 - camera.position.z) * lerpFactor;
+                camera.lookAt(targetPos.x, targetPos.y, targetPos.z);
+            } else {
+                // Overview - allow panning around the level
+                cameraX += (targetCameraX - cameraX) * lerpFactor;
+                cameraY += (targetCameraY - cameraY) * lerpFactor;
+                camera.position.x = cameraX;
+                camera.position.y = cameraY;
+                camera.position.z = cameraZ;
+                camera.lookAt(cameraX, cameraY, cameraZ - 30);
+            }
+        }
+
+        function setupEvents() {
+            const canvas = document.getElementById('canvas');
+            
+            canvas.addEventListener('wheel', onWheel);
+            canvas.addEventListener('click', onImageClick);
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            window.addEventListener('resize', onWindowResize);
+            
+            // Dimension switching
+            document.querySelectorAll('.dimension-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const dimension = e.target.dataset.dimension;
+                    organizeByDimension(dimension);
+                });
+            });
+            
+            // Keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                switch(e.key) {
+                    case 'ArrowUp':
+                        goToLevel(currentLevel - 1);
+                        break;
+                    case 'ArrowDown':
+                        goToLevel(currentLevel + 1);
+                        break;
+                    case 'Escape':
+                        if (focusedImage) {
+                            focusedImage = null;
+                        }
+                        break;
+                }
+            });
+        }
+
+        function onMouseDown(event) {
+            isDragging = true;
+            previousMousePosition = {
+                x: event.clientX,
+                y: event.clientY
+            };
+        }
+
+        function onMouseMove(event) {
+            if (isDragging && !focusedImage) {
+                const deltaMove = {
+                    x: event.clientX - previousMousePosition.x,
+                    y: event.clientY - previousMousePosition.y
+                };
+                
+                // Pan around the current level
+                const panSpeed = 0.05;
+                targetCameraX -= deltaMove.x * panSpeed;
+                targetCameraY += deltaMove.y * panSpeed;
+                
+                previousMousePosition = {
+                    x: event.clientX,
+                    y: event.clientY
+                };
+            }
+        }
+
+        function onMouseUp() {
+            isDragging = false;
+        }
+
+        function onWheel(event) {
+            event.preventDefault();
+            
+            if (focusedImage) {
+                // If focused, just zoom out (unfocus)
+                focusedImage = null;
+            } else {
+                // Change levels with cooldown
+                if (!scrollCooldown) {
+                    const direction = event.deltaY > 0 ? 1 : -1;
+                    goToLevel(currentLevel + direction);
+                    
+                    // Add cooldown to prevent rapid scrolling
+                    scrollCooldown = true;
+                    setTimeout(() => {
+                        scrollCooldown = false;
+                    }, 300);
+                }
+            }
+        }
+
+        function onImageClick(event) {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(images.filter(img => img.visible));
+            
+            if (intersects.length > 0) {
+                const clickedImage = intersects[0].object;
+                
+                if (focusedImage === clickedImage) {
+                    // Click again to zoom out
+                    focusedImage = null;
+                } else {
+                    // Focus on this image
+                    focusedImage = clickedImage;
+                }
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateCameraForLevel();
+            renderer.render(scene, camera);
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
