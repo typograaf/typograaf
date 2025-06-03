@@ -78,19 +78,6 @@
             background: #333;
             color: white;
         }
-        
-        #debug {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            color: #333;
-            font-size: 10px;
-            background: rgba(255,255,255,0.9);
-            padding: 10px;
-            border-radius: 4px;
-            z-index: 100;
-            max-width: 200px;
-        }
     </style>
 </head>
 <body>
@@ -115,13 +102,6 @@
         <div class="dimension-button" data-dimension="time">Timeline</div>
         <div class="dimension-button" data-dimension="tools">Tools</div>
         <div class="dimension-button" data-dimension="type">Content Type</div>
-    </div>
-
-    <div id="debug">
-        <div>Images loaded: <span id="debugImageCount">0</span></div>
-        <div>Real images: <span id="debugRealCount">0</span></div>
-        <div>Failed loads: <span id="debugFailCount">0</span></div>
-        <div>Data source: <span id="debugDataSource">Loading...</span></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -212,31 +192,47 @@
 
         async function loadPortfolioData() {
             showStatus('Loading portfolio data...', true);
-            document.getElementById('debugDataSource').textContent = 'Connecting...';
             
-            // Try multiple methods to get data
+            // Try multiple approaches to get real data
             let dataLoaded = false;
             
-            // Method 1: Try the working read-only approach
+            // Method 1: Try the new simple get-portfolio function
             try {
-                console.log('Trying direct database read...');
-                const readData = await tryDirectDatabaseRead();
-                if (readData && readData.length > 0) {
-                    portfolioData = readData;
-                    dataLoaded = true;
-                    document.getElementById('debugDataSource').textContent = 'Direct DB';
-                    console.log(`Loaded ${portfolioData.length} images via direct database read`);
-                    showStatus(`Loaded ${portfolioData.length} portfolio images`, false, 3000);
-                    loadingPhase = 'real-data';
+                console.log('Trying get-portfolio function...');
+                const response = await fetch('/.netlify/functions/get-portfolio');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.success && data.images && data.images.length > 0) {
+                        portfolioData = data.images.map(img => ({
+                            name: img.name || 'Untitled',
+                            project: img.project || 'Unknown Project',
+                            tool: img.tool || 'Unknown Tool',
+                            type: img.type || 'Unknown Type',
+                            time: img.time || '2024-Q1',
+                            aspectRatio: img.aspectratio || 1.33,
+                            imageUrl: img.image_url,
+                            isReal: true,
+                            id: img.id || `${img.name}-${Date.now()}`
+                        }));
+                        
+                        dataLoaded = true;
+                        console.log(`Loaded ${portfolioData.length} real images from get-portfolio`);
+                        showStatus(`Loaded ${portfolioData.length} portfolio images`, false, 3000);
+                        loadingPhase = 'real-data';
+                    }
+                } else {
+                    console.log('get-portfolio function failed:', response.status);
                 }
             } catch (error) {
-                console.log('Direct database read failed:', error.message);
+                console.log('get-portfolio function error:', error.message);
             }
             
-            // Method 2: If direct read failed, try the background function anyway
+            // Method 2: Try the original background function as fallback
             if (!dataLoaded) {
                 try {
-                    console.log('Trying background function...');
+                    console.log('Trying background function as fallback...');
                     const response = await fetch('/.netlify/functions/sync-dropbox-background');
                     const data = await response.json();
                     
@@ -254,8 +250,7 @@
                         }));
                         
                         dataLoaded = true;
-                        document.getElementById('debugDataSource').textContent = 'Background Function';
-                        console.log(`Loaded ${portfolioData.length} images via background function`);
+                        console.log(`Loaded ${portfolioData.length} real images from background function`);
                         showStatus(`Loaded ${portfolioData.length} portfolio images`, false, 2000);
                         loadingPhase = 'real-data';
                     }
@@ -272,95 +267,88 @@
                     isReal: false,
                     id: `placeholder-${index}`
                 }));
-                document.getElementById('debugDataSource').textContent = 'Placeholders';
-                showStatus('Using sample data - sync in progress...', false, 3000);
+                showStatus('Loading sample data...', false, 2000);
                 loadingPhase = 'placeholder';
                 
-                // Continue trying to get real data
-                setTimeout(checkForRealData, 5000);
+                // Try to trigger sync if needed
+                triggerBackgroundSync();
             }
             
             // Create images with current data
             createImages();
-            updateDebugInfo();
+            
+            console.log('Portfolio data loaded:', {
+                count: portfolioData.length,
+                phase: loadingPhase,
+                realImages: portfolioData.filter(item => item.isReal).length
+            });
         }
 
-        async function tryDirectDatabaseRead() {
-            // Create a simple request that mimics what we know works
-            // We'll create a minimal Supabase-like request
-            
+        async function triggerBackgroundSync() {
             try {
-                // Try to get data using a simple GET request to our working sync function
-                // But modify it to just return existing data without syncing
-                const response = await fetch('/.netlify/functions/sync-dropbox', {
+                console.log('Triggering background sync...');
+                
+                // Fire and forget - don't wait for response
+                fetch('/.netlify/functions/sync-dropbox', { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        action: 'read-only',
-                        source: 'gallery-load' 
-                    })
-                });
+                    body: JSON.stringify({ source: 'auto-trigger' })
+                }).catch(err => console.log('Background sync request sent'));
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    // The sync function doesn't return images, so this won't work
-                    // But let's see what happens
-                    return null;
-                }
+                // Start checking for updates
+                setTimeout(checkForUpdates, 30000); // Check after 30 seconds
+                
             } catch (error) {
-                console.log('Direct read attempt failed:', error.message);
+                console.log('Could not trigger background sync:', error.message);
             }
-            
-            return null;
         }
 
-        async function checkForRealData() {
+        async function checkForUpdates() {
             if (loadingPhase === 'real-data') {
                 return; // Already have real data
             }
             
-            // Try the methods again
             try {
-                console.log('Rechecking for real data...');
+                // Try the new get-portfolio function first
+                const response = await fetch('/.netlify/functions/get-portfolio');
                 
-                // Try background function again in case it's fixed
-                const response = await fetch('/.netlify/functions/sync-dropbox-background');
-                const data = await response.json();
-                
-                if (data.success && data.images && data.images.length > 0) {
-                    console.log(`Found real data! ${data.images.length} images`);
-                    showStatus(`Found real portfolio data! Updating...`, true);
+                if (response.ok) {
+                    const data = await response.json();
                     
-                    // Update with real data
-                    portfolioData = data.images.map(img => ({
-                        name: img.name || 'Untitled',
-                        project: img.project || 'Unknown Project',
-                        tool: img.tool || 'Unknown Tool',
-                        type: img.type || 'Unknown Type',
-                        time: img.time || '2024-Q1',
-                        aspectRatio: img.aspectratio || 1.33,
-                        imageUrl: img.image_url,
-                        isReal: true,
-                        id: img.id || `${img.name}-${Date.now()}`
-                    }));
-                    
-                    loadingPhase = 'real-data';
-                    document.getElementById('debugDataSource').textContent = 'Background Function (Retry)';
-                    
-                    // Recreate gallery with real data
-                    await replaceWithRealImages();
-                    
-                    showStatus(`Portfolio updated with ${portfolioData.length} images!`, false, 3000);
-                    return;
+                    if (data.success && data.images && data.images.length > 0) {
+                        console.log(`Found real data! ${data.images.length} images`);
+                        showStatus(`Found real portfolio data! Updating...`, true);
+                        
+                        // Update with real data
+                        portfolioData = data.images.map(img => ({
+                            name: img.name || 'Untitled',
+                            project: img.project || 'Unknown Project',
+                            tool: img.tool || 'Unknown Tool',
+                            type: img.type || 'Unknown Type',
+                            time: img.time || '2024-Q1',
+                            aspectRatio: img.aspectratio || 1.33,
+                            imageUrl: img.image_url,
+                            isReal: true,
+                            id: img.id || `${img.name}-${Date.now()}`
+                        }));
+                        
+                        loadingPhase = 'real-data';
+                        
+                        // Recreate gallery with real data
+                        await replaceWithRealImages();
+                        
+                        showStatus(`Portfolio updated with ${portfolioData.length} images!`, false, 3000);
+                        return;
+                    }
                 }
                 
                 // If still no luck, try again later
-                setTimeout(checkForRealData, 10000);
+                setTimeout(checkForUpdates, 15000);
                 
             } catch (error) {
-                console.log('Recheck failed:', error.message);
+                console.log('Update check failed:', error.message);
                 // Try again in a bit
-                setTimeout(checkForRealData, 15000);
+                setTimeout(checkForUpdates, 30000);
             }
         }
 
@@ -376,7 +364,6 @@
             
             // Create new images with real data
             createImages();
-            updateDebugInfo();
             
             // Reorganize with current dimension
             organizeByDimension(currentDimension);
@@ -401,12 +388,6 @@
             status.classList.remove('visible');
         }
 
-        function updateDebugInfo() {
-            document.getElementById('debugImageCount').textContent = debugImageCount;
-            document.getElementById('debugRealCount').textContent = debugRealCount;
-            document.getElementById('debugFailCount').textContent = debugFailCount;
-        }
-
         function createImages() {
             // Clear existing images
             images.forEach(img => scene.remove(img));
@@ -418,8 +399,6 @@
                 scene.add(image);
                 debugImageCount++;
             });
-            
-            updateDebugInfo();
         }
 
         function createImage(item, index) {
@@ -474,7 +453,6 @@
             const timeoutId = setTimeout(() => {
                 console.log(`Timeout loading image: ${item.name}`);
                 debugFailCount++;
-                updateDebugInfo();
                 img.src = ''; // Cancel the request
             }, 10000); // 10 second timeout
             
@@ -496,13 +474,11 @@
                         mesh.material.needsUpdate = true;
                         
                         debugRealCount++;
-                        updateDebugInfo();
                         console.log(`Texture updated for: ${item.name}`);
                     }
                 } catch (error) {
                     console.error(`Error creating texture for ${item.name}:`, error);
                     debugFailCount++;
-                    updateDebugInfo();
                 }
             };
             
@@ -510,7 +486,6 @@
                 clearTimeout(timeoutId);
                 console.error(`Failed to load image: ${item.name} from ${imageUrl}`, error);
                 debugFailCount++;
-                updateDebugInfo();
                 
                 // Try to load with different approach or create error texture
                 createErrorTexture(mesh, item);
