@@ -417,21 +417,21 @@
             const ctx = canvas.getContext('2d');
             
             // Clean background
-            ctx.fillStyle = item.isReal ? '#f8f9fa' : '#ffffff';
+            ctx.fillStyle = item.isReal ? '#f0f0f0' : '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             // Subtle border
-            ctx.strokeStyle = item.isReal ? '#dee2e6' : '#e0e0e0';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+            ctx.strokeStyle = item.isReal ? '#ccc' : '#e0e0e0';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
             
             // Text
-            ctx.fillStyle = '#495057';
-            ctx.font = 'bold 18px Arial';
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Arial';
             ctx.textAlign = 'center';
             
             const words = item.name.split(' ');
-            const lineHeight = 22;
+            const lineHeight = 20;
             let y = canvas.height/2 - (words.length > 2 ? lineHeight/2 : 0);
             
             if (words.length <= 2) {
@@ -446,25 +446,25 @@
             }
             
             // Category indicator
-            ctx.fillStyle = '#6c757d';
-            ctx.font = '12px Arial';
-            ctx.fillText(item[currentDimension], canvas.width/2, canvas.height - 20);
+            ctx.fillStyle = '#666';
+            ctx.font = '11px Arial';
+            ctx.fillText(item[currentDimension], canvas.width/2, canvas.height - 15);
             
-            // Loading indicator for real images
+            // Status indicator for real images
             if (item.isReal && item.imageUrl) {
                 if (item.hasStorageUrl) {
                     ctx.fillStyle = '#28a745';
-                    ctx.font = '11px Arial';
-                    ctx.fillText('Loading from Supabase Storage...', canvas.width/2, canvas.height - 35);
+                    ctx.font = '10px Arial';
+                    ctx.fillText('Loading from Supabase...', canvas.width/2, canvas.height - 30);
                 } else {
-                    ctx.fillStyle = '#dc3545';
-                    ctx.font = '11px Arial';
-                    ctx.fillText('No storage URL', canvas.width/2, canvas.height - 35);
+                    ctx.fillStyle = '#ffc107';
+                    ctx.font = '10px Arial';
+                    ctx.fillText('Loading from Dropbox...', canvas.width/2, canvas.height - 30);
                 }
             } else if (item.isReal) {
-                ctx.fillStyle = '#ffc107';
-                ctx.font = '11px Arial';
-                ctx.fillText('No image URL available', canvas.width/2, canvas.height - 35);
+                ctx.fillStyle = '#dc3545';
+                ctx.font = '10px Arial';
+                ctx.fillText('No image URL', canvas.width/2, canvas.height - 30);
             }
             
             const texture = new THREE.CanvasTexture(canvas);
