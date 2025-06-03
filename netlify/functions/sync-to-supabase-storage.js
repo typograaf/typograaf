@@ -1,10 +1,10 @@
 // netlify/functions/sync-to-supabase-storage.js
-// Fixed version that uses the working token directly
+// Optimized version that processes images faster and avoids timeouts
 
 const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async (event, context) => {
-  console.log('=== SUPABASE STORAGE SYNC START (FIXED) ===');
+  console.log('=== OPTIMIZED STORAGE SYNC START ===');
   
   const headers = {
     'Content-Type': 'application/json',
@@ -17,6 +17,9 @@ exports.handler = async (event, context) => {
     return { statusCode: 200, headers, body: '' };
   }
   
+  const startTime = Date.now();
+  const maxProcessingTime = 8000; // 8 seconds to stay under 10s limit
+  
   try {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
@@ -28,23 +31,20 @@ exports.handler = async (event, context) => {
         headers,
         body: JSON.stringify({
           success: false,
-          error: 'Missing environment variables',
-          needed: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'DROPBOX_ACCESS_TOKEN']
+          error: 'Missing environment variables'
         })
       };
     }
     
-    console.log('Using Dropbox token:', dropboxToken.substring(0, 20) + '...');
-    
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Get images that don't have permanent storage URLs yet
+    // Get images that need migration - smaller batch
     const { data: images, error } = await supabase
       .from('portfolio_images')
       .select('*')
       .or('storage_url.is.null,storage_url.eq.')
       .not('path', 'is', null)
-      .limit(5); // Process 5 at a time to avoid timeout
+      .limit(3); // Only 3 at a time to avoid timeout
     
     if (error) {
       return {
@@ -57,15 +57,20 @@ exports.handler = async (event, context) => {
       };
     }
     
-    console.log(`Found ${images.length} images to migrate to Supabase Storage`);
+    console.log(`Found ${images.length} images to migrate`);
     
     if (images.length === 0) {
-      // Check if we already have migrated images
+      // Check migration status
       const { data: allImages } = await supabase
         .from('portfolio_images')
-        .select('storage_url')
-        .not('storage_url', 'is', null)
-        .limit(5);
+        .select('storage_url, name')
+        .not('storage_url', 'is', null);
+      
+      const { data: remainingImages } = await supabase
+        .from('portfolio_images')
+        .select('name')
+        .or('storage_url.is.null,storage_url.eq.')
+        .not('path', 'is', null);
       
       return {
         statusCode: 200,
@@ -75,9 +80,11 @@ exports.handler = async (event, context) => {
           uploaded: 0,
           failed: 0,
           total: 0,
-          message: allImages?.length > 0 ? 
-            `All images already migrated! Found ${allImages.length} images in Supabase Storage.` :
-            'No images found that need migration.',
+          migrated: allImages?.length || 0,
+          remaining: remainingImages?.length || 0,
+          message: remainingImages?.length > 0 ? 
+            `Migration in progress: ${allImages?.length || 0} done, ${remainingImages.length} remaining` :
+            `🎉 All images migrated! ${allImages?.length || 0} images in Supabase Storage.`,
           timestamp: new Date().toISOString()
         })
       };
@@ -88,77 +95,88 @@ exports.handler = async (event, context) => {
     const results = [];
     
     for (const image of images) {
+      // Check if we're running out of time
+      if (Date.now() - startTime > maxProcessingTime) {
+        console.log('Time limit reached, stopping processing');
+        break;
+      }
+      
       try {
         console.log(`Processing: ${image.name}`);
         
-        // Use the working token directly - no refresh needed
-        console.log(`Getting temporary URL for: ${image.path}`);
-        const tempUrlResponse = await fetch('https://api.dropboxapi.com/2/files/get_temporary_link', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${dropboxToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ path: image.path })
-        });
-        
-        console.log(`Dropbox API response status: ${tempUrlResponse.status}`);
+        // Get temporary URL with timeout
+        const tempUrlResponse = await Promise.race([
+          fetch('https://api.dropboxapi.com/2/files/get_temporary_link', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${dropboxToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ path: image.path })
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Dropbox API timeout')), 3000)
+          )
+        ]);
         
         if (!tempUrlResponse.ok) {
           const errorText = await tempUrlResponse.text();
-          console.error(`Dropbox API error:`, errorText);
-          throw new Error(`Failed to get Dropbox URL: ${tempUrlResponse.status} - ${errorText}`);
+          throw new Error(`Dropbox API error: ${tempUrlResponse.status} - ${errorText}`);
         }
         
         const tempUrlData = await tempUrlResponse.json();
         const dropboxUrl = tempUrlData.link;
-        console.log(`Got temporary URL: ${dropboxUrl.substring(0, 50)}...`);
         
-        // Download the image from Dropbox
+        // Download with timeout
         console.log(`Downloading: ${image.name}`);
-        const imageResponse = await fetch(dropboxUrl);
+        const imageResponse = await Promise.race([
+          fetch(dropboxUrl),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Download timeout')), 4000)
+          )
+        ]);
         
         if (!imageResponse.ok) {
-          throw new Error(`Failed to download image: ${imageResponse.status}`);
+          throw new Error(`Download failed: ${imageResponse.status}`);
         }
         
         const imageBuffer = await imageResponse.arrayBuffer();
         const imageUint8Array = new Uint8Array(imageBuffer);
-        console.log(`Downloaded ${imageUint8Array.length} bytes`);
         
-        // Create a clean filename
+        // Create filename
         const fileExtension = image.extension || 'jpg';
         const cleanName = image.name.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
-        const cleanProject = image.project.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
-        const cleanTool = image.tool.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+        const cleanProject = (image.project || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+        const cleanTool = (image.tool || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
         const fileName = `${cleanProject}/${cleanTool}/${cleanName}.${fileExtension}`;
         
-        console.log(`Uploading to Supabase Storage: ${fileName}`);
+        console.log(`Uploading: ${fileName} (${imageUint8Array.length} bytes)`);
         
-        // Upload to Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('portfolio-images')
-          .upload(fileName, imageUint8Array, {
-            contentType: `image/${fileExtension}`,
-            upsert: true
-          });
+        // Upload to Supabase Storage with timeout
+        const { data: uploadData, error: uploadError } = await Promise.race([
+          supabase.storage
+            .from('portfolio-images')
+            .upload(fileName, imageUint8Array, {
+              contentType: `image/${fileExtension}`,
+              upsert: true
+            }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Upload timeout')), 4000)
+          )
+        ]);
         
         if (uploadError) {
-          console.error('Upload error:', uploadError);
           throw new Error(`Upload failed: ${uploadError.message}`);
         }
         
-        console.log(`Upload successful:`, uploadData);
-        
-        // Get the public URL
+        // Get public URL
         const { data: urlData } = supabase.storage
           .from('portfolio-images')
           .getPublicUrl(fileName);
         
         const publicUrl = urlData.publicUrl;
-        console.log(`Public URL: ${publicUrl}`);
         
-        // Update the database with the permanent storage URL
+        // Update database
         const { error: updateError } = await supabase
           .from('portfolio_images')
           .update({
@@ -169,7 +187,6 @@ exports.handler = async (event, context) => {
           .eq('id', image.id);
         
         if (updateError) {
-          console.error('Database update error:', updateError);
           throw new Error(`Database update failed: ${updateError.message}`);
         }
         
@@ -177,17 +194,13 @@ exports.handler = async (event, context) => {
         results.push({
           name: image.name,
           status: 'success',
-          url: publicUrl,
-          path: fileName
+          url: publicUrl
         });
         
-        console.log(`✅ Successfully migrated: ${image.name}`);
-        
-        // Small delay to avoid overwhelming the services
-        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log(`✅ Migrated: ${image.name}`);
         
       } catch (error) {
-        console.error(`❌ Failed to process ${image.name}:`, error.message);
+        console.error(`❌ Failed: ${image.name} - ${error.message}`);
         failed++;
         results.push({
           name: image.name,
@@ -197,7 +210,22 @@ exports.handler = async (event, context) => {
       }
     }
     
-    console.log(`Migration complete: ${uploaded} uploaded, ${failed} failed`);
+    // Get overall progress
+    const { data: allMigrated } = await supabase
+      .from('portfolio_images')
+      .select('id')
+      .not('storage_url', 'is', null);
+    
+    const { data: stillRemaining } = await supabase
+      .from('portfolio_images')
+      .select('id')
+      .or('storage_url.is.null,storage_url.eq.')
+      .not('path', 'is', null);
+    
+    const totalMigrated = allMigrated?.length || 0;
+    const remaining = stillRemaining?.length || 0;
+    
+    console.log(`Batch complete: ${uploaded} uploaded, ${failed} failed. Total progress: ${totalMigrated} migrated, ${remaining} remaining`);
     
     return {
       statusCode: 200,
@@ -207,18 +235,19 @@ exports.handler = async (event, context) => {
         uploaded: uploaded,
         failed: failed,
         total: images.length,
+        totalMigrated: totalMigrated,
+        remaining: remaining,
         results: results,
-        message: uploaded > 0 ? 
-          `Successfully migrated ${uploaded} images to Supabase Storage` :
-          failed > 0 ? 
-          `Failed to migrate ${failed} images - check the results for details` :
-          'No images processed',
+        message: remaining > 0 ? 
+          `Batch complete! ${uploaded} migrated this round. ${totalMigrated} total done, ${remaining} remaining. Run again to continue.` :
+          `🎉 Migration complete! All ${totalMigrated} images are now in Supabase Storage.`,
+        continueUrl: remaining > 0 ? '/.netlify/functions/sync-to-supabase-storage' : null,
         timestamp: new Date().toISOString()
       })
     };
     
   } catch (error) {
-    console.error('Storage sync error:', error);
+    console.error('Sync error:', error);
     
     return {
       statusCode: 500,
