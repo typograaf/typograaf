@@ -1,44 +1,87 @@
 // netlify/functions/sync-to-supabase-storage.js
-// Enhanced version that calculates real image dimensions during migration
+// Fixed version using server-side image dimension detection
 
 const { createClient } = require('@supabase/supabase-js');
 
-// Helper function to calculate image dimensions
-function calculateImageDimensions(imageBuffer) {
-  return new Promise((resolve, reject) => {
-    try {
-      // Create a blob from the buffer
-      const blob = new Blob([imageBuffer]);
-      const img = new Image();
-      
-      img.onload = () => {
-        const dimensions = {
-          width: img.width,
-          height: img.height,
-          aspectRatio: img.width / img.height
-        };
-        
-        // Clean up
-        URL.revokeObjectURL(img.src);
-        resolve(dimensions);
-      };
-      
-      img.onerror = () => {
-        URL.revokeObjectURL(img.src);
-        reject(new Error('Failed to load image for dimension calculation'));
-      };
-      
-      // Create object URL and load image
-      img.src = URL.createObjectURL(blob);
-      
-    } catch (error) {
-      reject(error);
+// Helper function to parse image dimensions from buffer
+function getImageDimensions(buffer) {
+  try {
+    const uint8Array = new Uint8Array(buffer);
+    
+    // JPEG detection
+    if (uint8Array[0] === 0xFF && uint8Array[1] === 0xD8) {
+      return getJPEGDimensions(uint8Array);
     }
-  });
+    
+    // PNG detection
+    if (uint8Array[0] === 0x89 && uint8Array[1] === 0x50 && uint8Array[2] === 0x4E && uint8Array[3] === 0x47) {
+      return getPNGDimensions(uint8Array);
+    }
+    
+    // WebP detection
+    if (uint8Array[8] === 0x57 && uint8Array[9] === 0x45 && uint8Array[10] === 0x42 && uint8Array[11] === 0x50) {
+      return getWebPDimensions(uint8Array);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error parsing image dimensions:', error);
+    return null;
+  }
+}
+
+function getJPEGDimensions(uint8Array) {
+  let offset = 2;
+  
+  while (offset < uint8Array.length) {
+    // Find next marker
+    if (uint8Array[offset] !== 0xFF) {
+      offset++;
+      continue;
+    }
+    
+    const marker = uint8Array[offset + 1];
+    
+    // SOF markers (Start of Frame)
+    if ((marker >= 0xC0 && marker <= 0xC3) || (marker >= 0xC5 && marker <= 0xC7) || 
+        (marker >= 0xC9 && marker <= 0xCB) || (marker >= 0xCD && marker <= 0xCF)) {
+      
+      const height = (uint8Array[offset + 5] << 8) | uint8Array[offset + 6];
+      const width = (uint8Array[offset + 7] << 8) | uint8Array[offset + 8];
+      
+      return { width, height, aspectRatio: width / height };
+    }
+    
+    // Skip to next marker
+    const length = (uint8Array[offset + 2] << 8) | uint8Array[offset + 3];
+    offset += 2 + length;
+  }
+  
+  return null;
+}
+
+function getPNGDimensions(uint8Array) {
+  // PNG width is at bytes 16-19, height at bytes 20-23
+  const width = (uint8Array[16] << 24) | (uint8Array[17] << 16) | (uint8Array[18] << 8) | uint8Array[19];
+  const height = (uint8Array[20] << 24) | (uint8Array[21] << 16) | (uint8Array[22] << 8) | uint8Array[23];
+  
+  return { width, height, aspectRatio: width / height };
+}
+
+function getWebPDimensions(uint8Array) {
+  // Simple WebP VP8 format
+  if (uint8Array[12] === 0x56 && uint8Array[13] === 0x50 && uint8Array[14] === 0x38) {
+    const width = ((uint8Array[26] | (uint8Array[27] << 8)) & 0x3fff) + 1;
+    const height = ((uint8Array[28] | (uint8Array[29] << 8)) & 0x3fff) + 1;
+    
+    return { width, height, aspectRatio: width / height };
+  }
+  
+  return null;
 }
 
 exports.handler = async (event, context) => {
-  console.log('=== ENHANCED STORAGE SYNC WITH DIMENSIONS ===');
+  console.log('=== FIXED STORAGE SYNC WITH DIMENSIONS ===');
   
   const headers = {
     'Content-Type': 'application/json',
@@ -52,7 +95,7 @@ exports.handler = async (event, context) => {
   }
   
   const startTime = Date.now();
-  const maxProcessingTime = 8000; // 8 seconds to stay under 10s limit
+  const maxProcessingTime = 8000;
   
   try {
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -72,13 +115,13 @@ exports.handler = async (event, context) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Get images that need migration - smaller batch
+    // Get images that need migration
     const { data: images, error } = await supabase
       .from('portfolio_images')
       .select('*')
       .or('storage_url.is.null,storage_url.eq.')
       .not('path', 'is', null)
-      .limit(3); // Only 3 at a time to avoid timeout
+      .limit(3);
     
     if (error) {
       return {
@@ -132,7 +175,6 @@ exports.handler = async (event, context) => {
     const results = [];
     
     for (const image of images) {
-      // Check if we're running out of time
       if (Date.now() - startTime > maxProcessingTime) {
         console.log('Time limit reached, stopping processing');
         break;
@@ -141,7 +183,7 @@ exports.handler = async (event, context) => {
       try {
         console.log(`Processing: ${image.name}`);
         
-        // Get temporary URL with timeout
+        // Get temporary URL from Dropbox
         const tempUrlResponse = await Promise.race([
           fetch('https://api.dropboxapi.com/2/files/get_temporary_link', {
             method: 'POST',
@@ -164,7 +206,7 @@ exports.handler = async (event, context) => {
         const tempUrlData = await tempUrlResponse.json();
         const dropboxUrl = tempUrlData.link;
         
-        // Download with timeout
+        // Download image
         console.log(`Downloading: ${image.name}`);
         const imageResponse = await Promise.race([
           fetch(dropboxUrl),
@@ -180,20 +222,14 @@ exports.handler = async (event, context) => {
         const imageBuffer = await imageResponse.arrayBuffer();
         const imageUint8Array = new Uint8Array(imageBuffer);
         
-        // 🆕 Calculate real image dimensions
+        // 🆕 Calculate dimensions using server-side parsing
         console.log(`Calculating dimensions for: ${image.name}`);
-        let dimensions = null;
-        try {
-          dimensions = await Promise.race([
-            calculateImageDimensions(imageBuffer),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Dimension calculation timeout')), 2000)
-            )
-          ]);
-          console.log(`Dimensions: ${dimensions.width}x${dimensions.height} (ratio: ${dimensions.aspectRatio.toFixed(3)})`);
-        } catch (dimError) {
-          console.warn(`Could not calculate dimensions for ${image.name}: ${dimError.message}`);
-          // Continue without dimensions - we'll use the old aspect ratio
+        const dimensions = getImageDimensions(imageBuffer);
+        
+        if (dimensions) {
+          console.log(`✅ Dimensions: ${dimensions.width}x${dimensions.height} (ratio: ${dimensions.aspectRatio.toFixed(3)})`);
+        } else {
+          console.warn(`⚠️ Could not parse dimensions for ${image.name}`);
         }
         
         // Create filename
@@ -205,7 +241,7 @@ exports.handler = async (event, context) => {
         
         console.log(`Uploading: ${fileName} (${imageUint8Array.length} bytes)`);
         
-        // Upload to Supabase Storage with timeout
+        // Upload to Supabase Storage
         const { data: uploadData, error: uploadError } = await Promise.race([
           supabase.storage
             .from('portfolio-images')
@@ -229,22 +265,22 @@ exports.handler = async (event, context) => {
         
         const publicUrl = urlData.publicUrl;
         
-        // 🆕 Prepare database update with dimensions
+        // Prepare database update
         const updateData = {
           storage_url: publicUrl,
           storage_path: fileName,
           migrated_to_storage: new Date().toISOString()
         };
         
-        // Add dimensions if we calculated them successfully
+        // Add dimensions if we calculated them
         if (dimensions) {
           updateData.width = dimensions.width;
           updateData.height = dimensions.height;
-          updateData.aspectratio = dimensions.aspectRatio;
+          updateData.aspectratio = parseFloat(dimensions.aspectRatio.toFixed(6)); // Store as decimal
           updateData.dimensions_calculated = new Date().toISOString();
         }
         
-        // Update database with storage info and dimensions
+        // Update database
         const { error: updateError } = await supabase
           .from('portfolio_images')
           .update(updateData)
@@ -265,7 +301,7 @@ exports.handler = async (event, context) => {
         
         console.log(`✅ Migrated: ${image.name}${dimensions ? ` (${dimensions.width}x${dimensions.height})` : ''}`);
         
-        // Small delay to avoid overwhelming the services
+        // Small delay
         await new Promise(resolve => setTimeout(resolve, 500));
         
       } catch (error) {
