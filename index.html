@@ -455,16 +455,16 @@
                 if (item.hasStorageUrl) {
                     ctx.fillStyle = '#28a745';
                     ctx.font = '10px Arial';
-                    ctx.fillText('Loading from Supabase...', canvas.width/2, canvas.height - 30);
+                    ctx.fillText('✓ Supabase Storage', canvas.width/2, canvas.height - 30);
                 } else {
                     ctx.fillStyle = '#ffc107';
                     ctx.font = '10px Arial';
-                    ctx.fillText('Loading from Dropbox...', canvas.width/2, canvas.height - 30);
+                    ctx.fillText('⚠ Legacy URL', canvas.width/2, canvas.height - 30);
                 }
             } else if (item.isReal) {
                 ctx.fillStyle = '#dc3545';
                 ctx.font = '10px Arial';
-                ctx.fillText('No image URL', canvas.width/2, canvas.height - 30);
+                ctx.fillText('❌ No URL', canvas.width/2, canvas.height - 30);
             }
             
             const texture = new THREE.CanvasTexture(canvas);
