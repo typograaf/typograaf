@@ -657,6 +657,154 @@
 
         function calculateNewPositions(groupedItems) {
             const levelSpacing = 40;
+            targetCameraZ = -targetLevel * levelSpacing + 30;
+            
+            targetCameraX = 0;
+            targetCameraY = 0;
+            focusedImage = null;
+        }
+
+        function updateCameraForLevel() {
+            const lerpFactor = 0.08;
+            cameraZ += (targetCameraZ - cameraZ) * lerpFactor;
+            
+            if (focusedImage) {
+                const targetPos = focusedImage.userData.originalPosition;
+                camera.position.x += (targetPos.x - camera.position.x) * lerpFactor;
+                camera.position.y += (targetPos.y - camera.position.y) * lerpFactor;
+                camera.position.z += (targetPos.z + 15 - camera.position.z) * lerpFactor;
+                camera.lookAt(targetPos.x, targetPos.y, targetPos.z);
+            } else {
+                cameraX += (targetCameraX - cameraX) * lerpFactor;
+                cameraY += (targetCameraY - cameraY) * lerpFactor;
+                camera.position.x = cameraX;
+                camera.position.y = cameraY;
+                camera.position.z = cameraZ;
+                camera.lookAt(cameraX, cameraY, cameraZ - 30);
+            }
+        }
+
+        function setupEvents() {
+            const canvas = document.getElementById('canvas');
+            
+            canvas.addEventListener('wheel', onWheel);
+            canvas.addEventListener('click', onImageClick);
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            window.addEventListener('resize', onWindowResize);
+            
+            document.querySelectorAll('.dimension-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const dimension = e.target.dataset.dimension;
+                    organizeByDimension(dimension);
+                });
+            });
+            
+            document.addEventListener('keydown', (e) => {
+                switch(e.key) {
+                    case 'ArrowUp':
+                        goToLevel(currentLevel - 1);
+                        break;
+                    case 'ArrowDown':
+                        goToLevel(currentLevel + 1);
+                        break;
+                    case 'Escape':
+                        if (focusedImage) {
+                            focusedImage = null;
+                        }
+                        break;
+                }
+            });
+        }
+
+        function onMouseDown(event) {
+            isDragging = true;
+            previousMousePosition = {
+                x: event.clientX,
+                y: event.clientY
+            };
+        }
+
+        function onMouseMove(event) {
+            if (isDragging && !focusedImage) {
+                const deltaMove = {
+                    x: event.clientX - previousMousePosition.x,
+                    y: event.clientY - previousMousePosition.y
+                };
+                
+                const panSpeed = 0.05;
+                targetCameraX -= deltaMove.x * panSpeed;
+                targetCameraY += deltaMove.y * panSpeed;
+                
+                previousMousePosition = {
+                    x: event.clientX,
+                    y: event.clientY
+                };
+            }
+        }
+
+        function onMouseUp() {
+            isDragging = false;
+        }
+
+        function onWheel(event) {
+            event.preventDefault();
+            
+            if (focusedImage) {
+                focusedImage = null;
+            } else {
+                if (!scrollCooldown) {
+                    const direction = event.deltaY > 0 ? 1 : -1;
+                    goToLevel(currentLevel + direction);
+                    
+                    scrollCooldown = true;
+                    setTimeout(() => {
+                        scrollCooldown = false;
+                    }, 300);
+                }
+            }
+        }
+
+        function onImageClick(event) {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(images.filter(img => img.visible));
+            
+            if (intersects.length > 0) {
+                const clickedImage = intersects[0].object;
+                
+                if (focusedImage === clickedImage) {
+                    focusedImage = null;
+                } else {
+                    focusedImage = clickedImage;
+                }
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateCameraForLevel();
+            renderer.render(scene, camera);
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
             const positions = [];
             
             for (let i = 0; i < images.length; i++) {
