@@ -1,10 +1,44 @@
 // netlify/functions/sync-to-supabase-storage.js
-// Optimized version that processes images faster and avoids timeouts
+// Enhanced version that calculates real image dimensions during migration
 
 const { createClient } = require('@supabase/supabase-js');
 
+// Helper function to calculate image dimensions
+function calculateImageDimensions(imageBuffer) {
+  return new Promise((resolve, reject) => {
+    try {
+      // Create a blob from the buffer
+      const blob = new Blob([imageBuffer]);
+      const img = new Image();
+      
+      img.onload = () => {
+        const dimensions = {
+          width: img.width,
+          height: img.height,
+          aspectRatio: img.width / img.height
+        };
+        
+        // Clean up
+        URL.revokeObjectURL(img.src);
+        resolve(dimensions);
+      };
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src);
+        reject(new Error('Failed to load image for dimension calculation'));
+      };
+      
+      // Create object URL and load image
+      img.src = URL.createObjectURL(blob);
+      
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 exports.handler = async (event, context) => {
-  console.log('=== OPTIMIZED STORAGE SYNC START ===');
+  console.log('=== ENHANCED STORAGE SYNC WITH DIMENSIONS ===');
   
   const headers = {
     'Content-Type': 'application/json',
@@ -63,7 +97,7 @@ exports.handler = async (event, context) => {
       // Check migration status
       const { data: allImages } = await supabase
         .from('portfolio_images')
-        .select('storage_url, name')
+        .select('storage_url, name, width, height')
         .not('storage_url', 'is', null);
       
       const { data: remainingImages } = await supabase
@@ -71,6 +105,8 @@ exports.handler = async (event, context) => {
         .select('name')
         .or('storage_url.is.null,storage_url.eq.')
         .not('path', 'is', null);
+      
+      const withDimensions = allImages?.filter(img => img.width && img.height).length || 0;
       
       return {
         statusCode: 200,
@@ -81,10 +117,11 @@ exports.handler = async (event, context) => {
           failed: 0,
           total: 0,
           migrated: allImages?.length || 0,
+          withDimensions: withDimensions,
           remaining: remainingImages?.length || 0,
           message: remainingImages?.length > 0 ? 
-            `Migration in progress: ${allImages?.length || 0} done, ${remainingImages.length} remaining` :
-            `🎉 All images migrated! ${allImages?.length || 0} images in Supabase Storage.`,
+            `Migration in progress: ${allImages?.length || 0} done (${withDimensions} with dimensions), ${remainingImages.length} remaining` :
+            `🎉 All images migrated! ${allImages?.length || 0} images in storage, ${withDimensions} with calculated dimensions.`,
           timestamp: new Date().toISOString()
         })
       };
@@ -143,6 +180,22 @@ exports.handler = async (event, context) => {
         const imageBuffer = await imageResponse.arrayBuffer();
         const imageUint8Array = new Uint8Array(imageBuffer);
         
+        // 🆕 Calculate real image dimensions
+        console.log(`Calculating dimensions for: ${image.name}`);
+        let dimensions = null;
+        try {
+          dimensions = await Promise.race([
+            calculateImageDimensions(imageBuffer),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Dimension calculation timeout')), 2000)
+            )
+          ]);
+          console.log(`Dimensions: ${dimensions.width}x${dimensions.height} (ratio: ${dimensions.aspectRatio.toFixed(3)})`);
+        } catch (dimError) {
+          console.warn(`Could not calculate dimensions for ${image.name}: ${dimError.message}`);
+          // Continue without dimensions - we'll use the old aspect ratio
+        }
+        
         // Create filename
         const fileExtension = image.extension || 'jpg';
         const cleanName = image.name.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
@@ -176,14 +229,25 @@ exports.handler = async (event, context) => {
         
         const publicUrl = urlData.publicUrl;
         
-        // Update database
+        // 🆕 Prepare database update with dimensions
+        const updateData = {
+          storage_url: publicUrl,
+          storage_path: fileName,
+          migrated_to_storage: new Date().toISOString()
+        };
+        
+        // Add dimensions if we calculated them successfully
+        if (dimensions) {
+          updateData.width = dimensions.width;
+          updateData.height = dimensions.height;
+          updateData.aspectratio = dimensions.aspectRatio;
+          updateData.dimensions_calculated = new Date().toISOString();
+        }
+        
+        // Update database with storage info and dimensions
         const { error: updateError } = await supabase
           .from('portfolio_images')
-          .update({
-            storage_url: publicUrl,
-            storage_path: fileName,
-            migrated_to_storage: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', image.id);
         
         if (updateError) {
@@ -194,13 +258,18 @@ exports.handler = async (event, context) => {
         results.push({
           name: image.name,
           status: 'success',
-          url: publicUrl
+          url: publicUrl,
+          dimensions: dimensions ? `${dimensions.width}x${dimensions.height}` : 'not calculated',
+          aspectRatio: dimensions ? dimensions.aspectRatio.toFixed(3) : 'unknown'
         });
         
-        console.log(`✅ Migrated: ${image.name}`);
+        console.log(`✅ Migrated: ${image.name}${dimensions ? ` (${dimensions.width}x${dimensions.height})` : ''}`);
+        
+        // Small delay to avoid overwhelming the services
+        await new Promise(resolve => setTimeout(resolve, 500));
         
       } catch (error) {
-        console.error(`❌ Failed: ${image.name} - ${error.message}`);
+        console.error(`❌ Failed to process ${image.name}:`, error.message);
         failed++;
         results.push({
           name: image.name,
@@ -213,7 +282,7 @@ exports.handler = async (event, context) => {
     // Get overall progress
     const { data: allMigrated } = await supabase
       .from('portfolio_images')
-      .select('id')
+      .select('id, width, height')
       .not('storage_url', 'is', null);
     
     const { data: stillRemaining } = await supabase
@@ -223,9 +292,10 @@ exports.handler = async (event, context) => {
       .not('path', 'is', null);
     
     const totalMigrated = allMigrated?.length || 0;
+    const withDimensions = allMigrated?.filter(img => img.width && img.height).length || 0;
     const remaining = stillRemaining?.length || 0;
     
-    console.log(`Batch complete: ${uploaded} uploaded, ${failed} failed. Total progress: ${totalMigrated} migrated, ${remaining} remaining`);
+    console.log(`Batch complete: ${uploaded} uploaded, ${failed} failed. Total progress: ${totalMigrated} migrated (${withDimensions} with dimensions), ${remaining} remaining`);
     
     return {
       statusCode: 200,
@@ -236,11 +306,12 @@ exports.handler = async (event, context) => {
         failed: failed,
         total: images.length,
         totalMigrated: totalMigrated,
+        withDimensions: withDimensions,
         remaining: remaining,
         results: results,
         message: remaining > 0 ? 
-          `Batch complete! ${uploaded} migrated this round. ${totalMigrated} total done, ${remaining} remaining. Run again to continue.` :
-          `🎉 Migration complete! All ${totalMigrated} images are now in Supabase Storage.`,
+          `Batch complete! ${uploaded} migrated this round. ${totalMigrated} total done (${withDimensions} with dimensions), ${remaining} remaining. Run again to continue.` :
+          `🎉 Migration complete! All ${totalMigrated} images are now in Supabase Storage with ${withDimensions} having calculated dimensions.`,
         continueUrl: remaining > 0 ? '/.netlify/functions/sync-to-supabase-storage' : null,
         timestamp: new Date().toISOString()
       })
