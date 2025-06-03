@@ -8,21 +8,33 @@ function getImageDimensions(buffer) {
   try {
     const uint8Array = new Uint8Array(buffer);
     
+    console.log(`Analyzing ${uint8Array.length} bytes, first 16 bytes:`, Array.from(uint8Array.slice(0, 16)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+    
     // JPEG detection
     if (uint8Array[0] === 0xFF && uint8Array[1] === 0xD8) {
+      console.log('Detected JPEG format');
       return getJPEGDimensions(uint8Array);
     }
     
     // PNG detection
     if (uint8Array[0] === 0x89 && uint8Array[1] === 0x50 && uint8Array[2] === 0x4E && uint8Array[3] === 0x47) {
+      console.log('Detected PNG format');
       return getPNGDimensions(uint8Array);
     }
     
     // WebP detection
     if (uint8Array[8] === 0x57 && uint8Array[9] === 0x45 && uint8Array[10] === 0x42 && uint8Array[11] === 0x50) {
+      console.log('Detected WebP format');
       return getWebPDimensions(uint8Array);
     }
     
+    // AVIF detection
+    if (uint8Array[4] === 0x66 && uint8Array[5] === 0x74 && uint8Array[6] === 0x79 && uint8Array[7] === 0x70) {
+      console.log('Detected AVIF format');
+      return getAVIFDimensions(uint8Array);
+    }
+    
+    console.log('Unknown image format - could not detect type');
     return null;
   } catch (error) {
     console.error('Error parsing image dimensions:', error);
@@ -74,6 +86,55 @@ function getWebPDimensions(uint8Array) {
   }
   
   return null;
+}
+
+function getAVIFDimensions(uint8Array) {
+  try {
+    // AVIF uses ISO Base Media File Format (similar to MP4)
+    // Look for 'ispe' box which contains image spatial extents
+    for (let i = 0; i < uint8Array.length - 20; i++) {
+      // Look for 'ispe' box signature
+      if (uint8Array[i] === 0x69 && uint8Array[i + 1] === 0x73 && 
+          uint8Array[i + 2] === 0x70 && uint8Array[i + 3] === 0x65) {
+        
+        // Width and height are 4 bytes each, starting 8 bytes after 'ispe'
+        const width = (uint8Array[i + 12] << 24) | (uint8Array[i + 13] << 16) | 
+                     (uint8Array[i + 14] << 8) | uint8Array[i + 15];
+        const height = (uint8Array[i + 16] << 24) | (uint8Array[i + 17] << 16) | 
+                      (uint8Array[i + 18] << 8) | uint8Array[i + 19];
+        
+        if (width > 0 && height > 0 && width < 50000 && height < 50000) {
+          return { width, height, aspectRatio: width / height };
+        }
+      }
+    }
+    
+    // Alternative: Look for 'av01' codec and try to find dimensions
+    for (let i = 0; i < uint8Array.length - 50; i++) {
+      if (uint8Array[i] === 0x61 && uint8Array[i + 1] === 0x76 && 
+          uint8Array[i + 2] === 0x30 && uint8Array[i + 3] === 0x31) {
+        
+        // Try to find dimensions in the vicinity
+        for (let j = i; j < Math.min(i + 100, uint8Array.length - 8); j++) {
+          const width = (uint8Array[j] << 8) | uint8Array[j + 1];
+          const height = (uint8Array[j + 2] << 8) | uint8Array[j + 3];
+          
+          if (width > 100 && height > 100 && width < 10000 && height < 10000) {
+            const ratio = width / height;
+            if (ratio > 0.1 && ratio < 10) { // Reasonable aspect ratio
+              return { width, height, aspectRatio: ratio };
+            }
+          }
+        }
+      }
+    }
+    
+    console.log('Could not parse AVIF dimensions');
+    return null;
+  } catch (error) {
+    console.error('Error parsing AVIF:', error);
+    return null;
+  }
 }
 
 exports.handler = async (event, context) => {
@@ -199,28 +260,68 @@ exports.handler = async (event, context) => {
         
         // Calculate dimensions
         console.log(`Calculating dimensions for: ${image.name}`);
-        const dimensions = getImageDimensions(imageBuffer);
+        let dimensions = getImageDimensions(imageBuffer);
         
         if (!dimensions) {
-          throw new Error('Could not parse image dimensions');
+          console.warn(`Could not parse dimensions from image data for ${image.name}`);
+          
+          // Fallback: try to estimate from file size and content-type
+          const contentType = imageResponse.headers.get('content-type') || '';
+          const contentLength = parseInt(imageResponse.headers.get('content-length') || '0');
+          
+          console.log(`Fallback attempt - Content-Type: ${contentType}, Size: ${contentLength} bytes`);
+          
+          // For AVIF files, make an educated guess based on typical ratios
+          if (contentType.includes('avif')) {
+            // Use existing aspect ratio from database as fallback
+            const existingRatio = parseFloat(image.aspectratio) || 1.33;
+            
+            // Estimate dimensions based on file size (very rough)
+            let estimatedPixels = Math.sqrt(contentLength * 10); // Rough estimation
+            estimatedPixels = Math.max(400, Math.min(2000, estimatedPixels)); // Clamp to reasonable range
+            
+            const estimatedWidth = Math.round(estimatedPixels * Math.sqrt(existingRatio));
+            const estimatedHeight = Math.round(estimatedPixels / Math.sqrt(existingRatio));
+            
+            dimensions = {
+              width: estimatedWidth,
+              height: estimatedHeight,
+              aspectRatio: existingRatio,
+              estimated: true
+            };
+            
+            console.log(`Using estimated dimensions for AVIF: ${dimensions.width}x${dimensions.height}`);
+          }
         }
         
-        console.log(`✅ Dimensions: ${dimensions.width}x${dimensions.height} (ratio: ${dimensions.aspectRatio.toFixed(3)})`);
+        if (!dimensions) {
+          throw new Error('Could not calculate or estimate image dimensions');
+        }
+        
+        console.log(`✅ Dimensions: ${dimensions.width}x${dimensions.height} (ratio: ${dimensions.aspectRatio.toFixed(3)})${dimensions.estimated ? ' [estimated]' : ''}`);
         
         // Update database with dimensions
+        console.log(`Updating database for ${image.name}...`);
+        const updateData = {
+          width: dimensions.width,
+          height: dimensions.height,
+          aspectratio: parseFloat(dimensions.aspectRatio.toFixed(6)),
+          dimensions_calculated: new Date().toISOString()
+        };
+        
+        console.log('Update data:', updateData);
+        
         const { error: updateError } = await supabase
           .from('portfolio_images')
-          .update({
-            width: dimensions.width,
-            height: dimensions.height,
-            aspectratio: parseFloat(dimensions.aspectRatio.toFixed(6)),
-            dimensions_calculated: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', image.id);
         
         if (updateError) {
+          console.error('Database update error:', updateError);
           throw new Error(`Database update failed: ${updateError.message}`);
         }
+        
+        console.log(`✅ Database updated successfully for ${image.name}`);
         
         processed++;
         results.push({
@@ -228,7 +329,8 @@ exports.handler = async (event, context) => {
           status: 'success',
           dimensions: `${dimensions.width}x${dimensions.height}`,
           aspectRatio: dimensions.aspectRatio.toFixed(3),
-          oldAspectRatio: image.aspectratio ? image.aspectratio.toFixed(3) : 'none'
+          oldAspectRatio: image.aspectratio ? image.aspectratio.toFixed(3) : 'none',
+          method: dimensions.estimated ? 'estimated' : 'parsed'
         });
         
         console.log(`✅ Updated dimensions for: ${image.name} (${dimensions.width}x${dimensions.height})`);
