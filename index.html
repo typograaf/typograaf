@@ -410,6 +410,30 @@
             }
         }
 
+        // Cleanup function for video elements
+        function cleanup() {
+            images.forEach(mesh => {
+                if (mesh.userData.videoElement) {
+                    mesh.userData.videoElement.pause();
+                    mesh.userData.videoElement.src = '';
+                    if (mesh.userData.videoElement.parentNode) {
+                        mesh.userData.videoElement.parentNode.removeChild(mesh.userData.videoElement);
+                    }
+                }
+                
+                if (mesh.material.map) {
+                    mesh.material.map.dispose();
+                }
+                mesh.material.dispose();
+                mesh.geometry.dispose();
+            });
+        }
+        
+        // Add cleanup on page unload
+        window.addEventListener('beforeunload', cleanup);
+        window.addEventListener('unload', cleanup);
+        
+        // Update the placeholder texture to show GIF status
         function createPlaceholderTexture(item, aspectRatio) {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
@@ -452,19 +476,28 @@
             
             // Status indicator for real images
             if (item.isReal && item.imageUrl) {
+                const isGif = item.imageUrl.toLowerCase().includes('.gif');
+                
                 if (item.hasStorageUrl) {
                     ctx.fillStyle = '#28a745';
                     ctx.font = '10px Arial';
-                    ctx.fillText('✓ Supabase Storage', canvas.width/2, canvas.height - 30);
+                    ctx.fillText(isGif ? 'Loading animated GIF...' : 'Loading from Supabase...', canvas.width/2, canvas.height - 30);
                 } else {
                     ctx.fillStyle = '#ffc107';
                     ctx.font = '10px Arial';
-                    ctx.fillText('⚠ Legacy URL', canvas.width/2, canvas.height - 30);
+                    ctx.fillText(isGif ? 'Loading GIF from Dropbox...' : 'Loading from Dropbox...', canvas.width/2, canvas.height - 30);
+                }
+                
+                // GIF indicator
+                if (isGif) {
+                    ctx.fillStyle = '#ff6b6b';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.fillText('🎬 GIF', canvas.width/2, canvas.height - 45);
                 }
             } else if (item.isReal) {
                 ctx.fillStyle = '#dc3545';
                 ctx.font = '10px Arial';
-                ctx.fillText('❌ No URL', canvas.width/2, canvas.height - 30);
+                ctx.fillText('No image URL', canvas.width/2, canvas.height - 30);
             }
             
             const texture = new THREE.CanvasTexture(canvas);
