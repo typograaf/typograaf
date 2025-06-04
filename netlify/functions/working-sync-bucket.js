@@ -255,7 +255,10 @@ exports.handler = async (event, context) => {
         
         const publicUrl = urlData.publicUrl;
         
-        // Check if exists in database by ID
+        // Generate ID first (needed for lookups)
+        const imageId = `${imageFile.project}-${imageFile.tool}-${imageFile.name}.${imageFile.extension}`;
+        
+        // Check if exists in database by ID or storage path
         const existingImage = existingByPath[imageFile.fullPath] || 
                              (existingImages || []).find(img => img.id === imageId);
         
