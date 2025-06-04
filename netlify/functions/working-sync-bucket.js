@@ -297,10 +297,8 @@ exports.handler = async (event, context) => {
         }
         
         // Prepare database record
-        const imageId = `${imageFile.project}-${imageFile.tool}-${imageFile.name}.${imageFile.extension}`;
-        
         const updateData = {
-          id: imageId, // Explicitly provide ID
+          id: imageId, // Use the imageId declared above
           name: imageFile.name,
           project: imageFile.project,
           tool: imageFile.tool,
