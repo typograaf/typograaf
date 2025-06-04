@@ -183,32 +183,42 @@ exports.handler = async (event, context) => {
     
     console.log(`Found ${files.length} files in storage`);
     
-    // Get files recursively if there are folders
+    // Get files recursively from all folders
     let allFiles = [];
     
     async function scanFolder(path = '') {
-      const { data: items, error } = await supabase.storage
-        .from('portfolio-images')
-        .list(path, { limit: 1000 });
-      
-      if (error) {
-        console.error(`Error scanning folder ${path}:`, error);
-        return;
-      }
-      
-      for (const item of items) {
-        const fullPath = path ? `${path}/${item.name}` : item.name;
+      try {
+        console.log(`Scanning folder: ${path || 'root'}`);
         
-        if (item.metadata && !item.name.endsWith('/')) {
-          // It's a file
-          allFiles.push({
-            ...item,
-            fullPath: fullPath
-          });
-        } else if (!item.metadata) {
-          // It's a folder, scan recursively
-          await scanFolder(fullPath);
+        const { data: items, error } = await supabase.storage
+          .from('portfolio-images')
+          .list(path, { limit: 1000 });
+        
+        if (error) {
+          console.error(`Error scanning folder ${path}:`, error);
+          return;
         }
+        
+        console.log(`Found ${items?.length || 0} items in ${path || 'root'}`);
+        
+        for (const item of items || []) {
+          const fullPath = path ? `${path}/${item.name}` : item.name;
+          
+          if (item.metadata && item.metadata.size > 0) {
+            // It's a file with content
+            allFiles.push({
+              ...item,
+              fullPath: fullPath
+            });
+            console.log(`Added file: ${fullPath} (${item.metadata.size} bytes)`);
+          } else if (!item.metadata || item.metadata.size === undefined) {
+            // It's likely a folder, scan recursively
+            console.log(`Scanning subfolder: ${fullPath}`);
+            await scanFolder(fullPath);
+          }
+        }
+      } catch (error) {
+        console.error(`Exception scanning folder ${path}:`, error);
       }
     }
     
@@ -219,10 +229,12 @@ exports.handler = async (event, context) => {
     // Filter to image files only
     const imageFiles = allFiles.filter(file => {
       const ext = file.name.split('.').pop()?.toLowerCase();
-      return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'].includes(ext);
+      const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'].includes(ext);
+      console.log(`File: ${file.name}, ext: ${ext}, isImage: ${isImage}`);
+      return isImage;
     });
     
-    console.log(`Found ${imageFiles.length} image files`);
+    console.log(`Found ${imageFiles.length} image files out of ${allFiles.length} total files`);
     
     if (imageFiles.length === 0) {
       return {
@@ -231,8 +243,12 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({
           success: true,
           message: 'No image files found in storage bucket',
-          filesScanned: allFiles.length,
-          imagesFound: 0
+          details: {
+            totalFiles: allFiles.length,
+            imageFiles: 0,
+            scannedFolders: 'multiple'
+          },
+          allFiles: allFiles.map(f => ({ name: f.name, path: f.fullPath, size: f.metadata?.size }))
         })
       };
     }
@@ -300,17 +316,23 @@ exports.handler = async (event, context) => {
               const imageBuffer = await imageResponse.arrayBuffer();
               const uint8Array = new Uint8Array(imageBuffer);
               
+              console.log(`Downloaded ${uint8Array.length} bytes for ${file.name}`);
+              
               dimensions = parseImageDimensions(uint8Array, file.name);
               
               if (dimensions) {
                 console.log(`✅ Dimensions: ${dimensions.width}x${dimensions.height}`);
               } else {
-                console.log(`⚠️ Could not parse dimensions for ${file.name}`);
+                console.log(`⚠️ Could not parse dimensions for ${file.name} (format not supported)`);
               }
+            } else {
+              console.log(`⚠️ Download failed for ${file.name}: ${imageResponse.status}`);
             }
           } catch (dimError) {
             console.warn(`Could not calculate dimensions for ${file.name}: ${dimError.message}`);
           }
+        } else {
+          console.log(`Skipping dimension calculation for ${file.name} (already has dimensions)`);
         }
         
         const updateData = {
