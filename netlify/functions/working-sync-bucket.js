@@ -255,8 +255,9 @@ exports.handler = async (event, context) => {
         
         const publicUrl = urlData.publicUrl;
         
-        // Check if exists in database
-        const existingImage = existingByPath[imageFile.fullPath];
+        // Check if exists in database by ID
+        const existingImage = existingByPath[imageFile.fullPath] || 
+                             (existingImages || []).find(img => img.id === imageId);
         
         // Calculate dimensions for JPEG/PNG/GIF only
         let dimensions = null;
@@ -293,7 +294,10 @@ exports.handler = async (event, context) => {
         }
         
         // Prepare database record
+        const imageId = `${imageFile.project}-${imageFile.tool}-${imageFile.name}.${imageFile.extension}`;
+        
         const updateData = {
+          id: imageId, // Explicitly provide ID
           name: imageFile.name,
           project: imageFile.project,
           tool: imageFile.tool,
@@ -316,6 +320,8 @@ exports.handler = async (event, context) => {
         
         if (existingImage) {
           // Update existing
+          console.log(`Updating existing image with ID: ${existingImage.id}`);
+          
           const { error: updateError } = await supabase
             .from('portfolio_images')
             .update(updateData)
@@ -329,6 +335,8 @@ exports.handler = async (event, context) => {
           console.log(`✅ Updated: ${imageFile.fullPath}`);
         } else {
           // Create new
+          console.log(`Creating new image with ID: ${imageId}`);
+          
           const { error: insertError } = await supabase
             .from('portfolio_images')
             .insert(updateData);
