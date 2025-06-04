@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload & Sync Portfolio Images</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .upload-zone {
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9fa;
+            margin: 20px 0;
+        }
+        .progress {
+            background: #e9ecef;
+            border-radius: 4px;
+            height: 20px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        .progress-bar {
+            background: #28a745;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        .results {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .file-org {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📁 Upload & Sync Portfolio Images</h1>
+        
+        <div class="status info">
+            <strong>New workflow:</strong> Upload images directly to Supabase Storage, then sync to database with automatic dimension calculation.
+        </div>
+
+        <div class="step">
+            <h3>Step 1: Upload Images to Supabase Storage</h3>
+            <div class="file-org">
+                <strong>📂 Organize your uploads:</strong><br>
+                • Create folders like: <code>project-name/tool-name/image.jpg</code><br>
+                • Example: <code>website-redesign/figma/homepage-mockup.png</code><br>
+                • Supported: <strong>JPEG, PNG, GIF</strong> (skip AVIF for now)
+            </div>
+            <p><strong>Upload via Supabase Dashboard:</strong></p>
+            <ol>
+                <li>Go to your <a href="https://supabase.com/dashboard" target="_blank">Supabase Dashboard</a></li>
+                <li>Navigate to Storage → portfolio-images bucket</li>
+                <li>Create folders and upload your images</li>
+                <li>Come back here and run Step 2</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Sync Storage to Database</h3>
+            <div class="progress">
+                <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+            </div>
+            <div id="progressText">Ready to sync storage bucket...</div>
+            
+            <button onclick="startSync()" id="syncBtn">🔄 Sync Storage Bucket</button>
+            <button onclick="stopSync()" id="stopBtn" disabled>Stop</button>
+            <button onclick="checkStatus()" id="statusBtn">📊 Check Status</button>
+        </div>
+
+        <div id="results" class="results" style="display: none;"></div>
+        <div id="log" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        let syncRunning = false;
+        let totalImages = 0;
+        let processedImages = 0;
+        
+        async function startSync() {
+            syncRunning = true;
+            document.getElementById('syncBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            log('🔄 Starting storage bucket sync...');
+            
+            try {
+                await runSyncLoop();
+            } catch (error) {
+                log(`❌ Sync failed: ${error.message}`, 'error');
+            }
+            
+            syncRunning = false;
+            document.getElementById('syncBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        }
+        
+        async function runSyncLoop() {
+            let batchNumber = 1;
+            
+            while (syncRunning) {
+                log(`🔄 Running sync batch ${batchNumber}...`);
+                
+                try {
+                    const response = await fetch('/.netlify/functions/sync-supabase-bucket', {
+                        method: 'POST'
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        processedImages = data.totalInStorage || 0;
+                        const withDimensions = data.withDimensions || 0;
+                        
+                        updateProgress(withDimensions, processedImages);
+                        
+                        if (data.processed > 0) {
+                            log(`✅ Batch ${batchNumber}: Processed ${data.processed} files (${data.created} created, ${data.updated} updated)`, 'success');
+                        }
+                        
+                        if (data.failed > 0) {
+                            log(`⚠️ Batch ${batchNumber}: ${data.failed} files failed`, 'warning');
+                        }
+                        
+                        // Show detailed results
+                        if (data.results && data.results.length > 0) {
+                            showResults(data.results);
+                        }
+                        
+                        // Check if we're done
+                        if (!data.continueUrl || data.moreFiles === 0) {
+                            log(`🎉 Sync complete! ${processedImages} images in storage, ${withDimensions} with calculated dimensions.`, 'success');
+                            break;
+                        }
+                        
+                        // Continue with next batch
+                        log(`⏳ More files to process (${data.moreFiles} remaining). Waiting 2 seconds...`);
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        batchNumber++;
+                        
+                    } else {
+                        log(`❌ Batch ${batchNumber} failed: ${data.error}`, 'error');
+                        break;
+                    }
+                    
+                } catch (error) {
+                    log(`❌ Network error in batch ${batchNumber}: ${error.message}`, 'error');
+                    break;
+                }
+            }
+        }
+        
+        function stopSync() {
+            syncRunning = false;
+            log('⏹️ Sync stopped by user');
+        }
+        
+        async function checkStatus() {
+            log('📊 Checking current status...');
+            
+            try {
+                const response = await fetch('/.netlify/functions/debug-dimensions', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.analysis) {
+                    const analysis = data.analysis;
+                    
+                    updateProgress(analysis.withBothDimensions, analysis.withStorageUrl);
+                    
+                    log(`📊 Status: ${analysis.withStorageUrl} images in storage, ${analysis.withBothDimensions} with dimensions`, 'info');
+                    
+                    if (analysis.hasStorageButNoDimensions > 0) {
+                        log(`⚠️ ${analysis.hasStorageButNoDimensions} images need dimension calculation`, 'warning');
+                    }
+                } else {
+                    log(`❌ Status check failed: ${data.error || 'Unknown error'}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Status check error: ${error.message}`, 'error');
+            }
+        }
+        
+        function updateProgress(withDimensions, total) {
+            const percentage = total > 0 ? (withDimensions / total) * 100 : 0;
+            document.getElementById('progressBar').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = 
+                `Progress: ${withDimensions}/${total} images have dimensions (${Math.round(percentage)}%)`;
+        }
+        
+        function showResults(results) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.style.display = 'block';
+            
+            const successCount = results.filter(r => r.status === 'success').length;
+            const failedCount = results.filter(r => r.status === 'failed').length;
+            
+            resultsDiv.innerHTML = `
+                <h4>Batch Results: ${successCount} success, ${failedCount} failed</h4>
+                ${results.map(result => `
+                    <div style="margin: 5px 0; padding: 8px; background: ${result.status === 'success' ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">
+                        ${result.status === 'success' ? '✅' : '❌'} 
+                        <strong>${result.path}</strong>
+                        ${result.action ? ` [${result.action}]` : ''}
+                        ${result.dimensions ? ` - ${result.dimensions}` : ''}
+                        ${result.metadata ? ` (${result.metadata.project}/${result.metadata.tool})` : ''}
+                        ${result.error ? ` - ${result.error}` : ''}
+                    </div>
+                `).join('')}
+            `;
+        }
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info';
+            
+            logDiv.innerHTML += `
+                <div class="status ${className}">
+                    <strong>${timestamp}:</strong> ${message}
+                </div>
+            `;
+            
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        // Auto-check status on page load
+        window.addEventListener('load', () => {
+            setTimeout(checkStatus, 1000);
+        });
+    </script>
+</body>
+</html>
