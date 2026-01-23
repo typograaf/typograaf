@@ -48,32 +48,13 @@ body {
   aspect-ratio: 1;
   cursor: pointer;
   overflow: hidden;
-  background: #f8f8f8;
-  content-visibility: auto;
-  contain-intrinsic-size: 200px;
-}
-
-.item img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  will-change: opacity;
+  position: relative;
 }
 
 .lightbox {
   position: fixed;
   inset: 0;
   background: rgba(255, 255, 255, 0.95);
-  display: flex;
-  justify-content: center;
-  align-items: center;
   z-index: 1000;
   cursor: pointer;
-  padding: 24px;
-}
-
-.lightbox img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
 }

@@ -1,50 +1,17 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import Image from 'next/image'
 
-interface Image {
+interface ImageData {
   id: string
   url: string
 }
 
-function LazyImage({ src, onClick }: { src: string; onClick: () => void }) {
-  const [loaded, setLoaded] = useState(false)
-  const [inView, setInView] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true)
-          observer.disconnect()
-        }
-      },
-      { rootMargin: '200px' }
-    )
-    if (ref.current) observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [])
-
-  return (
-    <div ref={ref} className="item" onClick={onClick}>
-      {inView && (
-        <img
-          src={src}
-          alt=""
-          decoding="async"
-          onLoad={() => setLoaded(true)}
-          style={{ opacity: loaded ? 1 : 0, transition: 'opacity 0.2s' }}
-        />
-      )}
-    </div>
-  )
-}
-
 export default function Home() {
-  const [images, setImages] = useState<Image[]>([])
+  const [images, setImages] = useState<ImageData[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedImage, setSelectedImage] = useState<Image | null>(null)
+  const [selectedImage, setSelectedImage] = useState<ImageData | null>(null)
 
   useEffect(() => {
     fetch('/api/images')
@@ -73,17 +40,33 @@ export default function Home() {
     <>
       <div className="feed">
         {images.map((image) => (
-          <LazyImage
+          <div
             key={image.id}
-            src={image.url}
+            className="item"
             onClick={() => setSelectedImage(image)}
-          />
+          >
+            <Image
+              src={image.url}
+              alt=""
+              fill
+              sizes="(max-width: 500px) 50vw, (max-width: 700px) 33vw, (max-width: 900px) 25vw, (max-width: 1100px) 20vw, (max-width: 1400px) 16vw, (max-width: 1600px) 14vw, 12.5vw"
+              style={{ objectFit: 'contain' }}
+              loading="lazy"
+            />
+          </div>
         ))}
       </div>
 
       {selectedImage && (
         <div className="lightbox" onClick={closeModal}>
-          <img src={selectedImage.url} alt="" />
+          <Image
+            src={selectedImage.url}
+            alt=""
+            fill
+            sizes="100vw"
+            style={{ objectFit: 'contain' }}
+            priority
+          />
         </div>
       )}
     </>
