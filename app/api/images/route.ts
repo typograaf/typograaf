@@ -24,7 +24,7 @@ export async function GET() {
       allEntries = allEntries.concat(response.result.entries)
     }
 
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
     const imageFiles = allEntries.filter(
       (entry): entry is files.FileMetadataReference =>
         entry['.tag'] === 'file' &&
