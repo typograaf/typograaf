@@ -71,6 +71,7 @@ export default function Home() {
 
   return (
     <>
+      <img src="/icon.png" alt="" className="logo" />
       <div className="feed">
         {images.map((image) => (
           <LazyImage
