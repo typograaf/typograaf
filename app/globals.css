@@ -15,8 +15,8 @@ body {
 
 .feed {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  max-width: calc(160px * 8 + 24px * 7 + 192px);
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  max-width: calc(200px * 8 + 24px * 7 + 192px);
   gap: 24px;
   padding: 96px;
   margin: 0 auto;
