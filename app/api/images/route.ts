@@ -1,7 +1,7 @@
 import { Dropbox } from 'dropbox'
 import { NextResponse } from 'next/server'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 interface DropboxError {
   error?: {
@@ -24,20 +24,32 @@ export async function GET() {
   try {
     const dbx = new Dropbox({ accessToken, fetch })
 
-    // Use recursive listing to get all files in subfolders
     const response = await dbx.filesListFolder({
       path: folderPath,
       recursive: true
     })
 
+    const allEntries = response.result.entries
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
-    const imageFiles = response.result.entries.filter(
+    const imageFiles = allEntries.filter(
       (entry) =>
         entry['.tag'] === 'file' &&
         imageExtensions.some((ext) =>
           entry.name.toLowerCase().endsWith(ext)
         )
     )
+
+    // If no images found, return debug info
+    if (imageFiles.length === 0) {
+      return NextResponse.json({
+        images: [],
+        debug: {
+          path: folderPath,
+          totalEntries: allEntries.length,
+          entries: allEntries.slice(0, 10).map(e => ({ name: e.name, tag: e['.tag'] }))
+        }
+      })
+    }
 
     const images = await Promise.all(
       imageFiles.map(async (file) => {
@@ -48,7 +60,6 @@ export async function GET() {
             path: file.path_lower!,
           })
 
-          // Extract project name from path
           const pathParts = file.path_lower!.split('/')
           const project = pathParts.length > 2 ? pathParts[pathParts.length - 2] : 'uncategorized'
 
