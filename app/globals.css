@@ -15,11 +15,33 @@ body {
 
 .feed {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  max-width: calc(200px * 8 + 24px * 7 + 192px);
+  grid-template-columns: repeat(8, 1fr);
   gap: 24px;
   padding: 96px;
-  margin: 0 auto;
+}
+
+@media (max-width: 1600px) {
+  .feed { grid-template-columns: repeat(7, 1fr); }
+}
+
+@media (max-width: 1400px) {
+  .feed { grid-template-columns: repeat(6, 1fr); }
+}
+
+@media (max-width: 1100px) {
+  .feed { grid-template-columns: repeat(5, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .feed { grid-template-columns: repeat(4, 1fr); padding: 48px; }
+}
+
+@media (max-width: 700px) {
+  .feed { grid-template-columns: repeat(3, 1fr); padding: 32px; gap: 16px; }
+}
+
+@media (max-width: 500px) {
+  .feed { grid-template-columns: repeat(2, 1fr); padding: 24px; }
 }
 
 .item {
