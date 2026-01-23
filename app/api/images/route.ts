@@ -1,5 +1,6 @@
 import { Dropbox, files } from 'dropbox'
 import { NextResponse } from 'next/server'
+import projectOrder from '../../../project-order.json'
 
 // Revalidate every 60 seconds
 export const revalidate = 60
@@ -32,10 +33,32 @@ export async function GET() {
         imageExtensions.some(ext => entry.name.toLowerCase().endsWith(ext))
     )
 
-    // Sort by modified date
-    const sortedFiles = imageFiles.sort((a, b) =>
-      new Date(b.server_modified).getTime() - new Date(a.server_modified).getTime()
-    )
+    // Get project name from file path
+    const getProjectName = (path: string) => {
+      const parts = path.split('/')
+      const baseDepth = folderPath.split('/').length
+      return parts[baseDepth] || ''
+    }
+
+    // Sort images: by project order from config, then by filename within project
+    const sortedFiles = imageFiles.sort((a, b) => {
+      const projectA = getProjectName(a.path_lower!)
+      const projectB = getProjectName(b.path_lower!)
+
+      const indexA = projectOrder.findIndex(p => p.toLowerCase() === projectA)
+      const indexB = projectOrder.findIndex(p => p.toLowerCase() === projectB)
+
+      // Projects not in config go to the end
+      const orderA = indexA === -1 ? 999 : indexA
+      const orderB = indexB === -1 ? 999 : indexB
+
+      if (orderA !== orderB) {
+        return orderA - orderB
+      }
+
+      // Within same project, sort by filename
+      return a.name.localeCompare(b.name)
+    })
 
     // Get temporary links in parallel (batch of 50)
     const linkPromises = sortedFiles.map(async (file) => {
