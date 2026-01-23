@@ -15,39 +15,24 @@ body {
 
 .feed {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 16px;
   padding: 16px;
-  align-items: start;
-}
-
-@media (max-width: 1400px) {
-  .feed { grid-template-columns: repeat(6, 1fr); }
-}
-
-@media (max-width: 1100px) {
-  .feed { grid-template-columns: repeat(5, 1fr); }
-}
-
-@media (max-width: 900px) {
-  .feed { grid-template-columns: repeat(4, 1fr); }
-}
-
-@media (max-width: 600px) {
-  .feed { grid-template-columns: repeat(3, 1fr); }
-}
-
-@media (max-width: 400px) {
-  .feed { grid-template-columns: repeat(2, 1fr); }
 }
 
 .item {
+  aspect-ratio: 1;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
 }
 
 .item img {
-  width: 100%;
-  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
   display: block;
 }
 
