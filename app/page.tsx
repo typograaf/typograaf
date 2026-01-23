@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react'
 interface Image {
   id: string
   name: string
-  url: string
+  thumb: string
+  full: string
   modified: string
 }
 
@@ -32,14 +33,14 @@ export default function Home() {
       <div className="feed">
         {images.map((image) => (
           <div key={image.id} className="item" onClick={() => setSelectedImage(image)}>
-            <img src={image.url} alt="" loading="lazy" />
+            <img src={image.thumb} alt="" loading="lazy" />
           </div>
         ))}
       </div>
 
       {selectedImage && (
         <div className="lightbox" onClick={() => setSelectedImage(null)}>
-          <img src={selectedImage.url} alt="" />
+          <img src={selectedImage.full} alt="" />
         </div>
       )}
     </>
