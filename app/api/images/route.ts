@@ -1,7 +1,14 @@
 import { Dropbox } from 'dropbox'
 import { NextResponse } from 'next/server'
 
-export const revalidate = 60 // Revalidate every 60 seconds
+export const revalidate = 60
+
+interface DropboxError {
+  error?: {
+    error_summary?: string
+    [key: string]: unknown
+  }
+}
 
 export async function GET() {
   const accessToken = process.env.DROPBOX_ACCESS_TOKEN
@@ -17,7 +24,11 @@ export async function GET() {
   try {
     const dbx = new Dropbox({ accessToken, fetch })
 
-    const response = await dbx.filesListFolder({ path: folderPath })
+    // Use recursive listing to get all files in subfolders
+    const response = await dbx.filesListFolder({
+      path: folderPath,
+      recursive: true
+    })
 
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
     const imageFiles = response.result.entries.filter(
@@ -32,15 +43,24 @@ export async function GET() {
       imageFiles.map(async (file) => {
         if (file['.tag'] !== 'file') return null
 
-        const linkResponse = await dbx.filesGetTemporaryLink({
-          path: file.path_lower!,
-        })
+        try {
+          const linkResponse = await dbx.filesGetTemporaryLink({
+            path: file.path_lower!,
+          })
 
-        return {
-          id: file.id,
-          name: file.name,
-          url: linkResponse.result.link,
-          modified: file.server_modified,
+          // Extract project name from path
+          const pathParts = file.path_lower!.split('/')
+          const project = pathParts.length > 2 ? pathParts[pathParts.length - 2] : 'uncategorized'
+
+          return {
+            id: file.id,
+            name: file.name,
+            url: linkResponse.result.link,
+            modified: file.server_modified,
+            project,
+          }
+        } catch {
+          return null
         }
       })
     )
@@ -52,7 +72,12 @@ export async function GET() {
     })
   } catch (error: unknown) {
     console.error('Dropbox error:', error)
-    const message = error instanceof Error ? error.message : 'Failed to fetch images'
-    return NextResponse.json({ error: message }, { status: 500 })
+    const dbxError = error as DropboxError
+    const message = dbxError?.error?.error_summary ||
+      (error instanceof Error ? error.message : 'Failed to fetch images')
+    return NextResponse.json({
+      error: message,
+      path: folderPath,
+    }, { status: 500 })
   }
 }
