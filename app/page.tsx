@@ -72,23 +72,25 @@ export default function Home() {
 
   return (
     <>
-      <img src="/icon.png" alt="" className="logo" onClick={() => setShowInfo(!showInfo)} />
+      <img src={showInfo ? "/icon-open.png" : "/icon.png"} alt="" className={showInfo ? "logo logo-open" : "logo"} onClick={() => setShowInfo(!showInfo)} />
       {showInfo && (
         <div className="info">
-          <p>t. +32 (0) 493 45 92 96</p>
-          <p>m. hello@typografie.be</p>
-          <p>i. @Typograaf</p>
+          <p><a href="tel:+32493459296">t. +32 (0) 493 45 92 96</a></p>
+          <p><a href="mailto:hello@typografie.be">m. hello@typografie.be</a></p>
+          <p><a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">i. @typograaf</a></p>
         </div>
       )}
-      <div className="feed">
-        {images.map((image) => (
-          <LazyImage
-            key={image.id}
-            image={image}
-            onClick={() => setSelectedImage(image)}
-          />
-        ))}
-      </div>
+      {!showInfo && (
+        <div className="feed">
+          {images.map((image) => (
+            <LazyImage
+              key={image.id}
+              image={image}
+              onClick={() => setSelectedImage(image)}
+            />
+          ))}
+        </div>
+      )}
 
       {selectedImage && (
         <div className="lightbox" onClick={closeModal}>
