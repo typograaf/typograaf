@@ -10,6 +10,22 @@ interface DropboxError {
   }
 }
 
+interface FileEntry {
+  '.tag': 'file'
+  id: string
+  name: string
+  path_lower?: string
+  server_modified: string
+}
+
+interface FolderEntry {
+  '.tag': 'folder'
+  name: string
+  path_lower?: string
+}
+
+type Entry = FileEntry | FolderEntry | { '.tag': string; name: string }
+
 export async function GET() {
   const accessToken = process.env.DROPBOX_ACCESS_TOKEN
   const folderPath = process.env.DROPBOX_FOLDER_PATH || ''
@@ -24,15 +40,17 @@ export async function GET() {
   try {
     const dbx = new Dropbox({ accessToken, fetch })
 
+    // First get the list without recursive to see immediate contents
     const response = await dbx.filesListFolder({
       path: folderPath,
-      recursive: true
+      recursive: true,
+      limit: 2000
     })
 
-    const allEntries = response.result.entries
+    const allEntries = response.result.entries as Entry[]
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
     const imageFiles = allEntries.filter(
-      (entry) =>
+      (entry): entry is FileEntry =>
         entry['.tag'] === 'file' &&
         imageExtensions.some((ext) =>
           entry.name.toLowerCase().endsWith(ext)
@@ -46,15 +64,18 @@ export async function GET() {
         debug: {
           path: folderPath,
           totalEntries: allEntries.length,
-          entries: allEntries.slice(0, 10).map(e => ({ name: e.name, tag: e['.tag'] }))
+          hasMore: response.result.has_more,
+          entries: allEntries.slice(0, 20).map(e => ({
+            name: e.name,
+            tag: e['.tag'],
+            path: 'path_lower' in e ? e.path_lower : undefined
+          }))
         }
       })
     }
 
     const images = await Promise.all(
-      imageFiles.map(async (file) => {
-        if (file['.tag'] !== 'file') return null
-
+      imageFiles.slice(0, 50).map(async (file) => {
         try {
           const linkResponse = await dbx.filesGetTemporaryLink({
             path: file.path_lower!,
