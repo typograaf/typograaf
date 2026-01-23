@@ -15,7 +15,7 @@ export async function GET() {
   }
 
   try {
-    const dbx = new Dropbox({ accessToken })
+    const dbx = new Dropbox({ accessToken, fetch })
 
     const response = await dbx.filesListFolder({ path: folderPath })
 
