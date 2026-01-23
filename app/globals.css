@@ -14,20 +14,35 @@ body {
 }
 
 .feed {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 8px;
+  column-count: 6;
+  column-gap: 8px;
   padding: 8px;
 }
 
+@media (max-width: 1200px) {
+  .feed { column-count: 5; }
+}
+
+@media (max-width: 1000px) {
+  .feed { column-count: 4; }
+}
+
+@media (max-width: 700px) {
+  .feed { column-count: 3; }
+}
+
+@media (max-width: 500px) {
+  .feed { column-count: 2; }
+}
+
 .item {
+  break-inside: avoid;
+  margin-bottom: 8px;
   cursor: pointer;
 }
 
 .item img {
   width: 100%;
-  height: 180px;
-  object-fit: cover;
   display: block;
 }
 
