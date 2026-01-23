@@ -67,6 +67,7 @@ export async function GET() {
         return {
           id: file.id,
           url: linkResponse.result.link,
+          path: file.path_lower,
         }
       } catch {
         return null

@@ -6,6 +6,7 @@ import Image from 'next/image'
 interface ImageData {
   id: string
   url: string
+  path: string
 }
 
 function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }) {
@@ -45,7 +46,20 @@ export default function Home() {
   const [images, setImages] = useState<ImageData[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [showInfo, setShowInfo] = useState(false)
+
+  const openLightbox = async (image: ImageData) => {
+    setSelectedImage(image)
+    setLightboxUrl(null)
+    try {
+      const res = await fetch(`/api/image?path=${encodeURIComponent(image.path)}`)
+      const data = await res.json()
+      if (data.url) setLightboxUrl(data.url)
+    } catch {
+      setLightboxUrl(image.url)
+    }
+  }
 
   useEffect(() => {
     fetch('/api/images')
@@ -86,7 +100,7 @@ export default function Home() {
             <LazyImage
               key={image.id}
               image={image}
-              onClick={() => setSelectedImage(image)}
+              onClick={() => openLightbox(image)}
             />
           ))}
         </div>
@@ -94,11 +108,15 @@ export default function Home() {
 
       {selectedImage && (
         <div className="lightbox" onClick={closeModal}>
-          <img
-            src={selectedImage.url}
-            alt=""
-            className="lightbox-image"
-          />
+          {lightboxUrl ? (
+            <img
+              src={lightboxUrl}
+              alt=""
+              className="lightbox-image"
+            />
+          ) : (
+            <div className="lightbox-loading" />
+          )}
         </div>
       )}
     </>
