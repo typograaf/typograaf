@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Image from 'next/image'
 
 interface ImageData {
@@ -8,11 +8,43 @@ interface ImageData {
   url: string
 }
 
+function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }) {
+  const [loaded, setLoaded] = useState(false)
+  const [inView, setInView] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setInView(entry.isIntersecting)
+      },
+      { rootMargin: '100px' }
+    )
+    if (ref.current) observer.observe(ref.current)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div ref={ref} className="item" onClick={onClick}>
+      {inView && (
+        <Image
+          src={image.url}
+          alt=""
+          fill
+          sizes="(max-width: 500px) 50vw, (max-width: 700px) 33vw, (max-width: 900px) 25vw, (max-width: 1100px) 20vw, (max-width: 1400px) 16vw, (max-width: 1600px) 14vw, 12.5vw"
+          style={{ objectFit: 'contain', opacity: loaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+        />
+      )}
+    </div>
+  )
+}
+
 export default function Home() {
   const [images, setImages] = useState<ImageData[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null)
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetch('/api/images')
@@ -24,10 +56,6 @@ export default function Home() {
   }, [])
 
   const closeModal = useCallback(() => setSelectedImage(null), [])
-
-  const handleImageLoad = useCallback((id: string) => {
-    setLoadedImages(prev => new Set(prev).add(id))
-  }, [])
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -45,22 +73,11 @@ export default function Home() {
     <>
       <div className="feed">
         {images.map((image) => (
-          <div
+          <LazyImage
             key={image.id}
-            className="item"
+            image={image}
             onClick={() => setSelectedImage(image)}
-          >
-            <Image
-              src={image.url}
-              alt=""
-              fill
-              sizes="(max-width: 500px) 50vw, (max-width: 700px) 33vw, (max-width: 900px) 25vw, (max-width: 1100px) 20vw, (max-width: 1400px) 16vw, (max-width: 1600px) 14vw, 12.5vw"
-              style={{ objectFit: 'contain' }}
-              loading="lazy"
-              data-loaded={loadedImages.has(image.id)}
-              onLoad={() => handleImageLoad(image.id)}
-            />
-          </div>
+          />
         ))}
       </div>
 

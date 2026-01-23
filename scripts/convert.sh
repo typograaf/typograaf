@@ -2,13 +2,13 @@
 
 # Image converter script
 # Converts JPG/PNG to AVIF, GIF to animated WebP
-# Requires: ffmpeg (brew install ffmpeg)
+# Requires: libavif, webp (brew install libavif webp)
 
 PORTFOLIO_DIR="/Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio"
 
 echo "Converting images in $PORTFOLIO_DIR..."
 
-# Convert JPG/PNG to AVIF
+# Convert JPG/PNG to AVIF using avifenc
 find "$PORTFOLIO_DIR" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) | while read file; do
     dir=$(dirname "$file")
     base=$(basename "$file" | sed 's/\.[^.]*$//')
@@ -16,15 +16,17 @@ find "$PORTFOLIO_DIR" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.
 
     if [ ! -f "$avif_file" ]; then
         echo "Converting: $file -> $avif_file"
-        ffmpeg -i "$file" -c:v libaom-av1 -crf 30 -b:v 0 -still-picture 1 "$avif_file" -y -loglevel error
-        if [ $? -eq 0 ]; then
+        avifenc -q 60 -s 6 "$file" "$avif_file" 2>/dev/null
+        if [ $? -eq 0 ] && [ -f "$avif_file" ]; then
             echo "  Done. Removing original..."
             rm "$file"
+        else
+            echo "  Failed to convert"
         fi
     fi
 done
 
-# Convert GIF to animated WebP (smaller, Safari-friendly)
+# Convert GIF to animated WebP using gif2webp
 find "$PORTFOLIO_DIR" -type f -iname "*.gif" | while read file; do
     dir=$(dirname "$file")
     base=$(basename "$file" .gif)
@@ -33,10 +35,12 @@ find "$PORTFOLIO_DIR" -type f -iname "*.gif" | while read file; do
 
     if [ ! -f "$webp_file" ]; then
         echo "Converting GIF: $file -> $webp_file"
-        ffmpeg -i "$file" -vcodec libwebp -lossless 0 -compression_level 6 -q:v 50 -loop 0 -an "$webp_file" -y -loglevel error
-        if [ $? -eq 0 ]; then
+        gif2webp -q 80 -m 6 "$file" -o "$webp_file" 2>/dev/null
+        if [ $? -eq 0 ] && [ -f "$webp_file" ]; then
             echo "  Done. Removing original GIF..."
             rm "$file"
+        else
+            echo "  Failed to convert"
         fi
     fi
 done

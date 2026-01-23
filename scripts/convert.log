@@ -1,0 +1,18 @@
+Fri Jan 23 15:46:24 CET 2026: Watcher started for /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio
+Fri Jan 23 15:49:01 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Legalfly/Cavalry/67f62553673ebbc6236c76f7_words-2-2.gif -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Legalfly/Cavalry/67f62553673ebbc6236c76f7_words-2-2.webp
+[vost#0:0 @ 0x9f4970000] Unknown encoder 'libwebp'
+[vost#0:0 @ 0x9f4970000] Error selecting an encoder
+Error opening output file /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Legalfly/Cavalry/67f62553673ebbc6236c76f7_words-2-2.webp.
+Error opening output files: Encoder not found
+Fri Jan 23 15:49:07 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Anoniem/Cavalry/67d403e94ecc207322357c93_Composition-2.gif -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Anoniem/Cavalry/67d403e94ecc207322357c93_Composition-2.webp
+[vost#0:0 @ 0x846d2c000] Unknown encoder 'libwebp'
+[vost#0:0 @ 0x846d2c000] Error selecting an encoder
+Error opening output file /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Anoniem/Cavalry/67d403e94ecc207322357c93_Composition-2.webp.
+Error opening output files: Encoder not found
+Fri Jan 23 15:49:09 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Cavalry/67d7e2529a4670a97d58e8f6_businesscard-system.gif -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Cavalry/67d7e2529a4670a97d58e8f6_businesscard-system.webp
+[vost#0:0 @ 0xb52d14000] Unknown encoder 'libwebp'
+[vost#0:0 @ 0xb52d14000] Error selecting an encoder
+Error opening output file /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Cavalry/67d7e2529a4670a97d58e8f6_businesscard-system.webp.
+Error opening output files: Encoder not found
+Fri Jan 23 15:58:34 CET 2026: Watcher started for /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio
+Fri Jan 23 16:00:07 CET 2026: Watcher started for /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio

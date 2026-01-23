@@ -1,0 +1,614 @@
+Converting images in /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/Frame 917.jpg -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/Frame 917.avif
+Directly copied JPEG pixel data (no YUV conversion): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/Frame 917.jpg
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/Frame 917.jpg
+AVIF to be written: (Lossy)
+ * Resolution     : 1080x1350
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Absent
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 7434 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/Frame 917.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/Frame 918.jpg -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/Frame 918.avif
+Directly copied JPEG pixel data (no YUV conversion): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/Frame 918.jpg
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/Frame 918.jpg
+AVIF to be written: (Lossy)
+ * Resolution     : 1080x1350
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Absent
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 5163 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/Frame 918.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Fenna/Frame 783.jpg -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Fenna/Frame 783.avif
+Directly copied JPEG pixel data (no YUV conversion): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Fenna/Frame 783.jpg
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Fenna/Frame 783.jpg
+AVIF to be written: (Lossy)
+ * Resolution     : 4150x2990
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Absent
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 106405 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Fenna/Frame 783.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Fenna/Screenshot 2026-01-23 at 1.19.01 PM.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Fenna/Screenshot 2026-01-23 at 1.19.01 PM.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Fenna/Screenshot 2026-01-23 at 1.19.01 PM.png
+AVIF to be written: (Lossy)
+ * Resolution     : 3680x2390
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (4064 bytes)
+ * XMP Metadata   : Present (450 bytes)
+ * Exif Metadata  : Present (138 bytes)
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 65314 bytes
+ * Alpha total size: 1999 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Fenna/Screenshot 2026-01-23 at 1.19.01 PM.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/knees to chin/Frame 828.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/knees to chin/Frame 828.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/knees to chin/Frame 828.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1896x1067
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (536 bytes)
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 26973 bytes
+ * Alpha total size: 549 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/knees to chin/Frame 828.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/knees to chin/Frame 128.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/knees to chin/Frame 128.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/knees to chin/Frame 128.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1896x1067
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (536 bytes)
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 14410 bytes
+ * Alpha total size: 549 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/knees to chin/Frame 128.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/knees to chin/Frame 158.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/knees to chin/Frame 158.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/knees to chin/Frame 158.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1896x1067
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (536 bytes)
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 16901 bytes
+ * Alpha total size: 549 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/knees to chin/Frame 158.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/Frame 1633.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/Frame 1633.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/Frame 1633.png
+AVIF to be written: (Lossy)
+ * Resolution     : 3152x2064
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (536 bytes)
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 7322 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/Frame 1633.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/Frame 1623.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/Frame 1623.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/Frame 1623.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1564x1020
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (536 bytes)
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 162412 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/Frame 1623.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/Frame 13.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/Frame 13.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/Frame 13.png
+AVIF to be written: (Lossy)
+ * Resolution     : 3152x2064
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (536 bytes)
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 20112 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/Frame 13.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Swiss Cheese/Frame 280.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Swiss Cheese/Frame 280.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Swiss Cheese/Frame 280.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1920x1080
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 58734 bytes
+ * Alpha total size: 466 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Swiss Cheese/Frame 280.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Swiss Cheese/Frame.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Swiss Cheese/Frame.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Swiss Cheese/Frame.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1920x1080
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 144343 bytes
+ * Alpha total size: 466 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Swiss Cheese/Frame.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/kentucky/Frame 550.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/kentucky/Frame 550.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/kentucky/Frame 550.png
+AVIF to be written: (Lossy)
+ * Resolution     : 960x1202
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 71214 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/kentucky/Frame 550.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/BBody/Blender/6838d90b0d434b10030f786f_all options colors.jpg -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/BBody/Blender/6838d90b0d434b10030f786f_all options colors.avif
+Directly copied JPEG pixel data (no YUV conversion): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/BBody/Blender/6838d90b0d434b10030f786f_all options colors.jpg
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/BBody/Blender/6838d90b0d434b10030f786f_all options colors.jpg
+AVIF to be written: (Lossy)
+ * Resolution     : 1920x1080
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Absent
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (3144 bytes)
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Present (70 bytes)
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 26532 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/BBody/Blender/6838d90b0d434b10030f786f_all options colors.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/BBody/Blender/dop 3 Large.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/BBody/Blender/dop 3 Large.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/BBody/Blender/dop 3 Large.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1280x1280
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 4
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Present (640 bytes)
+ * Exif Metadata  : Present (120 bytes)
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 9891 bytes
+ * Alpha total size: 4069 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/BBody/Blender/dop 3 Large.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Typefaces/Glyphs/6838d979bebf4c30e2d7fafc_IMG-2831.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Typefaces/Glyphs/6838d979bebf4c30e2d7fafc_IMG-2831.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Typefaces/Glyphs/6838d979bebf4c30e2d7fafc_IMG-2831.png
+AVIF to be written: (Lossy)
+ * Resolution     : 5120x2880
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (3364 bytes)
+ * XMP Metadata   : Present (450 bytes)
+ * Exif Metadata  : Present (138 bytes)
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 382743 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Typefaces/Glyphs/6838d979bebf4c30e2d7fafc_IMG-2831.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/moodbag/Frame3.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/moodbag/Frame3.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/moodbag/Frame3.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1892x1080
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 133767 bytes
+ * Alpha total size: 485 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/moodbag/Frame3.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/moodbag/Frame2.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/moodbag/Frame2.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/moodbag/Frame2.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1892x1080
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 28104 bytes
+ * Alpha total size: 485 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/moodbag/Frame2.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/moodbag/Frame.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/moodbag/Frame.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/moodbag/Frame.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1892x1080
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 48128 bytes
+ * Alpha total size: 485 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/moodbag/Frame.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Slide 16_9 - 34.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Slide 16_9 - 34.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Slide 16_9 - 34.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1920x1080
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 28957 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Slide 16_9 - 34.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 472.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 472.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 472.png
+AVIF to be written: (Lossy)
+ * Resolution     : 918x991
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 6534 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 472.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 473.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 473.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 473.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1860x876
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 6953 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 473.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 472c.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 472c.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 472c.png
+AVIF to be written: (Lossy)
+ * Resolution     : 3744x1982
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 130837 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 472c.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 472a.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 472a.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 472a.png
+AVIF to be written: (Lossy)
+ * Resolution     : 2292x1982
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 120873 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 472a.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 1039.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 1039.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 1039.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1860x856
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 8818 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 1039.avif
+  Done. Removing original...
+Converting: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 772.png -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 772.avif
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 772.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1872x991
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 37430 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/prado/Frame 772.avif
+  Done. Removing original...
+Converting GIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Love Tomorrow/Cavalry/67e11a8262fd5e809015d3af_variable-canvas-container.gif -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Love Tomorrow/Cavalry/67e11a8262fd5e809015d3af_variable-canvas-container.webp
+  Done. Removing original GIF...
+Converting GIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/animationc.gif -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/animationc.webp
+  Done. Removing original GIF...
+Converting GIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/animationb.gif -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/animationb.webp
+  Done. Removing original GIF...
+Converting GIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/animation.gif -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Equipe Danvers/Instagram/animation.webp
+  Done. Removing original GIF...
+Converting GIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Being/Cavalry/67d7e2a0a6e353f6aad6392c_line-animation.gif -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Being/Cavalry/67d7e2a0a6e353f6aad6392c_line-animation.webp
+  Done. Removing original GIF...
+Converting GIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/animation.gif -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Labrador/animation.webp
