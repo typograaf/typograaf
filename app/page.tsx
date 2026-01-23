@@ -45,6 +45,7 @@ export default function Home() {
   const [images, setImages] = useState<ImageData[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null)
+  const [showInfo, setShowInfo] = useState(false)
 
   useEffect(() => {
     fetch('/api/images')
@@ -71,7 +72,14 @@ export default function Home() {
 
   return (
     <>
-      <img src="/icon.png" alt="" className="logo" />
+      <img src="/icon.png" alt="" className="logo" onClick={() => setShowInfo(!showInfo)} />
+      {showInfo && (
+        <div className="info">
+          <p>t. +32 (0) 493 45 92 96</p>
+          <p>m. hello@typografie.be</p>
+          <p>i. @Typograaf</p>
+        </div>
+      )}
       <div className="feed">
         {images.map((image) => (
           <LazyImage
