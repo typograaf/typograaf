@@ -15,11 +15,15 @@ body {
 
 .logo {
   position: fixed;
-  top: 24px;
-  left: 24px;
+  top: 32px;
+  left: 32px;
   width: 32px;
   height: auto;
   z-index: 100;
+}
+
+@media (max-width: 900px) {
+  .logo { top: 24px; left: 24px; }
 }
 
 .feed {
