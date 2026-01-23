@@ -29,7 +29,7 @@ body {
 
 .info {
   position: fixed;
-  top: 72px;
+  top: 84px;
   left: 32px;
   z-index: 100;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro', sans-serif;
@@ -40,7 +40,7 @@ body {
 }
 
 @media (max-width: 900px) {
-  .info { top: 64px; left: 24px; }
+  .info { top: 76px; left: 24px; }
 }
 
 .feed {
