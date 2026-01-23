@@ -22,3 +22,35 @@ rm: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfo
 Fri Jan 23 16:11:39 CET 2026: Done, removed original
 Fri Jan 23 16:14:45 CET 2026: Watcher started for /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio
 Fri Jan 23 16:15:28 CET 2026: Watcher started for /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio
+Fri Jan 23 16:19:24 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.gif -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.webp
+Saved output file (184082 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.webp
+rm: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.gif: Operation not permitted
+rm: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.gif: Operation not permitted
+Fri Jan 23 16:19:33 CET 2026: Done, removed original
+Fri Jan 23 16:21:24 CET 2026: Watcher started for /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio
+Fri Jan 23 16:26:21 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.gif -> /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.webp
+Saved output file (184082 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.webp
+Fri Jan 23 16:26:30 CET 2026: Done, removed original
+Fri Jan 23 16:26:36 CET 2026: Watcher started
+Fri Jan 23 16:26:54 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.gif
+Saved output file (184082 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.webp
+Fri Jan 23 16:27:00 CET 2026: Done
+Fri Jan 23 16:28:26 CET 2026: Watcher started
+Fri Jan 23 16:28:42 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.gif
+Saved output file (184082 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.webp
+Fri Jan 23 16:28:45 CET 2026: Done
+Fri Jan 23 16:31:05 CET 2026: Watcher started
+Fri Jan 23 16:32:32 CET 2026: Watcher started
+Fri Jan 23 16:32:58 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.gif
+Saved output file (184082 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.webp
+Fri Jan 23 16:32:58 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.gif
+Fri Jan 23 16:32:59 CET 2026: API delete failed: Error in call to API function "files/delete_v2": Your app (ID: 8187313) is not permitted to access this endpoint because it does not have the required scope 'files.content.write'. The owner of the app can enable the scope for the app using the Permissions tab on the App Console.
+Fri Jan 23 16:32:59 CET 2026: Done
+Fri Jan 23 16:35:17 CET 2026: Watcher started
+Fri Jan 23 16:35:59 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.gif
+Saved output file (184082 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.webp
+Fri Jan 23 16:35:59 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/animation 4.14.14 PM.gif
+Fri Jan 23 16:36:00 CET 2026: API delete successful
+Fri Jan 23 16:36:00 CET 2026: Done
+Fri Jan 23 16:55:25 CET 2026: Updating project order
+Fri Jan 23 16:55:47 CET 2026: Deployed new project order

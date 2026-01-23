@@ -84,13 +84,10 @@ export default function Home() {
 
       {selectedImage && (
         <div className="lightbox" onClick={closeModal}>
-          <Image
+          <img
             src={selectedImage.url}
             alt=""
-            fill
-            sizes="100vw"
-            style={{ objectFit: 'contain' }}
-            priority
+            className="lightbox-image"
           />
         </div>
       )}
