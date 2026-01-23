@@ -1,8 +1,8 @@
 import { Dropbox, files } from 'dropbox'
 import { NextResponse } from 'next/server'
 
-// Cache for 10 minutes, stale-while-revalidate
-export const revalidate = 600
+// Revalidate every 60 seconds
+export const revalidate = 60
 
 export async function GET() {
   const accessToken = process.env.DROPBOX_ACCESS_TOKEN
@@ -57,7 +57,7 @@ export async function GET() {
       { images },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200',
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
         },
       }
     )

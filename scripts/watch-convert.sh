@@ -20,7 +20,8 @@ convert_file() {
                 echo "$(date): Converting $file -> $avif_file" >> "$LOG_FILE"
                 avifenc -q 60 -s 6 "$file" "$avif_file" 2>> "$LOG_FILE"
                 if [ $? -eq 0 ] && [ -f "$avif_file" ]; then
-                    rm "$file"
+                    sleep 3  # Wait for Dropbox sync
+                    rm -f "$file" 2>> "$LOG_FILE" || sleep 5 && rm -f "$file" 2>> "$LOG_FILE"
                     echo "$(date): Done, removed original" >> "$LOG_FILE"
                 fi
             fi
@@ -31,7 +32,8 @@ convert_file() {
                 echo "$(date): Converting $file -> $webp_file" >> "$LOG_FILE"
                 gif2webp -q 80 -m 6 "$file" -o "$webp_file" 2>> "$LOG_FILE"
                 if [ $? -eq 0 ] && [ -f "$webp_file" ]; then
-                    rm "$file"
+                    sleep 3  # Wait for Dropbox sync
+                    rm -f "$file" 2>> "$LOG_FILE" || sleep 5 && rm -f "$file" 2>> "$LOG_FILE"
                     echo "$(date): Done, removed original" >> "$LOG_FILE"
                 fi
             fi
@@ -44,7 +46,7 @@ echo "$(date): Watcher started for $PORTFOLIO_DIR" >> "$LOG_FILE"
 # Use fswatch to monitor folder
 fswatch -0 -r -e ".*" -i "\\.jpg$" -i "\\.jpeg$" -i "\\.png$" -i "\\.gif$" -i "\\.JPG$" -i "\\.JPEG$" -i "\\.PNG$" -i "\\.GIF$" "$PORTFOLIO_DIR" | while read -d "" file; do
     if [ -f "$file" ]; then
-        sleep 2  # Wait for file to finish writing
+        sleep 3  # Wait for file to finish writing/syncing
         convert_file "$file"
     fi
 done
