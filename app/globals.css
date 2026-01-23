@@ -5,142 +5,57 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #0a0a0a;
-  color: #fafafa;
+  background: #fff;
   min-height: 100vh;
 }
 
-.container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-header {
-  margin-bottom: 3rem;
-}
-
-header h1 {
-  font-size: 2.5rem;
-  font-weight: 300;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-
-.gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-}
-
-.gallery-item {
-  position: relative;
-  aspect-ratio: 1;
-  overflow: hidden;
-  background: #1a1a1a;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: transform 0.3s ease;
-}
-
-.gallery-item:hover {
-  transform: scale(1.02);
-}
-
-.gallery-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: opacity 0.3s ease;
-}
-
-.gallery-item:hover img {
-  opacity: 0.9;
-}
-
-.gallery-item .overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 1rem;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.gallery-item:hover .overlay {
-  opacity: 1;
-}
-
-.gallery-item .overlay span {
-  font-size: 0.875rem;
-  color: #fafafa;
-}
-
 .loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 50vh;
-  font-size: 1.25rem;
-  color: #666;
+  min-height: 100vh;
 }
 
-.error {
-  text-align: center;
-  padding: 3rem;
-  color: #ff6b6b;
+.feed {
+  column-count: 3;
+  column-gap: 12px;
+  padding: 12px;
+}
+
+@media (max-width: 900px) {
+  .feed {
+    column-count: 2;
+  }
+}
+
+@media (max-width: 500px) {
+  .feed {
+    column-count: 1;
+  }
+}
+
+.item {
+  break-inside: avoid;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+
+.item img {
+  width: 100%;
+  display: block;
 }
 
 .lightbox {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.95);
+  background: rgba(255, 255, 255, 0.95);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
   cursor: pointer;
+  padding: 24px;
 }
 
 .lightbox img {
-  max-width: 90vw;
-  max-height: 90vh;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
-}
-
-.setup-notice {
-  max-width: 600px;
-  margin: 2rem auto;
-  padding: 2rem;
-  background: #1a1a1a;
-  border-radius: 8px;
-  line-height: 1.8;
-}
-
-.setup-notice h2 {
-  margin-bottom: 1rem;
-  color: #fafafa;
-}
-
-.setup-notice code {
-  background: #2a2a2a;
-  padding: 0.2em 0.5em;
-  border-radius: 4px;
-  font-size: 0.9em;
-}
-
-.setup-notice ol {
-  margin: 1rem 0;
-  padding-left: 1.5rem;
-}
-
-.setup-notice li {
-  margin: 0.5rem 0;
-}
-
-.setup-notice a {
-  color: #66b3ff;
 }
