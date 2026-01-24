@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import Image from 'next/image'
 
 interface ImageData {
   id: string
@@ -27,19 +28,12 @@ function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }
   return (
     <div ref={ref} className="item" onClick={onClick}>
       {inView && (
-        <img
+        <Image
           src={image.url}
           alt=""
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'contain',
-            opacity: loaded ? 1 : 0,
-            transition: 'opacity 0.3s ease'
-          }}
-          loading="lazy"
+          fill
+          sizes="200px"
+          style={{ objectFit: 'contain', opacity: loaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
           onLoad={() => setLoaded(true)}
         />
       )}
