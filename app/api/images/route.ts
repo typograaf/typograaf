@@ -2,8 +2,9 @@ import { Dropbox, files } from 'dropbox'
 import { NextResponse } from 'next/server'
 import projectOrder from '../../../project-order.json'
 
-// Revalidate every 60 seconds
-export const revalidate = 60
+// Disable caching - Dropbox temporary links expire after 4 hours
+export const revalidate = 0
+export const dynamic = 'force-dynamic'
 
 async function getAccessToken() {
   const refreshToken = process.env.DROPBOX_REFRESH_TOKEN
@@ -102,7 +103,7 @@ export async function GET() {
       { images },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+          'Cache-Control': 'no-store, must-revalidate',
         },
       }
     )
