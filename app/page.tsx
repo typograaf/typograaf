@@ -11,6 +11,7 @@ interface ImageData {
 
 function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }) {
   const [loaded, setLoaded] = useState(false)
+  const [error, setError] = useState(false)
   const [inView, setInView] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -25,6 +26,8 @@ function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }
     return () => observer.disconnect()
   }, [])
 
+  if (error) return null
+
   return (
     <div ref={ref} className="item" onClick={onClick}>
       {inView && (
@@ -35,6 +38,7 @@ function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }
           sizes="200px"
           style={{ objectFit: 'contain', opacity: loaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
           onLoad={() => setLoaded(true)}
+          onError={() => setError(true)}
         />
       )}
     </div>
@@ -61,7 +65,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    fetch('/api/images')
+    fetch('/api/images', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data.images) setImages(data.images)
