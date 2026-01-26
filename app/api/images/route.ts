@@ -70,9 +70,9 @@ export async function GET() {
       const indexA = projectOrder.findIndex(p => p.toLowerCase() === projectA)
       const indexB = projectOrder.findIndex(p => p.toLowerCase() === projectB)
 
-      // Projects not in config go to the end
-      const orderA = indexA === -1 ? 999 : indexA
-      const orderB = indexB === -1 ? 999 : indexB
+      // Projects not in config go to the top (newest first)
+      const orderA = indexA === -1 ? -1 : indexA
+      const orderB = indexB === -1 ? -1 : indexB
 
       if (orderA !== orderB) {
         return orderA - orderB

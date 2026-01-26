@@ -5,31 +5,46 @@
 
 PORTFOLIO_DIR="/Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio"
 LOG_FILE="/Users/mdnd-martijn/Typograaf/scripts/convert.log"
-TOKEN_FILE="/Users/mdnd-martijn/Typograaf/scripts/.dropbox_token"
+ENV_FILE="/Users/mdnd-martijn/Typograaf/.env.local"
 
-# Load Dropbox token
-if [ -f "$TOKEN_FILE" ]; then
-    source "$TOKEN_FILE"
+# Load Dropbox credentials from .env.local
+if [ -f "$ENV_FILE" ]; then
+    export $(grep -E "^DROPBOX_(APP_KEY|APP_SECRET|REFRESH_TOKEN)=" "$ENV_FILE" | xargs)
 fi
+
+# Get fresh access token using refresh token
+get_access_token() {
+    if [ -z "$DROPBOX_REFRESH_TOKEN" ] || [ -z "$DROPBOX_APP_KEY" ] || [ -z "$DROPBOX_APP_SECRET" ]; then
+        echo ""
+        return 1
+    fi
+
+    local response=$(curl -s -X POST https://api.dropboxapi.com/oauth2/token \
+        -d grant_type=refresh_token \
+        -d "refresh_token=$DROPBOX_REFRESH_TOKEN" \
+        -d "client_id=$DROPBOX_APP_KEY" \
+        -d "client_secret=$DROPBOX_APP_SECRET")
+
+    echo "$response" | sed -n 's/.*"access_token"[: ]*"\([^"]*\)".*/\1/p'
+}
 
 delete_file_via_api() {
     local file="$1"
 
     # Convert local path to Dropbox path
-    # Local: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/...
-    # Dropbox: /AboutContact/Website/Portfolio/...
     local dropbox_path="${file#/Users/mdnd-martijn/Library/CloudStorage/Dropbox}"
 
-    if [ -z "$DROPBOX_TOKEN" ] || [ "$DROPBOX_TOKEN" = "your_token_here" ]; then
-        echo "$(date): ERROR - No Dropbox token configured in $TOKEN_FILE" >> "$LOG_FILE"
+    # Get fresh access token
+    local token=$(get_access_token)
+    if [ -z "$token" ]; then
+        echo "$(date): ERROR - Could not get Dropbox access token" >> "$LOG_FILE"
         return 1
     fi
 
     echo "$(date): Deleting via API: $dropbox_path" >> "$LOG_FILE"
 
-    # Use Dropbox API to delete file from cloud
     local response=$(curl -s -X POST https://api.dropboxapi.com/2/files/delete_v2 \
-        --header "Authorization: Bearer $DROPBOX_TOKEN" \
+        --header "Authorization: Bearer $token" \
         --header "Content-Type: application/json" \
         --data "{\"path\": \"$dropbox_path\"}")
 
