@@ -10,7 +10,16 @@ update_order() {
     echo "$(date): Updating project order" >> "$LOG_FILE"
 
     # Get folder names sorted by date added (newest first)
-    ls -ltU "$PORTFOLIO_DIR" | grep "^d" | awk -F' ' '{for(i=9;i<=NF;i++) printf "%s ", $i; print ""}' | sed 's/ $//' | jq -R -s 'split("\n") | map(select(length > 0))' > "$PROJECT_FILE"
+    local new_order=$(ls -ltU "$PORTFOLIO_DIR" | grep "^d" | awk -F' ' '{for(i=9;i<=NF;i++) printf "%s ", $i; print ""}' | sed 's/ $//' | jq -R -s 'split("\n") | map(select(length > 0))')
+
+    # Validate: must have at least 5 projects, don't overwrite with empty/small array
+    local count=$(echo "$new_order" | jq 'length')
+    if [ "$count" -lt 5 ]; then
+        echo "$(date): ERROR - Only found $count projects, keeping existing order" >> "$LOG_FILE"
+        return 1
+    fi
+
+    echo "$new_order" > "$PROJECT_FILE"
 
     # Commit and deploy
     cd /Users/mdnd-martijn/Typograaf
