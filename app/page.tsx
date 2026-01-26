@@ -11,34 +11,48 @@ interface ImageData {
 
 function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }) {
   const [loaded, setLoaded] = useState(false)
-  const [error, setError] = useState(false)
-  const [inView, setInView] = useState(false)
+  const [shouldLoad, setShouldLoad] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    // Start loading immediately on mobile or if IntersectionObserver isn't supported
+    if (!('IntersectionObserver' in window)) {
+      setShouldLoad(true)
+      return
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
-        setInView(entry.isIntersecting)
+        if (entry.isIntersecting) {
+          setShouldLoad(true)
+          observer.disconnect() // Once visible, always load
+        }
       },
-      { rootMargin: '100px' }
+      { rootMargin: '500px' } // Larger margin for better preloading
     )
-    if (ref.current) observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [])
 
-  if (error) return null
+    if (ref.current) observer.observe(ref.current)
+
+    // Fallback: load after 2 seconds if observer hasn't triggered
+    const fallback = setTimeout(() => setShouldLoad(true), 2000)
+
+    return () => {
+      observer.disconnect()
+      clearTimeout(fallback)
+    }
+  }, [])
 
   return (
     <div ref={ref} className="item" onClick={onClick}>
-      {inView && (
+      {shouldLoad && (
         <Image
           src={image.url}
           alt=""
           fill
-          sizes="200px"
+          sizes="(max-width: 500px) 50vw, (max-width: 700px) 33vw, (max-width: 900px) 25vw, 200px"
           style={{ objectFit: 'contain', opacity: loaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
           onLoad={() => setLoaded(true)}
-          onError={() => setError(true)}
+          unoptimized // Use original Dropbox URLs directly
         />
       )}
     </div>
