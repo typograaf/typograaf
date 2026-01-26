@@ -59,12 +59,24 @@ function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }
   )
 }
 
+// Skeleton placeholder count (approximate grid items visible on load)
+const SKELETON_COUNT = 40
+
 export default function Home() {
   const [images, setImages] = useState<ImageData[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [showInfo, setShowInfo] = useState(false)
+
+  // Preload the open icon immediately
+  useEffect(() => {
+    const link = document.createElement('link')
+    link.rel = 'preload'
+    link.as = 'image'
+    link.href = '/icon-open.png'
+    document.head.appendChild(link)
+  }, [])
 
   const openLightbox = async (image: ImageData) => {
     setSelectedImage(image)
@@ -97,10 +109,6 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleEsc)
   }, [closeModal])
 
-  if (loading) {
-    return <div className="loading" />
-  }
-
   return (
     <>
       <img src={showInfo ? "/icon-open.png" : "/icon.png"} alt="" className={showInfo ? "logo logo-open" : "logo"} onClick={() => setShowInfo(!showInfo)} />
@@ -113,13 +121,17 @@ export default function Home() {
       )}
       {!showInfo && (
         <div className="feed">
-          {images.map((image) => (
-            <LazyImage
-              key={image.id}
-              image={image}
-              onClick={() => openLightbox(image)}
-            />
-          ))}
+          {loading
+            ? Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                <div key={i} className="item" />
+              ))
+            : images.map((image) => (
+                <LazyImage
+                  key={image.id}
+                  image={image}
+                  onClick={() => openLightbox(image)}
+                />
+              ))}
         </div>
       )}
 
