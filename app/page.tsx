@@ -81,16 +81,9 @@ export default function Home() {
     document.head.appendChild(link)
   }, [])
 
-  const openLightbox = async (image: ImageData) => {
+  const openLightbox = (image: ImageData) => {
     setSelectedImage(image)
-    setLightboxUrl(null)
-    try {
-      const res = await fetch(`/api/image?path=${encodeURIComponent(image.path)}`)
-      const data = await res.json()
-      if (data.url) setLightboxUrl(data.url)
-    } catch {
-      setLightboxUrl(image.url)
-    }
+    setLightboxUrl(image.url) // Use existing URL directly - no extra API call
   }
 
   useEffect(() => {
