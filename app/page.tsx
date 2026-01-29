@@ -52,7 +52,7 @@ function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }
           sizes="(max-width: 500px) 50vw, (max-width: 700px) 33vw, (max-width: 900px) 25vw, 200px"
           style={{ objectFit: 'contain', opacity: loaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
           onLoad={() => setLoaded(true)}
-          unoptimized // Use original Dropbox URLs directly
+          quality={75}
         />
       )}
     </div>
@@ -91,7 +91,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    fetch('/api/images', { cache: 'no-store' })
+    fetch('/api/images')
       .then(res => res.json())
       .then(data => {
         if (data.images) setImages(data.images)
