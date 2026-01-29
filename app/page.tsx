@@ -52,7 +52,7 @@ function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }
           sizes="(max-width: 500px) 50vw, (max-width: 700px) 33vw, (max-width: 900px) 25vw, 200px"
           style={{ objectFit: 'contain', opacity: loaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
           onLoad={() => setLoaded(true)}
-          quality={75}
+          unoptimized
         />
       )}
     </div>
