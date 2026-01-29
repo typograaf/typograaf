@@ -71,6 +71,7 @@ export default function Home() {
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [showInfo, setShowInfo] = useState(false)
+  const loaderRef = useRef<HTMLDivElement>(null)
 
   // Preload the open icon immediately
   useEffect(() => {
@@ -80,6 +81,23 @@ export default function Home() {
     link.href = '/icon-open.png'
     document.head.appendChild(link)
   }, [])
+
+  // Infinite scroll - load more when reaching bottom
+  useEffect(() => {
+    if (loading || visibleCount >= images.length) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisibleCount(v => Math.min(v + LOAD_MORE_COUNT, images.length))
+        }
+      },
+      { rootMargin: '200px' }
+    )
+
+    if (loaderRef.current) observer.observe(loaderRef.current)
+    return () => observer.disconnect()
+  }, [loading, visibleCount, images.length])
 
   const openLightbox = (image: ImageData) => {
     setSelectedImage(image)
@@ -131,12 +149,9 @@ export default function Home() {
                 ))}
           </div>
           {!loading && visibleCount < images.length && (
-            <button
-              className="load-more"
-              onClick={() => setVisibleCount(v => v + LOAD_MORE_COUNT)}
-            >
-              Load more
-            </button>
+            <div ref={loaderRef} className="loader">
+              <div className="spinner" />
+            </div>
           )}
         </>
       )}
