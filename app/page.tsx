@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import Image from 'next/image'
 
 interface ImageData {
   id: string
@@ -9,13 +8,16 @@ interface ImageData {
   path: string
 }
 
-function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }) {
+function LazyImage({ image, onClick, eager }: { image: ImageData; onClick: () => void; eager?: boolean }) {
   const [loaded, setLoaded] = useState(false)
-  const [shouldLoad, setShouldLoad] = useState(false)
+  const [shouldLoad, setShouldLoad] = useState(eager || false)
+  const [retryCount, setRetryCount] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Start loading immediately on mobile or if IntersectionObserver isn't supported
+    if (eager || shouldLoad) return
+
+    // Use IntersectionObserver for lazy loading
     if (!('IntersectionObserver' in window)) {
       setShouldLoad(true)
       return
@@ -25,34 +27,47 @@ function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }
       ([entry]) => {
         if (entry.isIntersecting) {
           setShouldLoad(true)
-          observer.disconnect() // Once visible, always load
+          observer.disconnect()
         }
       },
-      { rootMargin: '500px' } // Larger margin for better preloading
+      { rootMargin: '500px' }
     )
 
     if (ref.current) observer.observe(ref.current)
 
-    // Fallback: load after 2 seconds if observer hasn't triggered
-    const fallback = setTimeout(() => setShouldLoad(true), 2000)
+    // Fallback: always load after 1 second
+    const fallback = setTimeout(() => setShouldLoad(true), 1000)
 
     return () => {
       observer.disconnect()
       clearTimeout(fallback)
     }
-  }, [])
+  }, [eager, shouldLoad])
+
+  // Retry on error (up to 2 times)
+  const handleError = () => {
+    if (retryCount < 2) {
+      setTimeout(() => setRetryCount(r => r + 1), 1000)
+    }
+  }
 
   return (
     <div ref={ref} className="item" onClick={onClick}>
       {shouldLoad && (
-        <Image
+        <img
+          key={retryCount}
           src={image.url}
           alt=""
-          fill
-          sizes="(max-width: 500px) 50vw, (max-width: 700px) 33vw, (max-width: 900px) 25vw, 200px"
-          style={{ objectFit: 'contain', opacity: loaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
+          style={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            opacity: loaded ? 1 : 0,
+            transition: 'opacity 0.3s ease'
+          }}
           onLoad={() => setLoaded(true)}
-          unoptimized
+          onError={handleError}
         />
       )}
     </div>
@@ -140,11 +155,12 @@ export default function Home() {
               ? Array.from({ length: SKELETON_COUNT }).map((_, i) => (
                   <div key={i} className="item" />
                 ))
-              : images.slice(0, visibleCount).map((image) => (
+              : images.slice(0, visibleCount).map((image, index) => (
                   <LazyImage
                     key={image.id}
                     image={image}
                     onClick={() => openLightbox(image)}
+                    eager={index < INITIAL_COUNT}
                   />
                 ))}
           </div>
