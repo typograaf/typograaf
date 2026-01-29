@@ -61,10 +61,13 @@ function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }
 
 // Skeleton placeholder count (approximate grid items visible on load)
 const SKELETON_COUNT = 40
+const INITIAL_COUNT = 40
+const LOAD_MORE_COUNT = 40
 
 export default function Home() {
   const [images, setImages] = useState<ImageData[]>([])
   const [loading, setLoading] = useState(true)
+  const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT)
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [showInfo, setShowInfo] = useState(false)
@@ -120,19 +123,29 @@ export default function Home() {
         </div>
       )}
       {!showInfo && (
-        <div className="feed">
-          {loading
-            ? Array.from({ length: SKELETON_COUNT }).map((_, i) => (
-                <div key={i} className="item" />
-              ))
-            : images.map((image) => (
-                <LazyImage
-                  key={image.id}
-                  image={image}
-                  onClick={() => openLightbox(image)}
-                />
-              ))}
-        </div>
+        <>
+          <div className="feed">
+            {loading
+              ? Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                  <div key={i} className="item" />
+                ))
+              : images.slice(0, visibleCount).map((image) => (
+                  <LazyImage
+                    key={image.id}
+                    image={image}
+                    onClick={() => openLightbox(image)}
+                  />
+                ))}
+          </div>
+          {!loading && visibleCount < images.length && (
+            <button
+              className="load-more"
+              onClick={() => setVisibleCount(v => v + LOAD_MORE_COUNT)}
+            >
+              Load more
+            </button>
+          )}
+        </>
       )}
 
       {selectedImage && (
