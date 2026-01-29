@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import Image from 'next/image'
 
 interface ImageData {
   id: string
@@ -13,6 +12,9 @@ function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }
   const [loaded, setLoaded] = useState(false)
   const [shouldLoad, setShouldLoad] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+
+  // Use thumbnail API for grid (smaller, faster)
+  const thumbnailUrl = `/api/thumbnail?path=${encodeURIComponent(image.path)}`
 
   useEffect(() => {
     // Start loading immediately on mobile or if IntersectionObserver isn't supported
@@ -45,14 +47,17 @@ function LazyImage({ image, onClick }: { image: ImageData; onClick: () => void }
   return (
     <div ref={ref} className="item" onClick={onClick}>
       {shouldLoad && (
-        <Image
-          src={image.url}
+        <img
+          src={thumbnailUrl}
           alt=""
-          fill
-          sizes="(max-width: 500px) 50vw, (max-width: 700px) 33vw, (max-width: 900px) 25vw, 200px"
-          style={{ objectFit: 'contain', opacity: loaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            opacity: loaded ? 1 : 0,
+            transition: 'opacity 0.3s ease'
+          }}
           onLoad={() => setLoaded(true)}
-          unoptimized
         />
       )}
     </div>
