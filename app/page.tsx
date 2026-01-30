@@ -359,9 +359,9 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
     setIsDragging(false)
   }, [])
 
-  // Close only when at 1x zoom and clicking background
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    if (scale === 1 && e.target === containerRef.current) {
+  // Close when clicking background (image stops propagation)
+  const handleClick = useCallback(() => {
+    if (scale === 1) {
       onClose()
     }
   }, [scale, onClose])
@@ -382,18 +382,23 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
       style={{ cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'pointer' }}
     >
       {url ? (
-        <img
-          src={url}
-          alt=""
-          crossOrigin="anonymous"
-          className="lightbox-image"
-          draggable={false}
-          style={{
-            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-            transition: isDragging ? 'none' : 'transform 0.2s ease',
-            pointerEvents: 'none'
-          }}
-        />
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <img
+            src={url}
+            alt=""
+            crossOrigin="anonymous"
+            className="lightbox-image"
+            draggable={false}
+            style={{
+              transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+              transition: isDragging ? 'none' : 'transform 0.2s ease',
+              pointerEvents: 'none'
+            }}
+          />
+        </div>
       ) : (
         <div className="lightbox-loading" />
       )}
