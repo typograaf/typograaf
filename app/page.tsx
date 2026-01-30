@@ -98,14 +98,14 @@ export default function Home() {
     document.head.appendChild(link)
   }, [])
 
-  // Infinite scroll - load more when reaching bottom
+  // Infinite scroll - load more when reaching bottom (loops forever)
   useEffect(() => {
-    if (loading || visibleCount >= images.length) return
+    if (loading || images.length === 0) return
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setVisibleCount(v => Math.min(v + LOAD_MORE_COUNT, images.length))
+          setVisibleCount(v => v + LOAD_MORE_COUNT)
         }
       },
       { rootMargin: '200px' }
@@ -113,7 +113,7 @@ export default function Home() {
 
     if (loaderRef.current) observer.observe(loaderRef.current)
     return () => observer.disconnect()
-  }, [loading, visibleCount, images.length])
+  }, [loading, images.length, visibleCount])
 
   const openLightbox = (image: ImageData) => {
     setSelectedImage(image)
@@ -176,16 +176,19 @@ export default function Home() {
               ? Array.from({ length: SKELETON_COUNT }).map((_, i) => (
                   <div key={i} className="item" />
                 ))
-              : images.slice(0, visibleCount).map((image, index) => (
-                  <LazyImage
-                    key={image.id}
-                    image={image}
-                    onClick={() => openLightbox(image)}
-                    eager={index < INITIAL_COUNT}
-                  />
-                ))}
+              : Array.from({ length: visibleCount }).map((_, index) => {
+                  const image = images[index % images.length]
+                  return (
+                    <LazyImage
+                      key={`${image.id}-${index}`}
+                      image={image}
+                      onClick={() => openLightbox(image)}
+                      eager={index < INITIAL_COUNT}
+                    />
+                  )
+                })}
           </div>
-          {!loading && visibleCount < images.length && (
+          {!loading && images.length > 0 && (
             <div ref={loaderRef} className="loader">
               <div className="spinner" />
             </div>
