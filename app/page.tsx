@@ -58,6 +58,7 @@ function LazyImage({ image, onClick, eager }: { image: ImageData; onClick: () =>
           key={retryCount}
           src={image.url}
           alt=""
+          crossOrigin="anonymous"
           style={{
             position: 'absolute',
             width: '100%',
@@ -82,6 +83,7 @@ const LOAD_MORE_COUNT = 40
 export default function Home() {
   const [images, setImages] = useState<ImageData[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT)
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
@@ -119,14 +121,26 @@ export default function Home() {
     setLightboxUrl(image.url) // Use existing URL directly - no extra API call
   }
 
-  useEffect(() => {
-    fetch('/api/images')
+  const loadImages = useCallback(() => {
+    setLoading(true)
+    setLoadError(false)
+    // Add cache buster to force fresh data
+    fetch(`/api/images?t=${Date.now()}`)
       .then(res => res.json())
       .then(data => {
-        if (data.images) setImages(data.images)
+        if (data.images && data.images.length > 0) {
+          setImages(data.images)
+        } else {
+          setLoadError(true)
+        }
       })
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    loadImages()
+  }, [loadImages])
 
   const closeModal = useCallback(() => setSelectedImage(null), [])
 
@@ -150,6 +164,12 @@ export default function Home() {
       )}
       {!showInfo && (
         <>
+          {loadError && !loading && (
+            <div className="error">
+              <p>Failed to load images</p>
+              <button onClick={loadImages}>Retry</button>
+            </div>
+          )}
           <div className="feed">
             {loading
               ? Array.from({ length: SKELETON_COUNT }).map((_, i) => (
@@ -164,7 +184,7 @@ export default function Home() {
                   />
                 ))}
           </div>
-          {!loading && visibleCount < images.length && (
+          {!loading && !loadError && visibleCount < images.length && (
             <div ref={loaderRef} className="loader">
               <div className="spinner" />
             </div>
@@ -178,6 +198,7 @@ export default function Home() {
             <img
               src={lightboxUrl}
               alt=""
+              crossOrigin="anonymous"
               className="lightbox-image"
             />
           ) : (

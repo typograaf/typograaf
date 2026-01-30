@@ -2,8 +2,8 @@ import { Dropbox, files } from 'dropbox'
 import { NextResponse } from 'next/server'
 import projectOrder from '../../../project-order.json'
 
-// Cache for 1 hour (Dropbox links last 4 hours)
-export const revalidate = 3600
+// Cache for 30 minutes (Dropbox links last 4 hours)
+export const revalidate = 1800
 
 async function getAccessToken() {
   const refreshToken = process.env.DROPBOX_REFRESH_TOKEN
