@@ -46,9 +46,14 @@ export default function Home() {
     window.scrollTo(0, 0)
   }, [])
 
-  // Track scroll position
+  // Track scroll position (but not when lightbox is open)
+  const lightboxOpenRef = useRef(false)
   useEffect(() => {
-    const handleScroll = () => setScrollTop(window.scrollY)
+    const handleScroll = () => {
+      if (!lightboxOpenRef.current) {
+        setScrollTop(window.scrollY)
+      }
+    }
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
@@ -93,6 +98,7 @@ export default function Home() {
 
   const openLightbox = (image: ImageData) => {
     scrollYRef.current = window.scrollY
+    lightboxOpenRef.current = true
     document.body.style.top = `-${scrollYRef.current}px`
     document.documentElement.classList.add('lightbox-open')
     setSelectedImage(image)
@@ -100,6 +106,7 @@ export default function Home() {
   }
 
   const closeModal = useCallback(() => {
+    lightboxOpenRef.current = false
     document.documentElement.classList.remove('lightbox-open')
     document.body.style.top = ''
     setSelectedImage(null)
