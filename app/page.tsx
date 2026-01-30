@@ -39,8 +39,10 @@ export default function Home() {
     return () => window.removeEventListener('resize', updateLayout)
   }, [])
 
-  // Scroll to top on mount
+  // Scroll to top on mount and ensure scroll is unlocked
   useEffect(() => {
+    document.documentElement.classList.remove('lightbox-open')
+    document.body.style.top = ''
     window.scrollTo(0, 0)
   }, [])
 
