@@ -176,18 +176,10 @@ export default function Home() {
       )}
 
       {selectedImage && (
-        <div className="lightbox" onClick={closeModal}>
-          {lightboxUrl ? (
-            <img
-              src={lightboxUrl}
-              alt=""
-              crossOrigin="anonymous"
-              className="lightbox-image"
-            />
-          ) : (
-            <div className="lightbox-loading" />
-          )}
-        </div>
+        <Lightbox
+          url={lightboxUrl}
+          onClose={closeModal}
+        />
       )}
     </>
   )
@@ -243,6 +235,142 @@ function VirtualItem({
         onLoad={() => setLoaded(true)}
         onError={handleError}
       />
+    </div>
+  )
+}
+
+function Lightbox({ url, onClose }: { url: string | null; onClose: () => void }) {
+  const [scale, setScale] = useState(1)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Reset on new image
+  useEffect(() => {
+    setScale(1)
+    setPosition({ x: 0, y: 0 })
+  }, [url])
+
+  // Mouse wheel zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? 0.9 : 1.1
+    setScale(s => Math.min(Math.max(s * delta, 1), 5))
+  }, [])
+
+  // Double click to zoom/reset
+  const handleDoubleClick = useCallback(() => {
+    if (scale > 1) {
+      setScale(1)
+      setPosition({ x: 0, y: 0 })
+    } else {
+      setScale(2.5)
+    }
+  }, [scale])
+
+  // Mouse drag for panning
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (scale > 1) {
+      setIsDragging(true)
+      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
+    }
+  }, [scale, position])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isDragging && scale > 1) {
+      setPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      })
+    }
+  }, [isDragging, dragStart, scale])
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false)
+  }, [])
+
+  // Touch handling for pinch zoom and pan
+  const touchRef = useRef<{ dist: number; scale: number; pos: { x: number; y: number } }>({
+    dist: 0,
+    scale: 1,
+    pos: { x: 0, y: 0 }
+  })
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      touchRef.current.dist = Math.sqrt(dx * dx + dy * dy)
+      touchRef.current.scale = scale
+    } else if (e.touches.length === 1 && scale > 1) {
+      setIsDragging(true)
+      setDragStart({
+        x: e.touches[0].clientX - position.x,
+        y: e.touches[0].clientY - position.y
+      })
+    }
+  }, [scale, position])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      e.preventDefault()
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const newScale = touchRef.current.scale * (dist / touchRef.current.dist)
+      setScale(Math.min(Math.max(newScale, 1), 5))
+    } else if (e.touches.length === 1 && isDragging && scale > 1) {
+      setPosition({
+        x: e.touches[0].clientX - dragStart.x,
+        y: e.touches[0].clientY - dragStart.y
+      })
+    }
+  }, [isDragging, dragStart, scale])
+
+  const handleTouchEnd = useCallback(() => {
+    setIsDragging(false)
+  }, [])
+
+  // Close only when at 1x zoom and clicking background
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    if (scale === 1 && e.target === containerRef.current) {
+      onClose()
+    }
+  }, [scale, onClose])
+
+  return (
+    <div
+      ref={containerRef}
+      className="lightbox"
+      onClick={handleClick}
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onDoubleClick={handleDoubleClick}
+      style={{ cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'pointer' }}
+    >
+      {url ? (
+        <img
+          src={url}
+          alt=""
+          crossOrigin="anonymous"
+          className="lightbox-image"
+          draggable={false}
+          style={{
+            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+            transition: isDragging ? 'none' : 'transform 0.2s ease',
+            pointerEvents: 'none'
+          }}
+        />
+      ) : (
+        <div className="lightbox-loading" />
+      )}
     </div>
   )
 }
