@@ -304,11 +304,9 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     didDragRef.current = false
     mouseDownPosRef.current = { x: e.clientX, y: e.clientY }
-    if (scale > 1) {
-      setIsDragging(true)
-      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
-    }
-  }, [scale, position])
+    setIsDragging(true)
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
+  }, [position])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const dx = Math.abs(e.clientX - mouseDownPosRef.current.x)
@@ -316,13 +314,13 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
     if (dx > 5 || dy > 5) {
       didDragRef.current = true
     }
-    if (isDragging && scale > 1) {
+    if (isDragging) {
       setPosition({
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y
       })
     }
-  }, [isDragging, dragStart, scale])
+  }, [isDragging, dragStart])
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false)
@@ -367,7 +365,7 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onDoubleClick={handleDoubleClick}
-      style={{ cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'pointer' }}
+      style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
     >
       {url ? (
         <img
