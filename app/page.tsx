@@ -39,6 +39,11 @@ export default function Home() {
     return () => window.removeEventListener('resize', updateLayout)
   }, [])
 
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   // Track scroll position
   useEffect(() => {
     const handleScroll = () => setScrollTop(window.scrollY)
