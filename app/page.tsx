@@ -167,7 +167,7 @@ export default function Home() {
           <p><a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">i. @typograaf</a></p>
         </div>
       )}
-      {!showInfo && !selectedImage && (
+      {!showInfo && (
         <div style={{ height: virtualData.totalHeight, position: 'relative' }}>
           {loading
             ? Array.from({ length: SKELETON_COUNT }).map((_, i) => (
