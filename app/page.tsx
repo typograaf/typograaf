@@ -83,7 +83,6 @@ const LOAD_MORE_COUNT = 40
 export default function Home() {
   const [images, setImages] = useState<ImageData[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT)
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
@@ -121,21 +120,29 @@ export default function Home() {
     setLightboxUrl(image.url) // Use existing URL directly - no extra API call
   }
 
-  const loadImages = useCallback(() => {
+  const loadImages = useCallback((retryCount = 0) => {
     setLoading(true)
-    setLoadError(false)
     // Add cache buster to force fresh data
     fetch(`/api/images?t=${Date.now()}`)
       .then(res => res.json())
       .then(data => {
         if (data.images && data.images.length > 0) {
           setImages(data.images)
+          setLoading(false)
+        } else if (retryCount < 3) {
+          // Auto-retry up to 3 times
+          setTimeout(() => loadImages(retryCount + 1), 1000)
         } else {
-          setLoadError(true)
+          setLoading(false)
         }
       })
-      .catch(() => setLoadError(true))
-      .finally(() => setLoading(false))
+      .catch(() => {
+        if (retryCount < 3) {
+          setTimeout(() => loadImages(retryCount + 1), 1000)
+        } else {
+          setLoading(false)
+        }
+      })
   }, [])
 
   useEffect(() => {
@@ -164,12 +171,6 @@ export default function Home() {
       )}
       {!showInfo && (
         <>
-          {loadError && !loading && (
-            <div className="error">
-              <p>Failed to load images</p>
-              <button onClick={loadImages}>Retry</button>
-            </div>
-          )}
           <div className="feed">
             {loading
               ? Array.from({ length: SKELETON_COUNT }).map((_, i) => (
@@ -184,7 +185,7 @@ export default function Home() {
                   />
                 ))}
           </div>
-          {!loading && !loadError && visibleCount < images.length && (
+          {!loading && visibleCount < images.length && (
             <div ref={loaderRef} className="loader">
               <div className="spinner" />
             </div>
