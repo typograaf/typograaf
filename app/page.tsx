@@ -91,6 +91,7 @@ export default function Home() {
 
   const openLightbox = (image: ImageData) => {
     scrollYRef.current = window.scrollY
+    document.body.style.top = `-${scrollYRef.current}px`
     document.documentElement.classList.add('lightbox-open')
     setSelectedImage(image)
     setLightboxUrl(image.url)
@@ -98,6 +99,7 @@ export default function Home() {
 
   const closeModal = useCallback(() => {
     document.documentElement.classList.remove('lightbox-open')
+    document.body.style.top = ''
     setSelectedImage(null)
     requestAnimationFrame(() => {
       window.scrollTo(0, scrollYRef.current)
