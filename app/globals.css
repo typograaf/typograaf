@@ -19,9 +19,11 @@ html.lightbox-open {
 html.lightbox-open body {
   overflow: hidden !important;
   position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
   width: 100% !important;
+  height: auto !important;
   overscroll-behavior: none !important;
-  touch-action: none !important;
 }
 
 html::-webkit-scrollbar {

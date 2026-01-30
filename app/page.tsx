@@ -329,58 +329,25 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
     }
   }, [onClose])
 
-  // Touch handling for pinch zoom and pan
-  const touchRef = useRef<{ dist: number; scale: number; pos: { x: number; y: number } }>({
-    dist: 0,
-    scale: 1,
-    pos: { x: 0, y: 0 }
-  })
-
+  // Simple touch handling - tap to close, no zoom/pan on mobile
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    didDragRef.current = false
-    if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX
-      const dy = e.touches[0].clientY - e.touches[1].clientY
-      touchRef.current.dist = Math.sqrt(dx * dx + dy * dy)
-      touchRef.current.scale = scale
-    } else if (e.touches.length === 1) {
+    if (e.touches.length === 1) {
+      didDragRef.current = false
       mouseDownPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-      if (scale > 1) {
-        setIsDragging(true)
-        setDragStart({
-          x: e.touches[0].clientX - position.x,
-          y: e.touches[0].clientY - position.y
-        })
-      }
     }
-  }, [scale, position])
+  }, [])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      didDragRef.current = true
-      e.preventDefault()
-      const dx = e.touches[0].clientX - e.touches[1].clientX
-      const dy = e.touches[0].clientY - e.touches[1].clientY
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      const newScale = touchRef.current.scale * (dist / touchRef.current.dist)
-      setScale(Math.min(Math.max(newScale, 1), 5))
-    } else if (e.touches.length === 1) {
+    if (e.touches.length === 1) {
       const dx = Math.abs(e.touches[0].clientX - mouseDownPosRef.current.x)
       const dy = Math.abs(e.touches[0].clientY - mouseDownPosRef.current.y)
       if (dx > 5 || dy > 5) {
         didDragRef.current = true
       }
-      if (isDragging && scale > 1) {
-        setPosition({
-          x: e.touches[0].clientX - dragStart.x,
-          y: e.touches[0].clientY - dragStart.y
-        })
-      }
     }
-  }, [isDragging, dragStart, scale])
+  }, [])
 
   const handleTouchEnd = useCallback(() => {
-    setIsDragging(false)
     if (!didDragRef.current) {
       onClose()
     }
