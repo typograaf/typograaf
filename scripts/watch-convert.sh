@@ -67,7 +67,11 @@ convert_file() {
     case "$ext" in
         jpg|jpeg|png)
             local avif_file="$dir/$base.avif"
-            if [ ! -f "$avif_file" ]; then
+            if [ -f "$avif_file" ]; then
+                # Converted file exists, delete original
+                echo "$(date): Cleanup - removing original (avif exists): $file" >> "$LOG_FILE"
+                delete_file_via_api "$file"
+            else
                 echo "$(date): Converting $file" >> "$LOG_FILE"
                 avifenc -q 60 -s 6 "$file" "$avif_file" 2>> "$LOG_FILE"
                 if [ $? -eq 0 ] && [ -f "$avif_file" ]; then
@@ -78,7 +82,11 @@ convert_file() {
             ;;
         gif)
             local webp_file="$dir/$base.webp"
-            if [ ! -f "$webp_file" ]; then
+            if [ -f "$webp_file" ]; then
+                # Converted file exists, delete original
+                echo "$(date): Cleanup - removing original GIF (webp exists): $file" >> "$LOG_FILE"
+                delete_file_via_api "$file"
+            else
                 echo "$(date): Converting $file" >> "$LOG_FILE"
                 gif2webp -q 80 -m 6 "$file" -o "$webp_file" 2>> "$LOG_FILE"
                 if [ $? -eq 0 ] && [ -f "$webp_file" ]; then

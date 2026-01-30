@@ -69,7 +69,11 @@ find "$PORTFOLIO_DIR" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.
     base=$(basename "$file" | sed 's/\.[^.]*$//')
     avif_file="$dir/$base.avif"
 
-    if [ ! -f "$avif_file" ]; then
+    if [ -f "$avif_file" ]; then
+        # Converted file exists, delete original
+        echo "Cleanup: Removing original (avif exists): $file"
+        delete_file_via_api "$file"
+    else
         echo "Converting: $file -> $avif_file"
         avifenc -q 60 -s 6 "$file" "$avif_file" 2>/dev/null
         if [ $? -eq 0 ] && [ -f "$avif_file" ]; then
@@ -88,7 +92,11 @@ find "$PORTFOLIO_DIR" -type f -iname "*.gif" | while read file; do
     base=$(basename "$base" .GIF)
     webp_file="$dir/$base.webp"
 
-    if [ ! -f "$webp_file" ]; then
+    if [ -f "$webp_file" ]; then
+        # Converted file exists, delete original
+        echo "Cleanup: Removing original GIF (webp exists): $file"
+        delete_file_via_api "$file"
+    else
         echo "Converting GIF: $file -> $webp_file"
         gif2webp -q 80 -m 6 "$file" -o "$webp_file" 2>/dev/null
         if [ $? -eq 0 ] && [ -f "$webp_file" ]; then

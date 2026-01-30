@@ -129,3 +129,647 @@ Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Websit
 Fri Jan 23 17:44:18 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/knees to chin/original_a54155199227278a197b00d924675bfd.png
 Fri Jan 23 17:44:19 CET 2026: API delete successful
 Fri Jan 23 17:44:19 CET 2026: Done
+Sun Jan 25 11:37:36 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Fenna/Screenshot 2026-01-25 at 11.37.24 AM.png
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Fenna/Screenshot 2026-01-25 at 11.37.24 AM.png
+AVIF to be written: (Lossy)
+ * Resolution     : 5120x2880
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (3364 bytes)
+ * XMP Metadata   : Present (450 bytes)
+ * Exif Metadata  : Present (138 bytes)
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 1364077 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Fenna/Screenshot 2026-01-25 at 11.37.24 AM.avif
+Sun Jan 25 11:37:39 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Fenna/Screenshot 2026-01-25 at 11.37.24 AM.png
+Sun Jan 25 11:37:39 CET 2026: API delete failed: {"error":{".tag":"expired_access_token"},"error_summary":"expired_access_token/"}
+Sun Jan 25 11:37:39 CET 2026: Done
+Sun Jan 25 11:37:41 CET 2026: Updating project order
+Sun Jan 25 11:38:01 CET 2026: Deployed new project order
+Mon Jan 26 17:00:39 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Saved output file (600996 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.webp
+Mon Jan 26 17:00:41 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 17:00:42 CET 2026: API delete failed: {"error":{".tag":"expired_access_token"},"error_summary":"expired_access_token/"}
+Mon Jan 26 17:00:42 CET 2026: Done
+Mon Jan 26 17:00:42 CET 2026: Updating project order
+Mon Jan 26 17:00:42 CET 2026: No changes to project order
+Mon Jan 26 17:00:52 CET 2026: Updating project order
+Mon Jan 26 17:00:52 CET 2026: No changes to project order
+Mon Jan 26 17:08:52 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Saved output file (184012 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.webp
+Mon Jan 26 17:08:53 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 17:08:53 CET 2026: API delete failed: {"error":{".tag":"expired_access_token"},"error_summary":"expired_access_token/"}
+Mon Jan 26 17:08:53 CET 2026: Done
+Mon Jan 26 17:12:20 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Saved output file (184012 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.webp
+Mon Jan 26 17:12:21 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 17:12:21 CET 2026: API delete failed: {"error":{".tag":"expired_access_token"},"error_summary":"expired_access_token/"}
+Mon Jan 26 17:12:21 CET 2026: Done
+Mon Jan 26 17:12:31 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+GIFLib Error 101: Failed to open given file
+Mon Jan 26 17:14:32 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Saved output file (184012 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.webp
+Mon Jan 26 17:14:32 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 17:14:33 CET 2026: API delete failed: {"error":{".tag":"expired_access_token"},"error_summary":"expired_access_token/"}
+Mon Jan 26 17:14:33 CET 2026: Done
+Mon Jan 26 17:15:58 CET 2026: Watcher started
+Mon Jan 26 17:15:58 CET 2026: Updating project order
+Mon Jan 26 17:15:59 CET 2026: Watcher started
+Mon Jan 26 17:16:00 CET 2026: Updating project order
+Mon Jan 26 17:16:25 CET 2026: Deployed new project order
+Mon Jan 26 17:17:01 CET 2026: Updating project order
+Mon Jan 26 17:17:01 CET 2026: Watcher started
+Mon Jan 26 17:17:02 CET 2026: Updating project order
+Mon Jan 26 17:17:02 CET 2026: Watcher started
+Mon Jan 26 17:17:17 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 17:17:17 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Saved output file (184012 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.webp
+Saved output file (184012 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.webp
+Mon Jan 26 17:17:17 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 17:17:18 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 17:17:18 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Mon Jan 26 17:17:18 CET 2026: Done
+Mon Jan 26 17:17:18 CET 2026: API delete successful
+Mon Jan 26 17:17:18 CET 2026: Done
+Mon Jan 26 17:17:23 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 17:17:23 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 17:17:24 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 17:17:24 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 17:17:24 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 17:17:24 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 17:17:33 CET 2026: Deployed new project order
+Mon Jan 26 17:17:55 CET 2026: Deployed new project order
+Mon Jan 26 19:12:40 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 19:12:40 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Saved output file (87894 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.webp
+Saved output file (87894 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.webp
+Mon Jan 26 19:12:40 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 19:12:40 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 19:12:41 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Mon Jan 26 19:12:41 CET 2026: Done
+Mon Jan 26 19:12:41 CET 2026: API delete successful
+Mon Jan 26 19:12:41 CET 2026: Done
+Mon Jan 26 19:12:46 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 19:12:46 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 19:12:46 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 19:12:46 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 square.gif
+Mon Jan 26 19:12:47 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 19:12:47 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 19:22:17 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 squareb.gif
+Mon Jan 26 19:22:17 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 squareb.gif
+Saved output file (93364 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 squareb.webp
+Saved output file (93364 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 squareb.webp
+Mon Jan 26 19:22:18 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 squareb.gif
+Mon Jan 26 19:22:18 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 squareb.gif
+Mon Jan 26 19:22:18 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/.", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Mon Jan 26 19:22:18 CET 2026: Done
+Mon Jan 26 19:22:18 CET 2026: API delete successful
+Mon Jan 26 19:22:18 CET 2026: Done
+Mon Jan 26 19:22:23 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 squareb.gif
+Mon Jan 26 19:22:23 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/V1 squareb.gif
+Mon Jan 26 19:22:24 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 squareb.gif
+Mon Jan 26 19:22:24 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/V1 squareb.gif
+Mon Jan 26 19:22:24 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/..", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 19:22:24 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:20:03 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:20:03 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Directly copied JPEG pixel data (no YUV conversion): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+AVIF to be written: (Lossy)
+ * Resolution     : 1920x1080
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Absent
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (536 bytes)
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 238386 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.avif
+Mon Jan 26 20:20:04 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:20:04 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:20:04 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/.", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Mon Jan 26 20:20:05 CET 2026: Done
+Mon Jan 26 20:20:05 CET 2026: API delete successful
+Mon Jan 26 20:20:05 CET 2026: Done
+Mon Jan 26 20:20:10 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:20:10 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:20:10 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:20:10 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:20:10 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/..", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:20:10 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:24:54 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:24:54 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Directly copied JPEG pixel data (no YUV conversion): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+AVIF to be written: (Lossy)
+ * Resolution     : 1920x1080
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Absent
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (536 bytes)
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 239730 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.avif
+Mon Jan 26 20:24:55 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:24:55 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:24:56 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/...", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Mon Jan 26 20:24:56 CET 2026: Done
+Mon Jan 26 20:24:56 CET 2026: API delete successful
+Mon Jan 26 20:24:56 CET 2026: Done
+Mon Jan 26 20:25:01 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:25:01 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:25:01 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:25:01 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.jpg
+Mon Jan 26 20:25:02 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:25:02 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:31:42 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:31:42 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1920x1080
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (536 bytes)
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 237793 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.avif
+Mon Jan 26 20:31:43 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:31:43 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:31:44 CET 2026: API delete successful
+Mon Jan 26 20:31:44 CET 2026: Done
+Mon Jan 26 20:31:44 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:31:44 CET 2026: Done
+Mon Jan 26 20:31:49 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:31:49 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:31:49 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:31:49 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:31:49 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:31:50 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:35:49 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:35:49 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.png
+AVIF to be written: (Lossy)
+ * Resolution     : 1920x1080
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (536 bytes)
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 239227 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.avif
+Mon Jan 26 20:35:49 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:35:50 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:35:50 CET 2026: API delete successful
+Mon Jan 26 20:35:50 CET 2026: Done
+Mon Jan 26 20:35:50 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:35:50 CET 2026: Done
+Mon Jan 26 20:35:55 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:35:55 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:35:56 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:35:56 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame.png
+Mon Jan 26 20:35:56 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:35:56 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:40:32 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:40:32 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:40:32 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:40:32 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:40:33 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Mon Jan 26 20:40:33 CET 2026: API delete successful
+Mon Jan 26 20:40:33 CET 2026: Done
+Mon Jan 26 20:40:38 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:40:38 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:40:38 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:40:38 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:40:39 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/..", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:40:39 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:41:17 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:41:17 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+AVIF to be written: (Lossy)
+ * Resolution     : 2904x2064
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (536 bytes)
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 16602 bytes
+ * Alpha total size: 1404 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.avif
+Mon Jan 26 20:41:18 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:41:18 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:41:18 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:41:18 CET 2026: Done
+Mon Jan 26 20:41:18 CET 2026: API delete successful
+Mon Jan 26 20:41:18 CET 2026: Done
+Mon Jan 26 20:41:23 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:41:23 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:41:24 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:41:24 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:41:24 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:41:24 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:43:51 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:43:51 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+AVIF to be written: (Lossy)
+ * Resolution     : 2904x2064
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (536 bytes)
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 16667 bytes
+ * Alpha total size: 1404 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.avif
+Mon Jan 26 20:43:52 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:43:52 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:43:53 CET 2026: API delete successful
+Mon Jan 26 20:43:53 CET 2026: Done
+Mon Jan 26 20:43:53 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:43:53 CET 2026: Done
+Mon Jan 26 20:43:58 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:43:58 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:43:58 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:43:58 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/KRC Genk/Frame 172.png
+Mon Jan 26 20:43:58 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 20:43:59 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 22:42:12 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/shelly.gif
+Mon Jan 26 22:42:12 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/shelly.gif
+Saved output file (504724 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/shelly.webp
+Saved output file (504724 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/shelly.webp
+Mon Jan 26 22:42:16 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/shelly.gif
+Mon Jan 26 22:42:16 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/shelly.gif
+Mon Jan 26 22:42:16 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/.", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Mon Jan 26 22:42:16 CET 2026: Done
+Mon Jan 26 22:42:16 CET 2026: API delete successful
+Mon Jan 26 22:42:16 CET 2026: Done
+Mon Jan 26 22:42:21 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/shelly.gif
+Mon Jan 26 22:42:21 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/shelly.gif
+Mon Jan 26 22:42:22 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/shelly.gif
+Mon Jan 26 22:42:22 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/shelly.gif
+Mon Jan 26 22:42:22 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/..", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 22:42:22 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/..", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 22:42:40 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Blender/website.gif
+Mon Jan 26 22:42:40 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Blender/website.gif
+Saved output file (1206900 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Blender/website.webp
+Mon Jan 26 22:42:57 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Woodwork/Blender/website.gif
+Saved output file (1206900 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Blender/website.webp
+Mon Jan 26 22:42:58 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Woodwork/Blender/website.gif
+Mon Jan 26 22:42:58 CET 2026: API delete successful
+Mon Jan 26 22:42:58 CET 2026: Done
+Mon Jan 26 22:42:58 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 22:42:58 CET 2026: Done
+Mon Jan 26 22:43:03 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Blender/website.gif
+Mon Jan 26 22:43:03 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Woodwork/Blender/website.gif
+Mon Jan 26 22:43:03 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Blender/website.gif
+Mon Jan 26 22:43:04 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Woodwork/Blender/website.gif
+Mon Jan 26 22:43:04 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 22:43:04 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 22:43:10 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Mutant/Photoshop/Screenshot 2025-04-10 at 22.02.52.png
+Mon Jan 26 22:43:10 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Mutant/Photoshop/Screenshot 2025-04-10 at 22.02.52.png
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Mutant/Photoshop/Screenshot 2025-04-10 at 22.02.52.png
+AVIF to be written: (Lossy)
+ * Resolution     : 2178x2244
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 2
+ * Transfer Char. : 2
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Present (4064 bytes)
+ * XMP Metadata   : Present (450 bytes)
+ * Exif Metadata  : Present (138 bytes)
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 60841 bytes
+ * Alpha total size: 1758 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Mutant/Photoshop/Screenshot 2025-04-10 at 22.02.52.avif
+Mon Jan 26 22:43:10 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Mutant/Photoshop/Screenshot 2025-04-10 at 22.02.52.png
+Mon Jan 26 22:43:10 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Mutant/Photoshop/Screenshot 2025-04-10 at 22.02.52.png
+Mon Jan 26 22:43:11 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Mon Jan 26 22:43:11 CET 2026: Done
+Mon Jan 26 22:43:11 CET 2026: API delete successful
+Mon Jan 26 22:43:11 CET 2026: Done
+Mon Jan 26 22:43:16 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Mutant/Photoshop/Screenshot 2025-04-10 at 22.02.52.png
+Mon Jan 26 22:43:16 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Mutant/Photoshop/Screenshot 2025-04-10 at 22.02.52.png
+Mon Jan 26 22:43:16 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Mutant/Photoshop/Screenshot 2025-04-10 at 22.02.52.png
+Mon Jan 26 22:43:16 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Mutant/Photoshop/Screenshot 2025-04-10 at 22.02.52.png
+Mon Jan 26 22:43:17 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 22:43:17 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/..", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 22:43:56 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/logo thumbnail.gif
+Mon Jan 26 22:43:56 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/logo thumbnail.gif
+Saved output file (70492 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/logo thumbnail.webp
+Saved output file (70492 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/logo thumbnail.webp
+Mon Jan 26 22:43:59 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/logo thumbnail.gif
+Mon Jan 26 22:43:59 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/logo thumbnail.gif
+Mon Jan 26 22:43:59 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Mon Jan 26 22:43:59 CET 2026: Done
+Mon Jan 26 22:43:59 CET 2026: API delete successful
+Mon Jan 26 22:43:59 CET 2026: Done
+Mon Jan 26 22:44:04 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/logo thumbnail.gif
+Mon Jan 26 22:44:04 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/logo thumbnail.gif
+Mon Jan 26 22:44:04 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/logo thumbnail.gif
+Mon Jan 26 22:44:05 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Caroline Bosmans/Cavalry/logo thumbnail.gif
+Mon Jan 26 22:44:05 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 22:44:05 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 22:44:19 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Cavalry/field animation 1360x910.gif
+Mon Jan 26 22:44:19 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Cavalry/field animation 1360x910.gif
+Saved output file (2614594 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Cavalry/field animation 1360x910.webp
+Saved output file (2614594 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Cavalry/field animation 1360x910.webp
+Mon Jan 26 22:44:23 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Woodwork/Cavalry/field animation 1360x910.gif
+Mon Jan 26 22:44:24 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Woodwork/Cavalry/field animation 1360x910.gif
+Mon Jan 26 22:44:24 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Mon Jan 26 22:44:24 CET 2026: Done
+Mon Jan 26 22:44:24 CET 2026: API delete successful
+Mon Jan 26 22:44:24 CET 2026: Done
+Mon Jan 26 22:44:29 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Cavalry/field animation 1360x910.gif
+Mon Jan 26 22:44:29 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Woodwork/Cavalry/field animation 1360x910.gif
+Mon Jan 26 22:44:29 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Woodwork/Cavalry/field animation 1360x910.gif
+Mon Jan 26 22:44:29 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Woodwork/Cavalry/field animation 1360x910.gif
+Mon Jan 26 22:44:30 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 22:44:30 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Mon Jan 26 22:44:35 CET 2026: Updating project order
+Mon Jan 26 22:44:35 CET 2026: Updating project order
+Mon Jan 26 22:44:35 CET 2026: No changes to project order
+Mon Jan 26 22:45:07 CET 2026: Deployed new project order
+Mon Jan 26 22:49:33 CET 2026: Updating project order
+Mon Jan 26 22:49:33 CET 2026: ERROR - Only found 0 projects, keeping existing order
+Mon Jan 26 22:49:34 CET 2026: Updating project order
+Mon Jan 26 22:49:34 CET 2026: No changes to project order
+Wed Jan 28 20:22:51 CET 2026: Updating project order
+Wed Jan 28 20:22:51 CET 2026: Updating project order
+Wed Jan 28 20:22:51 CET 2026: ERROR - Only found 0 projects, keeping existing order
+Wed Jan 28 20:22:57 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:22:57 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:23:01 CET 2026: Updating project order
+Wed Jan 28 20:23:01 CET 2026: ERROR - Only found 0 projects, keeping existing order
+Saved output file (1313188 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.webp
+Wed Jan 28 20:23:06 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:23:07 CET 2026: API delete successful
+Wed Jan 28 20:23:07 CET 2026: Done
+Saved output file (1313188 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.webp
+Wed Jan 28 20:23:09 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:23:09 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Wed Jan 28 20:23:09 CET 2026: Done
+Wed Jan 28 20:23:12 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:23:12 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:23:13 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Wed Jan 28 20:23:27 CET 2026: Deployed new project order
+Wed Jan 28 20:23:37 CET 2026: Updating project order
+Wed Jan 28 20:23:37 CET 2026: No changes to project order
+Wed Jan 28 20:23:47 CET 2026: Updating project order
+Wed Jan 28 20:23:48 CET 2026: No changes to project order
+Wed Jan 28 20:24:27 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:24:27 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Saved output file (463442 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.webp
+Wed Jan 28 20:24:31 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Saved output file (463442 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.webp
+Wed Jan 28 20:24:31 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:24:31 CET 2026: API delete successful
+Wed Jan 28 20:24:31 CET 2026: Done
+Wed Jan 28 20:24:31 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Wed Jan 28 20:24:31 CET 2026: Done
+Wed Jan 28 20:24:36 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:24:37 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:24:37 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:24:37 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:24:37 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Wed Jan 28 20:24:37 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Wed Jan 28 20:24:42 CET 2026: Updating project order
+Wed Jan 28 20:24:42 CET 2026: No changes to project order
+Wed Jan 28 20:24:42 CET 2026: Updating project order
+Wed Jan 28 20:24:43 CET 2026: ERROR - Only found 0 projects, keeping existing order
+Wed Jan 28 20:25:59 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:25:59 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Saved output file (463442 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.webp
+Wed Jan 28 20:26:02 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Saved output file (463442 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.webp
+Wed Jan 28 20:26:03 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:26:03 CET 2026: API delete successful
+Wed Jan 28 20:26:03 CET 2026: Done
+Wed Jan 28 20:26:03 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Wed Jan 28 20:26:03 CET 2026: Done
+Wed Jan 28 20:26:08 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:26:09 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:26:09 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:26:09 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Wed Jan 28 20:26:09 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Wed Jan 28 20:26:09 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Wed Jan 28 20:26:14 CET 2026: Updating project order
+Wed Jan 28 20:26:14 CET 2026: No changes to project order
+Wed Jan 28 20:26:14 CET 2026: Updating project order
+Wed Jan 28 20:26:14 CET 2026: ERROR - Only found 0 projects, keeping existing order
+Thu Jan 29 19:49:22 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:49:22 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:49:23 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:49:23 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:49:23 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Thu Jan 29 19:49:24 CET 2026: API delete successful
+Thu Jan 29 19:49:28 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+GIFLib Error 101: Failed to open given file
+Thu Jan 29 19:49:29 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+GIFLib Error 101: Failed to open given file
+Thu Jan 29 19:49:36 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:49:36 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Saved output file (471596 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.webp
+Saved output file (471596 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.webp
+Thu Jan 29 19:49:39 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:49:39 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:49:39 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/..", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Thu Jan 29 19:49:39 CET 2026: Done
+Thu Jan 29 19:49:39 CET 2026: API delete successful
+Thu Jan 29 19:49:39 CET 2026: Done
+Thu Jan 29 19:49:44 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:49:44 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:49:45 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:49:45 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:49:45 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Thu Jan 29 19:49:45 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Thu Jan 29 19:52:23 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:23 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:23 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:23 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:24 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/.", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Thu Jan 29 19:52:24 CET 2026: API delete successful
+Thu Jan 29 19:52:29 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:29 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:30 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:30 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:30 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Thu Jan 29 19:52:30 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Thu Jan 29 19:52:51 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:51 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:51 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:52 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:52 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/..", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Thu Jan 29 19:52:52 CET 2026: API delete successful
+Thu Jan 29 19:52:57 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:57 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:57 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:58 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif.gif
+Thu Jan 29 19:52:58 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Thu Jan 29 19:52:58 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/..", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Thu Jan 29 19:53:02 CET 2026: Updating project order
+Thu Jan 29 19:53:02 CET 2026: Updating project order
+Thu Jan 29 19:53:03 CET 2026: No changes to project order
+Thu Jan 29 19:53:03 CET 2026: ERROR - Only found 0 projects, keeping existing order
+Thu Jan 29 19:53:29 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:53:29 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Saved output file (92220 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.webp
+Saved output file (92220 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.webp
+Thu Jan 29 19:53:30 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:53:30 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:53:31 CET 2026: API delete successful
+Thu Jan 29 19:53:31 CET 2026: Done
+Thu Jan 29 19:53:32 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Thu Jan 29 19:53:32 CET 2026: Done
+Thu Jan 29 19:53:36 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:53:36 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:53:37 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Thu Jan 29 19:56:03 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:56:03 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Saved output file (97886 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.webp
+Saved output file (97886 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.webp
+Thu Jan 29 19:56:05 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:56:05 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:56:06 CET 2026: API delete successful
+Thu Jan 29 19:56:06 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/...", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Thu Jan 29 19:56:06 CET 2026: Done
+Thu Jan 29 19:56:06 CET 2026: Done
+Thu Jan 29 19:56:11 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:56:11 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:56:11 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:56:11 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:56:12 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Thu Jan 29 19:56:12 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/..", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Thu Jan 29 19:56:17 CET 2026: Updating project order
+Thu Jan 29 19:56:17 CET 2026: No changes to project order
+Thu Jan 29 19:56:17 CET 2026: Updating project order
+Thu Jan 29 19:56:17 CET 2026: ERROR - Only found 0 projects, keeping existing order
+Thu Jan 29 19:57:23 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:57:23 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Saved output file (72724 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.webp
+Saved output file (72724 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.webp
+Thu Jan 29 19:57:25 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:57:25 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+Thu Jan 29 19:57:25 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/...", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Thu Jan 29 19:57:25 CET 2026: Done
+Thu Jan 29 19:57:25 CET 2026: API delete successful
+Thu Jan 29 19:57:25 CET 2026: Done
+Thu Jan 29 19:57:30 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+GIFLib Error 101: Failed to open given file
+Thu Jan 29 19:57:30 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/mobility final comp gif2.gif
+GIFLib Error 101: Failed to open given file
+Thu Jan 29 19:59:58 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif2.gif
+Thu Jan 29 19:59:58 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif2.gif
+Saved output file (72724 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif2.webp
+Saved output file (72724 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif2.webp
+Thu Jan 29 19:59:59 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif2.gif
+Thu Jan 29 19:59:59 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif2.gif
+Thu Jan 29 20:00:00 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/...", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Thu Jan 29 20:00:00 CET 2026: Done
+Thu Jan 29 20:00:00 CET 2026: API delete successful
+Thu Jan 29 20:00:00 CET 2026: Done
+Thu Jan 29 20:00:05 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif2.gif
+Thu Jan 29 20:00:05 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif2.gif
+Thu Jan 29 20:00:05 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif2.gif
+Thu Jan 29 20:00:05 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif2.gif
+Thu Jan 29 20:00:06 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Thu Jan 29 20:00:06 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Thu Jan 29 20:00:11 CET 2026: Updating project order
+Thu Jan 29 20:00:11 CET 2026: No changes to project order
+Thu Jan 29 20:00:11 CET 2026: Updating project order
+Thu Jan 29 20:00:11 CET 2026: ERROR - Only found 0 projects, keeping existing order
+Thu Jan 29 20:00:21 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif.gif
+Thu Jan 29 20:00:21 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif.gif
+Saved output file (67182 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif.webp
+Saved output file (67182 bytes): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif.webp
+Thu Jan 29 20:00:22 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif.gif
+Thu Jan 29 20:00:23 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif.gif
+Thu Jan 29 20:00:23 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/.", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Thu Jan 29 20:00:23 CET 2026: Done
+Thu Jan 29 20:00:23 CET 2026: API delete successful
+Thu Jan 29 20:00:23 CET 2026: Done
+Thu Jan 29 20:00:28 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif.gif
+Thu Jan 29 20:00:28 CET 2026: Cleanup - removing original GIF (webp exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif.gif
+Thu Jan 29 20:00:28 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif.gif
+Thu Jan 29 20:00:29 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif.gif
+Thu Jan 29 20:00:29 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Thu Jan 29 20:00:29 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}

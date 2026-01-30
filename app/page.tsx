@@ -87,12 +87,23 @@ export default function Home() {
     loadImages()
   }, [loadImages])
 
+  const scrollYRef = useRef(0)
+
   const openLightbox = (image: ImageData) => {
+    scrollYRef.current = window.scrollY
+    document.documentElement.classList.add('lightbox-open')
     setSelectedImage(image)
     setLightboxUrl(image.url)
   }
 
-  const closeModal = useCallback(() => setSelectedImage(null), [])
+  const closeModal = useCallback(() => {
+    document.documentElement.classList.remove('lightbox-open')
+    setSelectedImage(null)
+    requestAnimationFrame(() => {
+      window.scrollTo(0, scrollYRef.current)
+    })
+  }, [])
+
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -156,7 +167,7 @@ export default function Home() {
           <p><a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">i. @typograaf</a></p>
         </div>
       )}
-      {!showInfo && (
+      {!showInfo && !selectedImage && (
         <div style={{ height: virtualData.totalHeight, position: 'relative' }}>
           {loading
             ? Array.from({ length: SKELETON_COUNT }).map((_, i) => (
@@ -246,18 +257,32 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // Handle zoom wheel
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const delta = e.deltaY > 0 ? 0.9 : 1.1
+      setScale(s => Math.min(Math.max(s * delta, 1), 5))
+    }
+
+    const container = containerRef.current
+    if (container) {
+      container.addEventListener('wheel', handleWheel, { passive: false })
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener('wheel', handleWheel)
+      }
+    }
+  }, [])
+
   // Reset on new image
   useEffect(() => {
     setScale(1)
     setPosition({ x: 0, y: 0 })
   }, [url])
 
-  // Mouse wheel zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? 0.9 : 1.1
-    setScale(s => Math.min(Math.max(s * delta, 1), 5))
-  }, [])
 
   // Double click to zoom/reset
   const handleDoubleClick = useCallback(() => {
@@ -344,7 +369,6 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
       ref={containerRef}
       className="lightbox"
       onClick={handleClick}
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
