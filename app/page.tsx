@@ -281,10 +281,8 @@ function VirtualItem({
           width: '100%',
           height: '100%',
           objectFit: 'contain',
-          opacity: loaded ? 1 : 0.4,
-          filter: loaded ? 'blur(0)' : 'blur(20px)',
-          transform: 'scale(1.1)',
-          transition: 'opacity 0.4s ease, filter 0.4s ease'
+          opacity: loaded ? 1 : 0,
+          transition: 'opacity 0.3s ease'
         }}
         onLoad={() => setLoaded(true)}
         onError={handleError}
