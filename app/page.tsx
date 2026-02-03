@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react'
 
 interface ImageData {
   id: string
@@ -22,8 +22,8 @@ export default function Home() {
   const [columns, setColumns] = useState(8)
   const [windowHeight, setWindowHeight] = useState(800)
 
-  // Initialize and update layout
-  useEffect(() => {
+  // Initialize and update layout (useLayoutEffect to prevent flash)
+  useLayoutEffect(() => {
     const updateLayout = () => {
       const width = window.innerWidth
       if (width <= 500) setColumns(2)
