@@ -2,8 +2,8 @@ import { Dropbox, files } from 'dropbox'
 import { NextResponse } from 'next/server'
 import projectOrder from '../../../project-order.json'
 
-// Cache for 30 minutes (Dropbox links last 4 hours)
-export const revalidate = 1800
+// No caching - always fetch fresh Dropbox links
+export const dynamic = 'force-dynamic'
 
 async function getAccessToken() {
   const refreshToken = process.env.DROPBOX_REFRESH_TOKEN
@@ -98,14 +98,7 @@ export async function GET() {
     const results = await Promise.all(linkPromises)
     const images = results.filter(Boolean)
 
-    return NextResponse.json(
-      { images },
-      {
-        headers: {
-          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200',
-        },
-      }
-    )
+    return NextResponse.json({ images })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch images'
     return NextResponse.json({ error: message }, { status: 500 })
