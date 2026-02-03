@@ -18,22 +18,11 @@ export default function Home() {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [showInfo, setShowInfo] = useState(false)
   const [scrollTop, setScrollTop] = useState(0)
-  const [columns, setColumns] = useState(() => {
-    if (typeof window === 'undefined') return 8
-    const width = window.innerWidth
-    if (width <= 500) return 2
-    if (width <= 700) return 3
-    if (width <= 900) return 4
-    if (width <= 1100) return 5
-    if (width <= 1400) return 6
-    if (width <= 1600) return 7
-    return 8
-  })
-  const [windowHeight, setWindowHeight] = useState(() =>
-    typeof window !== 'undefined' ? window.innerHeight : 800
-  )
+  const [mounted, setMounted] = useState(false)
+  const [columns, setColumns] = useState(8)
+  const [windowHeight, setWindowHeight] = useState(800)
 
-  // Update layout on resize
+  // Initialize and update layout
   useEffect(() => {
     const updateLayout = () => {
       const width = window.innerWidth
@@ -46,6 +35,8 @@ export default function Home() {
       else setColumns(8)
       setWindowHeight(window.innerHeight)
     }
+    updateLayout()
+    setMounted(true)
     window.addEventListener('resize', updateLayout)
     return () => window.removeEventListener('resize', updateLayout)
   }, [])
@@ -208,7 +199,7 @@ export default function Home() {
           <p><a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">i. @typograaf</a></p>
         </div>
       )}
-      {!showInfo && (
+      {!showInfo && mounted && (
         <div style={{ height: layout.totalHeight, position: 'relative' }}>
           {loading
             ? skeletonItems.map((item, i) => (
