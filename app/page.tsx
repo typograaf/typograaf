@@ -124,10 +124,8 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleEsc)
   }, [closeModal])
 
-  // Virtual scrolling calculations
-  const virtualData = useMemo(() => {
-    if (images.length === 0) return { items: [], totalHeight: 0 }
-
+  // Layout calculations
+  const layout = useMemo(() => {
     const gap = typeof window !== 'undefined' && window.innerWidth <= 700 ? 16 : 24
     const padding = typeof window !== 'undefined'
       ? (window.innerWidth <= 500 ? 24 : window.innerWidth <= 700 ? 32 : window.innerWidth <= 900 ? 48 : 96)
@@ -135,11 +133,32 @@ export default function Home() {
     const containerWidth = typeof window !== 'undefined' ? window.innerWidth - padding * 2 : 1200
     const itemSize = (containerWidth - gap * (columns - 1)) / columns
     const rowHeight = itemSize + gap
+    const totalHeight = padding + 10000 * rowHeight
+    return { gap, padding, itemSize, rowHeight, totalHeight }
+  }, [columns])
 
-    // Infinite height (effectively)
-    const totalRows = 10000
-    const totalHeight = padding + totalRows * rowHeight
+  // Skeleton items for loading state
+  const skeletonItems = useMemo(() => {
+    const { padding, itemSize, rowHeight, gap } = layout
+    const visibleRows = Math.ceil(windowHeight / rowHeight) + 1
+    const items: { top: number; left: number; size: number }[] = []
+    for (let row = 0; row < visibleRows; row++) {
+      for (let col = 0; col < columns; col++) {
+        items.push({
+          top: padding + row * rowHeight,
+          left: padding + col * (itemSize + gap),
+          size: itemSize,
+        })
+      }
+    }
+    return items
+  }, [layout, columns, windowHeight])
 
+  // Virtual scrolling calculations
+  const virtualData = useMemo(() => {
+    if (images.length === 0) return { items: [], totalHeight: layout.totalHeight }
+
+    const { padding, itemSize, rowHeight, gap, totalHeight } = layout
     const startRow = Math.max(0, Math.floor((scrollTop - padding) / rowHeight) - BUFFER_ROWS)
     const visibleRows = Math.ceil(windowHeight / rowHeight) + BUFFER_ROWS * 2
     const endRow = startRow + visibleRows
@@ -161,7 +180,7 @@ export default function Home() {
     }
 
     return { items, totalHeight }
-  }, [images, scrollTop, columns, windowHeight])
+  }, [images, scrollTop, columns, windowHeight, layout])
 
   return (
     <>
@@ -179,10 +198,20 @@ export default function Home() {
         </div>
       )}
       {!showInfo && (
-        <div style={{ height: virtualData.totalHeight, position: 'relative' }}>
+        <div style={{ height: layout.totalHeight, position: 'relative' }}>
           {loading
-            ? Array.from({ length: SKELETON_COUNT }).map((_, i) => (
-                <div key={i} className="item" />
+            ? skeletonItems.map((item, i) => (
+                <div
+                  key={i}
+                  className="item"
+                  style={{
+                    position: 'absolute',
+                    top: item.top,
+                    left: item.left,
+                    width: item.size,
+                    height: item.size,
+                  }}
+                />
               ))
             : virtualData.items.map(({ image, index, top, left, size }) => (
                 <VirtualItem
