@@ -18,7 +18,6 @@ export default function Home() {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [showInfo, setShowInfo] = useState(false)
   const [scrollTop, setScrollTop] = useState(0)
-  const [mounted, setMounted] = useState(false)
   const [columns, setColumns] = useState(8)
   const [windowHeight, setWindowHeight] = useState(800)
 
@@ -36,7 +35,6 @@ export default function Home() {
       setWindowHeight(window.innerHeight)
     }
     updateLayout()
-    setMounted(true)
     window.addEventListener('resize', updateLayout)
     return () => window.removeEventListener('resize', updateLayout)
   }, [])
@@ -199,7 +197,7 @@ export default function Home() {
           <p><a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">i. @typograaf</a></p>
         </div>
       )}
-      {!showInfo && mounted && (
+      {!showInfo && (
         <div style={{ height: layout.totalHeight, position: 'relative' }}>
           {loading
             ? skeletonItems.map((item, i) => (
