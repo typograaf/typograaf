@@ -274,7 +274,8 @@ function VirtualItem({
         key={retryCount}
         src={image.url}
         alt=""
-        crossOrigin="anonymous"
+        loading="lazy"
+        decoding="async"
         style={{
           position: 'absolute',
           width: '100%',

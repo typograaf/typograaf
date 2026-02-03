@@ -12,6 +12,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://dl.dropboxusercontent.com" />
+        <link rel="dns-prefetch" href="https://dl.dropboxusercontent.com" />
+      </head>
       <body>{children}</body>
     </html>
   )

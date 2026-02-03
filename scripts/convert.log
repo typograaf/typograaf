@@ -773,3 +773,122 @@ Thu Jan 29 20:00:28 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/
 Thu Jan 29 20:00:29 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Stad Brugge/amobility final comp gif.gif
 Thu Jan 29 20:00:29 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
 Thu Jan 29 20:00:29 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Tue Feb  3 20:30:05 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:05 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+AVIF to be written: (Lossy)
+ * Resolution     : 913x913
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 1834 bytes
+ * Alpha total size: 0 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.avif
+Tue Feb  3 20:30:05 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:05 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:06 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/...", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Tue Feb  3 20:30:06 CET 2026: Done
+Tue Feb  3 20:30:06 CET 2026: API delete successful
+Tue Feb  3 20:30:06 CET 2026: Done
+Tue Feb  3 20:30:08 CET 2026: Updating project order
+Tue Feb  3 20:30:08 CET 2026: Updating project order
+Tue Feb  3 20:30:08 CET 2026: ERROR - Only found 0 projects, keeping existing order
+Tue Feb  3 20:30:11 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:11 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:11 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:11 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:12 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Tue Feb  3 20:30:12 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Tue Feb  3 20:30:18 CET 2026: Updating project order
+Tue Feb  3 20:30:18 CET 2026: ERROR - Only found 0 projects, keeping existing order
+Tue Feb  3 20:30:38 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:38 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:38 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:38 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:39 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/..", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Tue Feb  3 20:30:39 CET 2026: API delete successful
+Tue Feb  3 20:30:41 CET 2026: Deployed new project order
+Tue Feb  3 20:30:44 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:44 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:44 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:44 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:45 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/..", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Tue Feb  3 20:30:45 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Tue Feb  3 20:30:51 CET 2026: Updating project order
+Tue Feb  3 20:30:51 CET 2026: No changes to project order
+Tue Feb  3 20:30:53 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:53 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:54 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:54 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:54 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Tue Feb  3 20:30:54 CET 2026: API delete successful
+Tue Feb  3 20:30:54 CET 2026: Done
+Tue Feb  3 20:30:59 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:59 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:30:59 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:31:00 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:31:00 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Tue Feb  3 20:31:00 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Tue Feb  3 20:31:02 CET 2026: Updating project order
+Tue Feb  3 20:31:02 CET 2026: No changes to project order
+Tue Feb  3 20:31:12 CET 2026: Updating project order
+Tue Feb  3 20:31:12 CET 2026: No changes to project order
+Tue Feb  3 20:31:22 CET 2026: Updating project order
+Tue Feb  3 20:31:22 CET 2026: No changes to project order
+Tue Feb  3 20:31:35 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:31:35 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Successfully loaded: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+AVIF to be written: (Lossy)
+ * Resolution     : 649x1017
+ * Bit Depth      : 8
+ * Format         : YUV444
+ * Alpha          : Not premultiplied
+ * Range          : Full
+ * Color Primaries: 1
+ * Transfer Char. : 13
+ * Matrix Coeffs. : 6
+ * ICC Profile    : Absent
+ * XMP Metadata   : Absent
+ * Exif Metadata  : Absent
+ * Transformations: None
+ * Progressive    : Unavailable
+ * Gain map       : Absent
+Encoding with initial settings: codec 'aom' speed [6], color quality [60 (Medium)], alpha quality [60 (Medium)], automatic tiling, 10 worker thread(s), please wait...
+Encoded successfully.
+ * Color total size: 40177 bytes
+ * Alpha total size: 769 bytes
+Wrote AVIF: /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.avif
+Tue Feb  3 20:31:35 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:31:35 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:31:35 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/..", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Tue Feb  3 20:31:35 CET 2026: Done
+Tue Feb  3 20:31:36 CET 2026: API delete successful
+Tue Feb  3 20:31:36 CET 2026: Done
+Tue Feb  3 20:31:41 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:31:41 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:31:41 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:31:41 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/.", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Tue Feb  3 20:31:41 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:31:42 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/..", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
+Tue Feb  3 20:32:11 CET 2026: Converting /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:32:11 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:32:12 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:32:12 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:32:12 CET 2026: API delete failed: {"error_summary": "too_many_write_operations/", "error": {"reason": {".tag": "too_many_write_operations"}}}
+Tue Feb  3 20:32:12 CET 2026: API delete successful
+Tue Feb  3 20:32:12 CET 2026: Done
+Tue Feb  3 20:32:17 CET 2026: Cleanup - removing original (avif exists): /Users/mdnd-martijn/Library/CloudStorage/Dropbox/AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:32:18 CET 2026: Deleting via API: /AboutContact/Website/Portfolio/Miure/Frame 6.png
+Tue Feb  3 20:32:18 CET 2026: API delete failed: {"error_summary": "path_lookup/not_found/...", "error": {".tag": "path_lookup", "path_lookup": {".tag": "not_found"}}}
