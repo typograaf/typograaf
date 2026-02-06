@@ -122,8 +122,8 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (authenticated) loadImages()
-  }, [authenticated, loadImages])
+    loadImages()
+  }, [loadImages])
 
   const scrollYRef = useRef(0)
 
