@@ -185,6 +185,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #fff;
+  z-index: 50;
 }
 
 .password-input {

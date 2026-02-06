@@ -105,10 +105,6 @@ export default function Home() {
       .then(data => {
         if (data.images && data.images.length > 0) {
           setImages(data.images)
-          data.images.forEach((img: ImageData) => {
-            const el = new Image()
-            el.src = img.url
-          })
           setLoading(false)
         } else if (retryCount < 3) {
           setTimeout(() => loadImages(retryCount + 1), 1000)
@@ -232,20 +228,7 @@ export default function Home() {
           <p><a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">i. @typograaf</a></p>
         </div>
       )}
-      {!showInfo && !authenticated && (
-        <div className="password-gate">
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => { setPassword(e.target.value); setAuthError(false); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }}
-            placeholder="Password"
-            className={`password-input${authError ? ' password-error' : ''}`}
-            autoFocus
-          />
-        </div>
-      )}
-      {!showInfo && authenticated && (
+      {!showInfo && (
         <div style={{ height: layout.totalHeight, position: 'relative' }}>
           {loading
             ? skeletonItems.map((item, i) => (
@@ -271,6 +254,20 @@ export default function Home() {
                   onClick={() => openLightbox(image)}
                 />
               ))}
+        </div>
+      )}
+
+      {!showInfo && !authenticated && (
+        <div className="password-gate">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setAuthError(false); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }}
+            placeholder="Password"
+            className={`password-input${authError ? ' password-error' : ''}`}
+            autoFocus
+          />
         </div>
       )}
 
