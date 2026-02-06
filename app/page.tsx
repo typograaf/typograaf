@@ -428,7 +428,8 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
     }
   }, [])
 
-  const handleTouchEnd = useCallback(() => {
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    e.preventDefault()
     if (!didDragRef.current) {
       onClose()
     }
