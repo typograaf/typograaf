@@ -178,3 +178,36 @@ body {
 @media (max-width: 700px) {
   .loader { padding: 32px 0 48px; }
 }
+
+.password-gate {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-input {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border: 1px solid #d4d4d4;
+  outline: none;
+  background: #fff;
+  color: #000;
+  width: 200px;
+  text-align: center;
+}
+
+.password-input::placeholder {
+  color: #999;
+}
+
+.password-input:focus {
+  border-color: #000;
+}
+
+.password-error {
+  border-color: #ff0000;
+}

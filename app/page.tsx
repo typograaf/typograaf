@@ -20,6 +20,34 @@ export default function Home() {
   const [scrollTop, setScrollTop] = useState(0)
   const [columns, setColumns] = useState(8)
   const [windowHeight, setWindowHeight] = useState(800)
+  const [authenticated, setAuthenticated] = useState(false)
+  const [password, setPassword] = useState('')
+  const [authError, setAuthError] = useState(false)
+
+  // Check sessionStorage on mount
+  useEffect(() => {
+    if (sessionStorage.getItem('authenticated') === '1') {
+      setAuthenticated(true)
+    }
+  }, [])
+
+  const handleLogin = () => {
+    fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          sessionStorage.setItem('authenticated', '1')
+          setAuthenticated(true)
+          setAuthError(false)
+        } else {
+          setAuthError(true)
+        }
+      })
+  }
 
   // Initialize and update layout (useLayoutEffect to prevent flash)
   useLayoutEffect(() => {
@@ -91,8 +119,8 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    loadImages()
-  }, [loadImages])
+    if (authenticated) loadImages()
+  }, [authenticated, loadImages])
 
   const scrollYRef = useRef(0)
 
@@ -197,7 +225,21 @@ export default function Home() {
           <p><a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">i. @typograaf</a></p>
         </div>
       )}
-      {!showInfo && (
+      {!showInfo && !authenticated && (
+        <div className="password-gate">
+          <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setAuthError(false); }}
+              placeholder="Password"
+              className={`password-input${authError ? ' password-error' : ''}`}
+              autoFocus
+            />
+          </form>
+        </div>
+      )}
+      {!showInfo && authenticated && (
         <div style={{ height: layout.totalHeight, position: 'relative' }}>
           {loading
             ? skeletonItems.map((item, i) => (
