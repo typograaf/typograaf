@@ -227,16 +227,15 @@ export default function Home() {
       )}
       {!showInfo && !authenticated && (
         <div className="password-gate">
-          <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setAuthError(false); }}
-              placeholder="Password"
-              className={`password-input${authError ? ' password-error' : ''}`}
-              autoFocus
-            />
-          </form>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setAuthError(false); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }}
+            placeholder="Password"
+            className={`password-input${authError ? ' password-error' : ''}`}
+            autoFocus
+          />
         </div>
       )}
       {!showInfo && authenticated && (
