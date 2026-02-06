@@ -47,6 +47,9 @@ export default function Home() {
           setAuthError(true)
         }
       })
+      .catch(() => {
+        setAuthError(true)
+      })
   }
 
   // Initialize and update layout (useLayoutEffect to prevent flash)

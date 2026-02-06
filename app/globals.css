@@ -196,18 +196,24 @@ body {
   outline: none;
   background: transparent;
   color: #000;
+  -webkit-text-fill-color: #000;
   width: 200px;
   text-align: center;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .password-input::placeholder {
   color: #999;
+  -webkit-text-fill-color: #999;
 }
 
 .password-error {
   color: #ff0000;
+  -webkit-text-fill-color: #ff0000;
 }
 
 .password-error::placeholder {
   color: #ff0000;
+  -webkit-text-fill-color: #ff0000;
 }
