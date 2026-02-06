@@ -105,6 +105,10 @@ export default function Home() {
       .then(data => {
         if (data.images && data.images.length > 0) {
           setImages(data.images)
+          data.images.forEach((img: ImageData) => {
+            const el = new Image()
+            el.src = img.url
+          })
           setLoading(false)
         } else if (retryCount < 3) {
           setTimeout(() => loadImages(retryCount + 1), 1000)
