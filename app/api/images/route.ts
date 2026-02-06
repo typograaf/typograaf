@@ -30,7 +30,12 @@ async function getAccessToken() {
   return data.access_token
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const cookies = request.headers.get('cookie') || ''
+  if (!cookies.includes('auth=1')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const folderPath = process.env.DROPBOX_FOLDER_PATH || ''
 
   try {

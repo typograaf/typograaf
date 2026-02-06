@@ -122,8 +122,8 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    loadImages()
-  }, [loadImages])
+    if (authenticated) loadImages()
+  }, [authenticated, loadImages])
 
   const scrollYRef = useRef(0)
 
@@ -228,7 +228,20 @@ export default function Home() {
           <p><a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">i. @typograaf</a></p>
         </div>
       )}
-      {!showInfo && (
+      {!showInfo && !authenticated && (
+        <div className="password-gate">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setAuthError(false); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }}
+            placeholder="Password"
+            className={`password-input${authError ? ' password-error' : ''}`}
+            autoFocus
+          />
+        </div>
+      )}
+      {!showInfo && authenticated && (
         <div style={{ height: layout.totalHeight, position: 'relative' }}>
           {loading
             ? skeletonItems.map((item, i) => (
@@ -254,20 +267,6 @@ export default function Home() {
                   onClick={() => openLightbox(image)}
                 />
               ))}
-        </div>
-      )}
-
-      {!showInfo && !authenticated && (
-        <div className="password-gate">
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => { setPassword(e.target.value); setAuthError(false); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }}
-            placeholder="Password"
-            className={`password-input${authError ? ' password-error' : ''}`}
-            autoFocus
-          />
         </div>
       )}
 

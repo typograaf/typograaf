@@ -27,6 +27,11 @@ async function getAccessToken() {
 }
 
 export async function GET(request: NextRequest) {
+  const cookies = request.headers.get('cookie') || ''
+  if (!cookies.includes('auth=1')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const path = request.nextUrl.searchParams.get('path')
 
   if (!path) {

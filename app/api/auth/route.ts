@@ -4,5 +4,16 @@ export async function POST(request: NextRequest) {
   const { password } = await request.json()
   const correct = password === process.env.SITE_PASSWORD
 
-  return NextResponse.json({ success: correct })
+  const response = NextResponse.json({ success: correct })
+
+  if (correct) {
+    response.cookies.set('auth', '1', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      path: '/',
+    })
+  }
+
+  return response
 }
