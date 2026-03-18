@@ -2,8 +2,7 @@ import { Dropbox, files } from 'dropbox'
 import { NextResponse } from 'next/server'
 import projectOrder from '../../../project-order.json'
 
-// Cache for 1 hour - Dropbox temporary links are valid for 4 hours
-export const revalidate = 3600
+export const dynamic = 'force-dynamic'
 
 async function getAccessToken() {
   const refreshToken = process.env.DROPBOX_REFRESH_TOKEN
