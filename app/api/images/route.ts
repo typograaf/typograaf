@@ -2,8 +2,8 @@ import { Dropbox, files } from 'dropbox'
 import { NextResponse } from 'next/server'
 import projectOrder from '../../../project-order.json'
 
-// No caching - always fetch fresh Dropbox links
-export const dynamic = 'force-dynamic'
+// Cache for 1 hour - Dropbox temporary links are valid for 4 hours
+export const revalidate = 3600
 
 async function getAccessToken() {
   const refreshToken = process.env.DROPBOX_REFRESH_TOKEN
@@ -30,12 +30,7 @@ async function getAccessToken() {
   return data.access_token
 }
 
-export async function GET(request: Request) {
-  const cookies = request.headers.get('cookie') || ''
-  if (!cookies.includes('auth=1')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+export async function GET() {
   const folderPath = process.env.DROPBOX_FOLDER_PATH || ''
 
   try {
