@@ -17,7 +17,12 @@ export async function GET(request: NextRequest) {
   const secret = request.nextUrl.searchParams.get('secret')
   if (init === 'true') {
     if (secret !== process.env.SYNC_SECRET) {
-      return NextResponse.json({ error: 'Invalid secret' }, { status: 401 })
+      return NextResponse.json({
+        error: 'Invalid secret',
+        envSet: !!process.env.SYNC_SECRET,
+        envLength: process.env.SYNC_SECRET?.length ?? 0,
+        receivedLength: secret?.length ?? 0,
+      }, { status: 401 })
     }
     const result = await syncWithDropbox()
     return NextResponse.json({ ok: true, ...result })
