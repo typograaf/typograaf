@@ -102,6 +102,7 @@ export default function Home() {
     document.documentElement.classList.add('lightbox-open')
     setSelectedImage(image)
     setLightboxUrl(image.url)
+    history.pushState({ lightbox: true }, '')
   }
 
   const closeModal = useCallback(() => {
@@ -114,14 +115,27 @@ export default function Home() {
     })
   }, [])
 
+  const closeLightbox = useCallback(() => {
+    if (!lightboxOpenRef.current) return
+    closeModal()
+    history.back()
+  }, [closeModal])
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (lightboxOpenRef.current) closeModal()
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [closeModal])
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeModal()
+      if (e.key === 'Escape') closeLightbox()
     }
     window.addEventListener('keydown', handleEsc)
     return () => window.removeEventListener('keydown', handleEsc)
-  }, [closeModal])
+  }, [closeLightbox])
 
   // Layout calculations
   const layout = useMemo(() => {
@@ -228,7 +242,7 @@ export default function Home() {
       {selectedImage && (
         <Lightbox
           url={lightboxUrl}
-          onClose={closeModal}
+          onClose={closeLightbox}
         />
       )}
     </>
