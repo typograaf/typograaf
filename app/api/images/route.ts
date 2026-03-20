@@ -20,8 +20,8 @@ export async function GET() {
       const projectB = getProject(b.path)
       const indexA = projectOrder.findIndex(p => p.toLowerCase() === projectA)
       const indexB = projectOrder.findIndex(p => p.toLowerCase() === projectB)
-      const orderA = indexA === -1 ? -1 : indexA
-      const orderB = indexB === -1 ? -1 : indexB
+      const orderA = indexA === -1 ? projectOrder.length : indexA
+      const orderB = indexB === -1 ? projectOrder.length : indexB
       if (orderA !== orderB) return orderA - orderB
       return a.name.localeCompare(b.name)
     })
