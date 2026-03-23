@@ -313,22 +313,25 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
   const didDragRef = useRef(false)
   const mouseDownPosRef = useRef({ x: 0, y: 0 })
 
-  // Handle zoom wheel
+  // Handle zoom wheel + block passive touchmove so we can call preventDefault
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault()
       const delta = e.deltaY > 0 ? 0.9 : 1.1
       setScale(s => Math.min(Math.max(s * delta, 1), 5))
     }
+    const blockPassive = (e: TouchEvent) => e.preventDefault()
 
     const container = containerRef.current
     if (container) {
       container.addEventListener('wheel', handleWheel, { passive: false })
+      container.addEventListener('touchmove', blockPassive, { passive: false })
     }
 
     return () => {
       if (container) {
         container.removeEventListener('wheel', handleWheel)
+        container.removeEventListener('touchmove', blockPassive)
       }
     }
   }, [])
@@ -379,30 +382,66 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
     }
   }, [onClose])
 
-  // Simple touch handling - tap to close, no zoom/pan on mobile
+  const lastTapRef = useRef<number>(0)
+  const pinchStartRef = useRef<{ distance: number; scale: number } | null>(null)
+  const touchDragStartRef = useRef({ x: 0, y: 0 })
+
+  const getPinchDistance = (touches: React.TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX
+    const dy = touches[0].clientY - touches[1].clientY
+    return Math.sqrt(dx * dx + dy * dy)
+  }
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       didDragRef.current = false
       mouseDownPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      touchDragStartRef.current = { x: e.touches[0].clientX - position.x, y: e.touches[0].clientY - position.y }
+    } else if (e.touches.length === 2) {
+      didDragRef.current = true
+      pinchStartRef.current = { distance: getPinchDistance(e.touches), scale }
     }
-  }, [])
+  }, [position, scale])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 1) {
+    if (e.touches.length === 2 && pinchStartRef.current) {
+      const newDistance = getPinchDistance(e.touches)
+      const newScale = Math.min(Math.max(pinchStartRef.current.scale * (newDistance / pinchStartRef.current.distance), 1), 8)
+      setScale(newScale)
+    } else if (e.touches.length === 1) {
       const dx = Math.abs(e.touches[0].clientX - mouseDownPosRef.current.x)
       const dy = Math.abs(e.touches[0].clientY - mouseDownPosRef.current.y)
-      if (dx > 5 || dy > 5) {
-        didDragRef.current = true
+      if (dx > 5 || dy > 5) didDragRef.current = true
+      if (scale > 1) {
+        setPosition({
+          x: e.touches[0].clientX - touchDragStartRef.current.x,
+          y: e.touches[0].clientY - touchDragStartRef.current.y,
+        })
       }
     }
-  }, [])
+  }, [scale])
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     e.preventDefault()
-    if (!didDragRef.current) {
-      onClose()
+    pinchStartRef.current = null
+    if (didDragRef.current) return
+    const now = Date.now()
+    if (now - lastTapRef.current < 300) {
+      // Double tap — zoom in or reset
+      lastTapRef.current = 0
+      if (scale > 1) {
+        setScale(1)
+        setPosition({ x: 0, y: 0 })
+      } else {
+        setScale(2.5)
+      }
+    } else {
+      lastTapRef.current = now
+      setTimeout(() => {
+        if (lastTapRef.current === now) onClose()
+      }, 300)
     }
-  }, [onClose])
+  }, [onClose, scale])
 
   return (
     <div
