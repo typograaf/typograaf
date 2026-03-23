@@ -1,4 +1,4 @@
-import { list, put, del } from '@vercel/blob'
+import { put, del } from '@vercel/blob'
 import { getDropboxImageFiles, getDropboxTempLink } from './dropbox'
 
 export interface ManifestImage {
@@ -8,11 +8,16 @@ export interface ManifestImage {
   blobUrl: string
 }
 
+function getManifestUrl(): string {
+  const token = process.env.BLOB_READ_WRITE_TOKEN || ''
+  const storeId = token.match(/vercel_blob_rw_([^_]+)/)?.[1] || ''
+  return `https://${storeId}.public.blob.vercel-storage.com/manifest.json`
+}
+
 export async function getManifest(): Promise<ManifestImage[]> {
   try {
-    const { blobs } = await list({ prefix: 'manifest.json' })
-    if (!blobs.length) return []
-    const res = await fetch(blobs[0].url)
+    const res = await fetch(getManifestUrl(), { cache: 'no-store' })
+    if (!res.ok) return []
     return res.json()
   } catch {
     return []
