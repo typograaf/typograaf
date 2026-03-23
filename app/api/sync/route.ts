@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { syncWithDropbox } from '../../../lib/sync'
 
+export const maxDuration = 300
+
 // Dropbox sends a GET with ?challenge= to verify the endpoint
 export async function GET(request: NextRequest) {
   const challenge = request.nextUrl.searchParams.get('challenge')
@@ -19,8 +21,13 @@ export async function GET(request: NextRequest) {
     if (secret !== process.env.DROPBOX_APP_SECRET) {
       return NextResponse.json({ error: 'Invalid secret' }, { status: 401 })
     }
-    const result = await syncWithDropbox()
-    return NextResponse.json({ ok: true, ...result })
+    try {
+      const result = await syncWithDropbox()
+      return NextResponse.json({ ok: true, ...result })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return NextResponse.json({ error: message }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ error: 'Bad request' }, { status: 400 })
