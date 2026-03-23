@@ -351,7 +351,13 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
       const base = e.ctrlKey ? 0.97 : 0.999
       const factor = Math.pow(base, e.deltaY)
       const newScale = Math.min(Math.max(scaleRef.current * factor, fitScaleRef.current), 20)
-      applyTransform(posRef.current, newScale)
+      const cx = window.innerWidth / 2
+      const cy = window.innerHeight / 2
+      const ratio = newScale / scaleRef.current
+      applyTransform({
+        x: (e.clientX - cx) * (1 - ratio) + posRef.current.x * ratio,
+        y: (e.clientY - cy) * (1 - ratio) + posRef.current.y * ratio,
+      }, newScale)
     }
     const block = (e: TouchEvent) => e.preventDefault()
     const container = containerRef.current
