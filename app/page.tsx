@@ -422,7 +422,6 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
         <img
           src={url}
           alt=""
-          crossOrigin="anonymous"
           className="lightbox-image"
           draggable={false}
           style={{
