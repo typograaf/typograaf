@@ -305,143 +305,141 @@ function VirtualItem({
 }
 
 function Lightbox({ url, onClose }: { url: string | null; onClose: () => void }) {
-  const [scale, setScale] = useState(1)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const containerRef = useRef<HTMLDivElement>(null)
+  const imageRef = useRef<HTMLImageElement>(null)
+  const scaleRef = useRef(1)
+  const posRef = useRef({ x: 0, y: 0 })
+  const isDraggingRef = useRef(false)
+  const [isDragging, setIsDragging] = useState(false)
   const didDragRef = useRef(false)
-  const mouseDownPosRef = useRef({ x: 0, y: 0 })
+  const downPosRef = useRef({ x: 0, y: 0 })
+  const dragStartRef = useRef({ x: 0, y: 0 })
+  const pinchRef = useRef<{ dist: number; scale: number; midX: number; midY: number; posX: number; posY: number } | null>(null)
+  const lastTapRef = useRef(0)
 
-  // Handle zoom wheel + block passive touchmove so we can call preventDefault
-  useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      const delta = e.deltaY > 0 ? 0.9 : 1.1
-      setScale(s => Math.min(Math.max(s * delta, 1), 5))
-    }
-    const blockPassive = (e: TouchEvent) => e.preventDefault()
-
-    const container = containerRef.current
-    if (container) {
-      container.addEventListener('wheel', handleWheel, { passive: false })
-      container.addEventListener('touchmove', blockPassive, { passive: false })
-    }
-
-    return () => {
-      if (container) {
-        container.removeEventListener('wheel', handleWheel)
-        container.removeEventListener('touchmove', blockPassive)
-      }
+  const applyTransform = useCallback((pos: { x: number; y: number }, s: number, animated = false) => {
+    posRef.current = pos
+    scaleRef.current = s
+    if (imageRef.current) {
+      imageRef.current.style.transition = animated ? 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none'
+      imageRef.current.style.transform = `translate(${pos.x}px, ${pos.y}px) scale(${s})`
     }
   }, [])
 
   // Reset on new image
+  useEffect(() => { applyTransform({ x: 0, y: 0 }, 1) }, [url, applyTransform])
+
+  // Wheel zoom + block passive touchmove
   useEffect(() => {
-    setScale(1)
-    setPosition({ x: 0, y: 0 })
-  }, [url])
-
-
-  // Double click to zoom/reset
-  const handleDoubleClick = useCallback(() => {
-    if (scale > 1) {
-      setScale(1)
-      setPosition({ x: 0, y: 0 })
-    } else {
-      setScale(2.5)
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const delta = e.deltaY > 0 ? 0.9 : 1.1
+      applyTransform(posRef.current, Math.min(Math.max(scaleRef.current * delta, 1), 20))
     }
-  }, [scale])
+    const block = (e: TouchEvent) => e.preventDefault()
+    const container = containerRef.current
+    if (container) {
+      container.addEventListener('wheel', handleWheel, { passive: false })
+      container.addEventListener('touchmove', block, { passive: false })
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener('wheel', handleWheel)
+        container.removeEventListener('touchmove', block)
+      }
+    }
+  }, [applyTransform])
 
-  // Mouse drag for panning
+  // Double click
+  const handleDoubleClick = useCallback(() => {
+    if (scaleRef.current > 1) applyTransform({ x: 0, y: 0 }, 1, true)
+    else applyTransform(posRef.current, 3, true)
+  }, [applyTransform])
+
+  // Mouse
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     didDragRef.current = false
-    mouseDownPosRef.current = { x: e.clientX, y: e.clientY }
+    downPosRef.current = { x: e.clientX, y: e.clientY }
+    isDraggingRef.current = true
     setIsDragging(true)
-    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
-  }, [position])
+    dragStartRef.current = { x: e.clientX - posRef.current.x, y: e.clientY - posRef.current.y }
+  }, [])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    const dx = Math.abs(e.clientX - mouseDownPosRef.current.x)
-    const dy = Math.abs(e.clientY - mouseDownPosRef.current.y)
-    if (dx > 5 || dy > 5) {
+    if (Math.abs(e.clientX - downPosRef.current.x) > 5 || Math.abs(e.clientY - downPosRef.current.y) > 5)
       didDragRef.current = true
-    }
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      })
-    }
-  }, [isDragging, dragStart])
+    if (isDraggingRef.current)
+      applyTransform({ x: e.clientX - dragStartRef.current.x, y: e.clientY - dragStartRef.current.y }, scaleRef.current)
+  }, [applyTransform])
 
   const handleMouseUp = useCallback(() => {
+    isDraggingRef.current = false
     setIsDragging(false)
-    if (!didDragRef.current) {
-      onClose()
-    }
+    if (!didDragRef.current) onClose()
   }, [onClose])
 
-  const lastTapRef = useRef<number>(0)
-  const pinchStartRef = useRef<{ distance: number; scale: number } | null>(null)
-  const touchDragStartRef = useRef({ x: 0, y: 0 })
-
-  const getPinchDistance = (touches: React.TouchList) => {
-    const dx = touches[0].clientX - touches[1].clientX
-    const dy = touches[0].clientY - touches[1].clientY
-    return Math.sqrt(dx * dx + dy * dy)
-  }
+  // Touch
+  const pinchDist = (t: React.TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       didDragRef.current = false
-      mouseDownPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-      touchDragStartRef.current = { x: e.touches[0].clientX - position.x, y: e.touches[0].clientY - position.y }
+      downPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      dragStartRef.current = { x: e.touches[0].clientX - posRef.current.x, y: e.touches[0].clientY - posRef.current.y }
     } else if (e.touches.length === 2) {
       didDragRef.current = true
-      pinchStartRef.current = { distance: getPinchDistance(e.touches), scale }
-    }
-  }, [position, scale])
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2 && pinchStartRef.current) {
-      const newDistance = getPinchDistance(e.touches)
-      const newScale = Math.min(Math.max(pinchStartRef.current.scale * (newDistance / pinchStartRef.current.distance), 1), 8)
-      setScale(newScale)
-    } else if (e.touches.length === 1) {
-      const dx = Math.abs(e.touches[0].clientX - mouseDownPosRef.current.x)
-      const dy = Math.abs(e.touches[0].clientY - mouseDownPosRef.current.y)
-      if (dx > 5 || dy > 5) didDragRef.current = true
-      if (scale > 1) {
-        setPosition({
-          x: e.touches[0].clientX - touchDragStartRef.current.x,
-          y: e.touches[0].clientY - touchDragStartRef.current.y,
-        })
+      pinchRef.current = {
+        dist: pinchDist(e.touches),
+        scale: scaleRef.current,
+        midX: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        midY: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+        posX: posRef.current.x,
+        posY: posRef.current.y,
       }
     }
-  }, [scale])
+  }, [])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinchRef.current) {
+      const p = pinchRef.current
+      const newScale = Math.min(Math.max(p.scale * (pinchDist(e.touches) / p.dist), 1), 20)
+      const curMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2
+      const curMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2
+      const cx = window.innerWidth / 2
+      const cy = window.innerHeight / 2
+      const ratio = newScale / p.scale
+      applyTransform({
+        x: (p.midX - cx) * (1 - ratio) + p.posX * ratio + (curMidX - p.midX),
+        y: (p.midY - cy) * (1 - ratio) + p.posY * ratio + (curMidY - p.midY),
+      }, newScale)
+    } else if (e.touches.length === 1) {
+      if (Math.abs(e.touches[0].clientX - downPosRef.current.x) > 5 || Math.abs(e.touches[0].clientY - downPosRef.current.y) > 5)
+        didDragRef.current = true
+      if (scaleRef.current > 1)
+        applyTransform({ x: e.touches[0].clientX - dragStartRef.current.x, y: e.touches[0].clientY - dragStartRef.current.y }, scaleRef.current)
+    }
+  }, [applyTransform])
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     e.preventDefault()
-    pinchStartRef.current = null
+    // Transition from pinch to single-finger pan — update anchor
+    if (e.touches.length === 1) {
+      pinchRef.current = null
+      dragStartRef.current = { x: e.touches[0].clientX - posRef.current.x, y: e.touches[0].clientY - posRef.current.y }
+      return
+    }
+    pinchRef.current = null
     if (didDragRef.current) return
     const now = Date.now()
     if (now - lastTapRef.current < 300) {
-      // Double tap — zoom in or reset
       lastTapRef.current = 0
-      if (scale > 1) {
-        setScale(1)
-        setPosition({ x: 0, y: 0 })
-      } else {
-        setScale(2.5)
-      }
+      if (scaleRef.current > 1) applyTransform({ x: 0, y: 0 }, 1, true)
+      else applyTransform(posRef.current, 3, true)
     } else {
       lastTapRef.current = now
-      setTimeout(() => {
-        if (lastTapRef.current === now) onClose()
-      }, 300)
+      setTimeout(() => { if (lastTapRef.current === now) onClose() }, 300)
     }
-  }, [onClose, scale])
+  }, [onClose, applyTransform])
 
   return (
     <div
@@ -459,15 +457,12 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
     >
       {url ? (
         <img
+          ref={imageRef}
           src={url}
           alt=""
           className="lightbox-image"
           draggable={false}
-          style={{
-            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-            transition: isDragging ? 'none' : 'transform 0.2s ease',
-            pointerEvents: 'none'
-          }}
+          style={{ pointerEvents: 'none', willChange: 'transform' }}
         />
       ) : (
         <div className="lightbox-loading" />
