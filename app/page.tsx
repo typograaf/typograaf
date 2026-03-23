@@ -308,6 +308,7 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
   const containerRef = useRef<HTMLDivElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
   const scaleRef = useRef(1)
+  const fitScaleRef = useRef(1)
   const posRef = useRef({ x: 0, y: 0 })
   const isDraggingRef = useRef(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -326,15 +327,30 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
     }
   }, [])
 
-  // Reset on new image
-  useEffect(() => { applyTransform({ x: 0, y: 0 }, 1) }, [url, applyTransform])
+  // On image load: calculate fit scale from natural dimensions
+  const handleImageLoad = useCallback(() => {
+    if (!imageRef.current) return
+    const { naturalWidth, naturalHeight } = imageRef.current
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const fit = Math.min(vw / naturalWidth, vh / naturalHeight)
+    fitScaleRef.current = fit
+    applyTransform({ x: 0, y: 0 }, fit)
+  }, [applyTransform])
+
+  // Reset state when url changes
+  useEffect(() => {
+    fitScaleRef.current = 1
+    applyTransform({ x: 0, y: 0 }, 1)
+  }, [url, applyTransform])
 
   // Wheel zoom + block passive touchmove
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault()
       const delta = e.deltaY > 0 ? 0.9 : 1.1
-      applyTransform(posRef.current, Math.min(Math.max(scaleRef.current * delta, 1), 20))
+      const newScale = Math.min(Math.max(scaleRef.current * delta, fitScaleRef.current), 20)
+      applyTransform(posRef.current, newScale)
     }
     const block = (e: TouchEvent) => e.preventDefault()
     const container = containerRef.current
@@ -352,8 +368,8 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
 
   // Double click
   const handleDoubleClick = useCallback(() => {
-    if (scaleRef.current > 1) applyTransform({ x: 0, y: 0 }, 1, true)
-    else applyTransform(posRef.current, 3, true)
+    if (scaleRef.current > fitScaleRef.current * 1.05) applyTransform({ x: 0, y: 0 }, fitScaleRef.current, true)
+    else applyTransform(posRef.current, fitScaleRef.current * 3, true)
   }, [applyTransform])
 
   // Mouse
@@ -402,7 +418,7 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2 && pinchRef.current) {
       const p = pinchRef.current
-      const newScale = Math.min(Math.max(p.scale * (pinchDist(e.touches) / p.dist), 1), 20)
+      const newScale = Math.min(Math.max(p.scale * (pinchDist(e.touches) / p.dist), fitScaleRef.current), 20)
       const curMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2
       const curMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2
       const cx = window.innerWidth / 2
@@ -415,8 +431,7 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
     } else if (e.touches.length === 1) {
       if (Math.abs(e.touches[0].clientX - downPosRef.current.x) > 5 || Math.abs(e.touches[0].clientY - downPosRef.current.y) > 5)
         didDragRef.current = true
-      if (scaleRef.current > 1)
-        applyTransform({ x: e.touches[0].clientX - dragStartRef.current.x, y: e.touches[0].clientY - dragStartRef.current.y }, scaleRef.current)
+      applyTransform({ x: e.touches[0].clientX - dragStartRef.current.x, y: e.touches[0].clientY - dragStartRef.current.y }, scaleRef.current)
     }
   }, [applyTransform])
 
@@ -433,8 +448,8 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
     const now = Date.now()
     if (now - lastTapRef.current < 300) {
       lastTapRef.current = 0
-      if (scaleRef.current > 1) applyTransform({ x: 0, y: 0 }, 1, true)
-      else applyTransform(posRef.current, 3, true)
+      if (scaleRef.current > fitScaleRef.current * 1.05) applyTransform({ x: 0, y: 0 }, fitScaleRef.current, true)
+      else applyTransform(posRef.current, fitScaleRef.current * 3, true)
     } else {
       lastTapRef.current = now
       setTimeout(() => { if (lastTapRef.current === now) onClose() }, 300)
@@ -462,6 +477,7 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
           alt=""
           className="lightbox-image"
           draggable={false}
+          onLoad={handleImageLoad}
           style={{ pointerEvents: 'none', willChange: 'transform' }}
         />
       ) : (
