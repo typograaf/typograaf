@@ -348,7 +348,8 @@ function Lightbox({ url, onClose }: { url: string | null; onClose: () => void })
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault()
-      const factor = Math.pow(0.999, e.deltaY)
+      const base = e.ctrlKey ? 0.97 : 0.999
+      const factor = Math.pow(base, e.deltaY)
       const newScale = Math.min(Math.max(scaleRef.current * factor, fitScaleRef.current), 20)
       applyTransform(posRef.current, newScale)
     }
