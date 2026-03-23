@@ -1,4 +1,4 @@
-import { put, del } from '@vercel/blob'
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { getDropboxImageFiles, getDropboxTempLink } from './dropbox'
 
 export interface ManifestImage {
@@ -8,15 +8,23 @@ export interface ManifestImage {
   blobUrl: string
 }
 
-function getManifestUrl(): string {
-  const token = process.env.BLOB_READ_WRITE_TOKEN || ''
-  const storeId = token.match(/vercel_blob_rw_([^_]+)/)?.[1] || ''
-  return `https://${storeId}.public.blob.vercel-storage.com/manifest.json`
+function getS3Client() {
+  return new S3Client({
+    region: 'auto',
+    endpoint: process.env.R2_ENDPOINT!,
+    credentials: {
+      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    },
+  })
 }
+
+const BUCKET = 'typograaf'
+const PUBLIC_URL = process.env.R2_PUBLIC_URL || ''
 
 export async function getManifest(): Promise<ManifestImage[]> {
   try {
-    const res = await fetch(getManifestUrl(), { cache: 'no-store' })
+    const res = await fetch(`${PUBLIC_URL}/manifest.json`, { cache: 'no-store' })
     if (!res.ok) return []
     return res.json()
   } catch {
@@ -25,11 +33,13 @@ export async function getManifest(): Promise<ManifestImage[]> {
 }
 
 async function saveManifest(images: ManifestImage[]): Promise<void> {
-  await put('manifest.json', JSON.stringify(images), {
-    access: 'public',
-    allowOverwrite: true,
-    contentType: 'application/json',
-  })
+  const client = getS3Client()
+  await client.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: 'manifest.json',
+    Body: JSON.stringify(images),
+    ContentType: 'application/json',
+  }))
 }
 
 export async function syncWithDropbox(): Promise<{ added: number; deleted: number }> {
@@ -44,10 +54,15 @@ export async function syncWithDropbox(): Promise<{ added: number; deleted: numbe
   const toAdd = dropboxFiles.filter(f => !manifestById.has(f.id))
   const toDelete = manifest.filter(img => !dropboxById.has(img.id))
 
-  // Delete removed images from Blob
-  await Promise.all(toDelete.map(img => del(img.blobUrl).catch(() => {})))
+  const client = getS3Client()
 
-  // Upload new images to Blob
+  // Delete removed images from R2
+  await Promise.all(toDelete.map(img => {
+    const key = img.blobUrl.replace(`${PUBLIC_URL}/`, '')
+    return client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key })).catch(() => {})
+  }))
+
+  // Upload new images to R2
   const added: ManifestImage[] = (
     await Promise.all(
       toAdd.map(async (file) => {
@@ -56,12 +71,15 @@ export async function syncWithDropbox(): Promise<{ added: number; deleted: numbe
           const imageRes = await fetch(tempUrl)
           const imageBuffer = await imageRes.arrayBuffer()
           const ext = file.name.split('.').pop() || 'jpg'
-          const blob = await put(`images/${file.id}.${ext}`, imageBuffer, {
-            access: 'public',
-            allowOverwrite: true,
-            contentType: imageRes.headers.get('content-type') || 'image/jpeg',
-          })
-          return { id: file.id, name: file.name, path: file.path, blobUrl: blob.url }
+          const safeId = file.id.replace(':', '_')
+          const key = `images/${safeId}.${ext}`
+          await client.send(new PutObjectCommand({
+            Bucket: BUCKET,
+            Key: key,
+            Body: Buffer.from(imageBuffer),
+            ContentType: imageRes.headers.get('content-type') || 'image/jpeg',
+          }))
+          return { id: file.id, name: file.name, path: file.path, blobUrl: `${PUBLIC_URL}/${key}` }
         } catch {
           return null
         }
