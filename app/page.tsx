@@ -20,6 +20,7 @@ export default function Home() {
   const [scrollTop, setScrollTop] = useState(0)
   const [columns, setColumns] = useState(8)
   const [windowHeight, setWindowHeight] = useState(800)
+  const [isScrolling, setIsScrolling] = useState(false)
   // Initialize and update layout (useLayoutEffect to prevent flash)
   useLayoutEffect(() => {
     const updateLayout = () => {
@@ -48,22 +49,31 @@ export default function Home() {
   // Track scroll position (but not when lightbox is open)
   const lightboxOpenRef = useRef(false)
   useEffect(() => {
+    let scrollTimeout: ReturnType<typeof setTimeout> | null = null
     const handleScroll = () => {
       if (!lightboxOpenRef.current) {
         setScrollTop(window.scrollY)
       }
+      setIsScrolling(true)
+      if (scrollTimeout) clearTimeout(scrollTimeout)
+      scrollTimeout = setTimeout(() => setIsScrolling(false), 220)
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (scrollTimeout) clearTimeout(scrollTimeout)
+    }
   }, [])
 
-  // Preload the open icon
+  // Preload icon layers
   useEffect(() => {
-    const link = document.createElement('link')
-    link.rel = 'preload'
-    link.as = 'image'
-    link.href = '/icon-open.png'
-    document.head.appendChild(link)
+    ;['/icon-back.png', '/icon-middle.png', '/icon-front.png'].forEach((href) => {
+      const link = document.createElement('link')
+      link.rel = 'preload'
+      link.as = 'image'
+      link.href = href
+      document.head.appendChild(link)
+    })
   }, [])
 
   const loadImages = useCallback((retryCount = 0) => {
@@ -197,12 +207,16 @@ export default function Home() {
 
   return (
     <>
-      <img
-        src={showInfo ? "/icon-open.png" : "/icon.png"}
-        alt=""
-        className={showInfo ? "logo logo-open" : "logo"}
+      <div
+        className={`logo${showInfo ? ' logo-open' : ''}${!showInfo && isScrolling ? ' logo-peek' : ''}`}
         onClick={() => setShowInfo(!showInfo)}
-      />
+        role="button"
+        aria-label={showInfo ? 'Hide contact info' : 'Show contact info'}
+      >
+        <img src="/icon-back.png" alt="" className="logo-layer logo-back" />
+        <img src="/icon-middle.png" alt="" className="logo-layer logo-middle" />
+        <img src="/icon-front.png" alt="" className="logo-layer logo-front" />
+      </div>
       {showInfo && (
         <div className="info">
           <p><a href="tel:+32493459296">t. +32 (0) 493 45 92 96</a></p>
