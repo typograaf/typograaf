@@ -106,7 +106,7 @@ body {
 .info {
   position: fixed;
   top: 32px;
-  left: 80px;
+  left: 96px;
   z-index: 100;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro', sans-serif;
   font-size: 14px;
