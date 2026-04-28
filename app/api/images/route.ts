@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getManifest } from '../../../lib/sync'
-import projectOrder from '../../../project-order.json'
+import { getManifest, getProjectOrder } from '../../../lib/sync'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const manifest = await getManifest()
+    const [manifest, projectOrder] = await Promise.all([getManifest(), getProjectOrder()])
     const folderPath = (process.env.DROPBOX_FOLDER_PATH || '').toLowerCase()
 
     const getProject = (path: string) => {
