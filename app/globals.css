@@ -45,14 +45,14 @@ body {
   min-height: 100vh;
 }
 
-/* Layered folder logo — proportions and animation match the JC tool's
-   menu-bar/avatar icon, scaled from 22.3px to 48px. */
+/* Layered folder logo — proportions match the JC tool's menu-bar/avatar
+   icon (22.3 × 22), scaled to 32px wide. */
 .logo {
   position: fixed;
-  top: 28px;
-  left: 28px;
-  width: 48px;
-  height: 47.3px;
+  top: 32px;
+  left: 32px;
+  width: 32px;
+  height: 31.6px;
   z-index: 100;
   cursor: pointer;
 }
@@ -65,60 +65,48 @@ body {
   background-size: 100% 100%;
   background-position: center;
   pointer-events: none;
-  transition: transform 0.55s cubic-bezier(0.34, 1.4, 0.64, 1);
+  transition: transform 0.55s cubic-bezier(0.32, 0.72, 0.35, 1);
   will-change: transform;
 }
 
 .logo-back {
-  bottom: 4.3px;
-  height: 43px;
+  bottom: 2.87px;
+  height: 28.7px;
   background-image: url("/icon-back.png");
 }
 
 .logo-middle {
-  bottom: 4.3px;
-  height: 38.05px;
+  bottom: 2.87px;
+  height: 25.4px;
   background-image: url("/icon-middle.png");
 }
 
 .logo-front {
-  bottom: 4.3px;
-  height: 32.07px;
+  bottom: 2.87px;
+  height: 21.4px;
   background-image: url("/icon-front.png");
 }
 
-/* Click-open state — front falls forward most, middle a little, back least.
-   Values are JC's talking-peak translations scaled by 48/22.3. */
-.logo-open .logo-back   { transform: translateY(1.29px); }
-.logo-open .logo-middle { transform: translateY(3.66px); }
-.logo-open .logo-front  { transform: translateY(7.53px); }
+/* Open state — front falls forward most, middle a little, back least.
+   Values are JC's talking-peak translations (0.6/1.7/3.5 at 22.3px) scaled. */
+.logo-open .logo-back,
+.logo-talk .logo-back   { transform: translateY(0.86px); }
+.logo-open .logo-middle,
+.logo-talk .logo-middle { transform: translateY(2.44px); }
+.logo-open .logo-front,
+.logo-talk .logo-front  { transform: translateY(5.02px); }
 
-/* Scroll talking — same keyframes as the JC avatar, oscillating gap. */
-@keyframes logo-talk-back {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(1.29px); }
-}
-@keyframes logo-talk-middle {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(3.66px); }
-}
-@keyframes logo-talk-front {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(7.53px); }
-}
-
-.logo-talk .logo-back   { animation: logo-talk-back   0.85s ease-in-out infinite; }
-.logo-talk .logo-middle { animation: logo-talk-middle 0.85s ease-in-out infinite; }
-.logo-talk .logo-front  { animation: logo-talk-front  0.85s ease-in-out infinite; }
+/* The shared `transition: transform` on .logo-layer eases both directions —
+   into the open/peek pose and back to rest when the class is removed. */
 
 @media (max-width: 900px) {
-  .logo { top: 22px; left: 22px; }
+  .logo { top: 24px; left: 24px; }
 }
 
 .info {
   position: fixed;
-  top: 30px;
-  left: 92px;
+  top: 32px;
+  left: 80px;
   z-index: 100;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro', sans-serif;
   font-size: 14px;
