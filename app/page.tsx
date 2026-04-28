@@ -208,14 +208,14 @@ export default function Home() {
   return (
     <>
       <div
-        className={`logo${showInfo ? ' logo-open' : ''}${!showInfo && isScrolling ? ' logo-peek' : ''}`}
+        className={`logo${showInfo ? ' logo-open' : ''}${!showInfo && isScrolling ? ' logo-talk' : ''}`}
         onClick={() => setShowInfo(!showInfo)}
         role="button"
         aria-label={showInfo ? 'Hide contact info' : 'Show contact info'}
       >
-        <img src="/icon-back.png" alt="" className="logo-layer logo-back" />
-        <img src="/icon-middle.png" alt="" className="logo-layer logo-middle" />
-        <img src="/icon-front.png" alt="" className="logo-layer logo-front" />
+        <div className="logo-layer logo-back" />
+        <div className="logo-layer logo-middle" />
+        <div className="logo-layer logo-front" />
       </div>
       {showInfo && (
         <div className="info">
