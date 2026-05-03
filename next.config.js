@@ -1,22 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  async redirects() {
-    return [
-      // Force trailing slash on /calendar so relative URLs in the proxied
-      // booking HTML (styles.css, app.js, icons) resolve under /calendar/
-      // instead of typografie.be root.
-      { source: '/calendar', destination: '/calendar/', permanent: true },
-    ]
-  },
   async rewrites() {
     return [
       // /work serves the portfolio (same as /). URL stays /work.
       { source: '/work', destination: '/' },
-      // /calendar/* is a server-side proxy to the existing Cloudflare Pages
-      // deploy at calendar.typografie.be. Browser URL stays typografie.be/calendar/.
-      // The booking app's app.js detects the /calendar prefix at runtime
-      // and prepends it to /api/* calls so this rewrite catches them too.
-      { source: '/calendar/:path*', destination: 'https://calendar.typografie.be/:path*' },
+    ]
+  },
+  async redirects() {
+    return [
+      // /calendar redirects to the existing Cloudflare Pages deploy. URL
+      // changes in the browser but it works reliably (the proxy approach
+      // ran into redirect loops via Cloudflare's host-aware logic).
+      // ?from=menu is preserved through the 308 so the gentle-close
+      // animation still triggers on the destination.
+      { source: '/calendar', destination: 'https://calendar.typografie.be', permanent: true },
     ]
   },
   images: {

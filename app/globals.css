@@ -139,7 +139,19 @@ body {
 .menu a { color: inherit; text-decoration: none; cursor: pointer; }
 
 @media (max-width: 900px) {
-  .menu { padding: 88px 24px 64px 24px; }
+  .menu {
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .menu-inner { animation-name: menu-fade-in-mobile; }
+}
+
+@keyframes menu-fade-in-mobile {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* /about page — bio + services in a 267px column right of the logo,
@@ -164,7 +176,15 @@ body {
 .about-page a { color: inherit; text-decoration: none; }
 
 @media (max-width: 900px) {
-  .about-page { max-width: none; margin: 88px 24px 64px 24px; }
+  .about-page {
+    max-width: none;
+    margin: 0;
+    padding: 24px;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
 }
 
 .feed {

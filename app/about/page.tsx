@@ -1,15 +1,32 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function About() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [closingFromMenu, setClosingFromMenu] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return new URLSearchParams(window.location.search).get('from') === 'menu'
+  })
+
+  useEffect(() => {
+    if (!closingFromMenu) return
+    const url = new URL(window.location.href)
+    url.searchParams.delete('from')
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setClosingFromMenu(false))
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const logoOpen = menuOpen || closingFromMenu
 
   return (
     <>
       <button
         type="button"
-        className={`logo${menuOpen ? ' logo-open' : ''}`}
+        className={`logo${logoOpen ? ' logo-open' : ''}`}
         onClick={() => setMenuOpen(!menuOpen)}
         aria-label={menuOpen ? 'Close menu' : 'Open menu'}
         aria-expanded={menuOpen}
@@ -23,7 +40,7 @@ export default function About() {
         <aside className="menu">
           <div className="menu-inner">
             <p className="menu-block">
-              <a href="/work">Work</a>&nbsp;&nbsp;<a href="/calendar">Calendar</a>&nbsp;&nbsp;<a href="/about">About</a><br />
+              <a href="/work?from=menu">Work</a>&nbsp;&nbsp;<a href="/calendar?from=menu">Calendar</a>&nbsp;&nbsp;<a href="/about?from=menu">About</a><br />
               t. +32 (0) 493 45 92 96<br />
               m. <a href="mailto:hello@typografie.be">hello@typografie.be</a><br />
               i. <a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">@typograaf</a>
