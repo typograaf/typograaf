@@ -1,32 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 export default function About() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [closingFromMenu, setClosingFromMenu] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return new URLSearchParams(window.location.search).get('from') === 'menu'
-  })
-
-  useEffect(() => {
-    if (!closingFromMenu) return
-    const url = new URL(window.location.href)
-    url.searchParams.delete('from')
-    window.history.replaceState({}, '', url.pathname + url.search + url.hash)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => setClosingFromMenu(false))
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const logoOpen = menuOpen || closingFromMenu
 
   return (
     <>
       <button
         type="button"
-        className={`logo${logoOpen ? ' logo-open' : ''}`}
+        className={`logo${menuOpen ? ' logo-open' : ''}`}
         onClick={() => setMenuOpen(!menuOpen)}
         aria-label={menuOpen ? 'Close menu' : 'Open menu'}
         aria-expanded={menuOpen}

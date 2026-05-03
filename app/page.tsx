@@ -17,13 +17,6 @@ export default function Home() {
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  // ?from=menu means we just clicked a menu link — start the logo in the
-  // open pose, then transition it closed after first paint so it gently
-  // settles instead of snapping shut.
-  const [closingFromMenu, setClosingFromMenu] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return new URLSearchParams(window.location.search).get('from') === 'menu'
-  })
   const [scrollTop, setScrollTop] = useState(0)
   const [columns, setColumns] = useState(8)
   const [windowHeight, setWindowHeight] = useState(800)
@@ -45,22 +38,6 @@ export default function Home() {
     window.addEventListener('resize', updateLayout)
     return () => window.removeEventListener('resize', updateLayout)
   }, [])
-
-  // Gentle close: if we landed here via ?from=menu, the logo starts in
-  // its open pose (closingFromMenu = true). Strip the param and, after
-  // first paint, drop the flag so the CSS transition closes the folder.
-  useEffect(() => {
-    if (!closingFromMenu) return
-    const url = new URL(window.location.href)
-    url.searchParams.delete('from')
-    window.history.replaceState({}, '', url.pathname + url.search + url.hash)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => setClosingFromMenu(false))
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const logoOpen = menuOpen || closingFromMenu
 
   // Scroll to top on mount and ensure scroll is unlocked
   useEffect(() => {
@@ -232,7 +209,7 @@ export default function Home() {
     <>
       <button
         type="button"
-        className={`logo${logoOpen ? ' logo-open' : ''}${!menuOpen && !logoOpen && isScrolling ? ' logo-talk' : ''}`}
+        className={`logo${menuOpen ? ' logo-open' : ''}${!menuOpen && isScrolling ? ' logo-talk' : ''}`}
         onClick={() => setMenuOpen(!menuOpen)}
         aria-label={menuOpen ? 'Close menu' : 'Open menu'}
         aria-expanded={menuOpen}

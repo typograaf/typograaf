@@ -101,6 +101,16 @@ body {
 .logo-open .logo-front,
 .logo-talk .logo-front  { transform: translateY(5.02px); }
 
+/* Gentle close on page load — pre-paint script in <head> tags <html>
+   with .from-menu when arriving via a menu link, then CSS animates the
+   folder layers from their open pose down to rest. */
+@keyframes folderClose-back   { from { transform: translateY(0.86px); } to { transform: translateY(0); } }
+@keyframes folderClose-middle { from { transform: translateY(2.44px); } to { transform: translateY(0); } }
+@keyframes folderClose-front  { from { transform: translateY(5.02px); } to { transform: translateY(0); } }
+.from-menu .logo-back   { animation: folderClose-back   0.55s cubic-bezier(0.32, 0.72, 0.35, 1) both; }
+.from-menu .logo-middle { animation: folderClose-middle 0.55s cubic-bezier(0.32, 0.72, 0.35, 1) both; }
+.from-menu .logo-front  { animation: folderClose-front  0.55s cubic-bezier(0.32, 0.72, 0.35, 1) both; }
+
 /* The shared `transition: transform` on .logo-layer eases both directions —
    into the open/peek pose and back to rest when the class is removed. */
 
@@ -184,6 +194,7 @@ body {
     align-items: center;
     justify-content: center;
     text-align: center;
+    animation-name: menu-fade-in-mobile;
   }
 }
 
