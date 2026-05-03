@@ -113,9 +113,9 @@ body {
 @keyframes folderClose-back   { from { transform: translateY(0.86px); } to { transform: translateY(0); } }
 @keyframes folderClose-middle { from { transform: translateY(2.44px); } to { transform: translateY(0); } }
 @keyframes folderClose-front  { from { transform: translateY(5.02px); } to { transform: translateY(0); } }
-.from-menu .logo-back   { animation: folderClose-back   0.55s cubic-bezier(0.32, 0.72, 0.35, 1); }
-.from-menu .logo-middle { animation: folderClose-middle 0.55s cubic-bezier(0.32, 0.72, 0.35, 1); }
-.from-menu .logo-front  { animation: folderClose-front  0.55s cubic-bezier(0.32, 0.72, 0.35, 1); }
+[data-from-menu] .logo-back   { animation: folderClose-back   0.55s cubic-bezier(0.32, 0.72, 0.35, 1); }
+[data-from-menu] .logo-middle { animation: folderClose-middle 0.55s cubic-bezier(0.32, 0.72, 0.35, 1); }
+[data-from-menu] .logo-front  { animation: folderClose-front  0.55s cubic-bezier(0.32, 0.72, 0.35, 1); }
 
 /* The shared `transition: transform` on .logo-layer eases both directions —
    into the open/peek pose and back to rest when the class is removed. */
