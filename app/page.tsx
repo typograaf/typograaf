@@ -16,7 +16,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
-  const [showInfo, setShowInfo] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [scrollTop, setScrollTop] = useState(0)
   const [columns, setColumns] = useState(8)
   const [windowHeight, setWindowHeight] = useState(800)
@@ -207,24 +207,30 @@ export default function Home() {
 
   return (
     <>
-      <div
-        className={`logo${showInfo ? ' logo-open' : ''}${!showInfo && isScrolling ? ' logo-talk' : ''}`}
-        onClick={() => setShowInfo(!showInfo)}
-        role="button"
-        aria-label={showInfo ? 'Hide contact info' : 'Show contact info'}
+      <button
+        type="button"
+        className={`logo${menuOpen ? ' logo-open' : ''}${!menuOpen && isScrolling ? ' logo-talk' : ''}`}
+        onClick={() => setMenuOpen(!menuOpen)}
+        aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+        aria-expanded={menuOpen}
       >
         <div className="logo-layer logo-back" />
         <div className="logo-layer logo-middle" />
         <div className="logo-layer logo-front" />
-      </div>
-      {showInfo && (
-        <div className="info">
-          <p><a href="tel:+32493459296">t. +32 (0) 493 45 92 96</a></p>
-          <p><a href="mailto:hello@typografie.be">m. hello@typografie.be</a></p>
-          <p><a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">i. @typograaf</a></p>
-        </div>
+      </button>
+      {menuOpen && (
+        <aside className="menu">
+          <div className="menu-inner">
+            <p className="menu-block">
+              <a href="/" className="is-current" aria-current="page">Work</a>&nbsp;&nbsp;<a href="https://calendar.typografie.be">Calendar</a>&nbsp;&nbsp;<a href="https://calendar.typografie.be/about">About</a><br />
+              t. +32 (0) 493 45 92 96<br />
+              m. <a href="mailto:hello@typografie.be">hello@typografie.be</a><br />
+              i. <a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">@typograaf</a>
+            </p>
+          </div>
+        </aside>
       )}
-      {!showInfo && (
+      {!menuOpen && (
         <div style={{ height: layout.totalHeight, position: 'relative' }}>
           {loading
             ? skeletonItems.map((item, i) => (
