@@ -55,6 +55,11 @@ body {
   height: 31.6px;
   z-index: 100;
   cursor: pointer;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  display: block;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .logo-layer {
@@ -132,7 +137,6 @@ body {
 
 .menu-block { margin: 0; line-height: normal; -webkit-user-select: text; user-select: text; }
 .menu a { color: inherit; text-decoration: none; cursor: pointer; }
-.menu a.is-current { cursor: default; opacity: 0.4; pointer-events: none; }
 
 @media (max-width: 900px) {
   .menu { padding: 88px 24px 64px 24px; }

@@ -222,7 +222,7 @@ export default function Home() {
         <aside className="menu">
           <div className="menu-inner">
             <p className="menu-block">
-              <a href="/" className="is-current" aria-current="page">Work</a>&nbsp;&nbsp;<a href="https://calendar.typografie.be">Calendar</a>&nbsp;&nbsp;<a href="https://calendar.typografie.be/about">About</a><br />
+              <a href="/">Work</a>&nbsp;&nbsp;<a href="https://calendar.typografie.be">Calendar</a>&nbsp;&nbsp;<a href="https://calendar.typografie.be/about">About</a><br />
               t. +32 (0) 493 45 92 96<br />
               m. <a href="mailto:hello@typografie.be">hello@typografie.be</a><br />
               i. <a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">@typograaf</a>
