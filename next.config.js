@@ -2,16 +2,14 @@
 const nextConfig = {
   async rewrites() {
     return [
-      // /work serves the portfolio (same as /). URL stays /work in the browser.
+      // /work serves the portfolio (same as /). URL stays /work.
       { source: '/work', destination: '/' },
-    ]
-  },
-  async redirects() {
-    return [
-      // /calendar lives on calendar.typografie.be (Cloudflare Pages, separate
-      // deploy). 308 keeps the URL absolute so the user lands on the booking
-      // app cleanly.
-      { source: '/calendar', destination: 'https://calendar.typografie.be', permanent: true },
+      // /calendar is a server-side proxy to the existing Cloudflare Pages
+      // deploy at calendar.typografie.be. Browser URL stays typografie.be/calendar.
+      // The booking app's app.js detects the /calendar prefix at runtime
+      // and prepends it to /api/* calls so this rewrite catches them too.
+      { source: '/calendar', destination: 'https://calendar.typografie.be/' },
+      { source: '/calendar/:path*', destination: 'https://calendar.typografie.be/:path*' },
     ]
   },
   images: {
