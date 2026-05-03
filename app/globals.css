@@ -142,6 +142,31 @@ body {
   .menu { padding: 88px 24px 64px 24px; }
 }
 
+/* /about page — bio + services in a 267px column right of the logo,
+   same fade-in timing as the menu overlay. */
+.about-page {
+  max-width: 267px;
+  margin: 32px 32px 96px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 510;
+  line-height: normal;
+  color: #000;
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: text;
+  user-select: text;
+  animation: menu-fade-in 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.15s both;
+}
+.about-page p { margin: 0; line-height: normal; }
+.about-page a { color: inherit; text-decoration: none; }
+
+@media (max-width: 900px) {
+  .about-page { max-width: none; margin: 88px 24px 64px 24px; }
+}
+
 .feed {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
