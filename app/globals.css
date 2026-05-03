@@ -94,14 +94,17 @@ body {
 
 /* Open state — front falls forward most, middle a little, back least.
    Values are JC's talking-peak translations (0.6/1.7/3.5 at 22.3px) scaled. */
-/* `animation: none` cancels any in-flight close animation if the user
-   clicks the logo during the 0.55s open-on-load close. */
-.logo-open .logo-back,
-.logo-talk .logo-back   { animation: none; transform: translateY(0.86px); }
-.logo-open .logo-middle,
-.logo-talk .logo-middle { animation: none; transform: translateY(2.44px); }
-.logo-open .logo-front,
-.logo-talk .logo-front  { animation: none; transform: translateY(5.02px); }
+/* `.logo-open` cancels any in-flight close animation if the user clicks
+   the logo during the 0.55s open-on-load close. .logo-talk does NOT —
+   scroll events firing during the close (especially on /work where
+   the page auto-scrolls to top on mount) would otherwise yank the
+   folder open and chop the close animation. */
+.logo-open .logo-back   { animation: none; transform: translateY(0.86px); }
+.logo-open .logo-middle { animation: none; transform: translateY(2.44px); }
+.logo-open .logo-front  { animation: none; transform: translateY(5.02px); }
+.logo-talk .logo-back   { transform: translateY(0.86px); }
+.logo-talk .logo-middle { transform: translateY(2.44px); }
+.logo-talk .logo-front  { transform: translateY(5.02px); }
 
 /* Gentle close on page load — pre-paint script in <head> tags <html>
    with .from-menu when arriving via a menu link, then CSS animates the
