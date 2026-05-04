@@ -1,8 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-type Tab = 'work' | 'about'
+type Tab = 'work' | 'about' | 'images'
+
+interface AdminImage {
+  id: string
+  name: string
+  url: string
+  project: string
+}
 
 export default function Admin() {
   const [authed, setAuthed] = useState<boolean | null>(null)
@@ -11,9 +18,12 @@ export default function Admin() {
   const [tab, setTab] = useState<Tab>('work')
   const [order, setOrder] = useState<string[]>([])
   const [about, setAbout] = useState('')
+  const [images, setImages] = useState<AdminImage[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState<number | null>(null)
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
+  const [projectFilter, setProjectFilter] = useState<string>('')
   const dragIndexRef = useRef<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 
@@ -28,6 +38,7 @@ export default function Admin() {
     const data = await res.json()
     setOrder(data.order || [])
     setAbout(data.about || '')
+    setImages(data.images || [])
     setAuthed(true)
     setLoading(false)
   }
@@ -71,6 +82,42 @@ export default function Admin() {
     setSaving(false)
     setSavedAt(Date.now())
   }
+
+  const deleteImg = async (img: AdminImage) => {
+    const label = img.project ? `${img.project} / ${img.name}` : img.name
+    if (!confirm(`Delete "${label}"?\n\nThis removes it from Dropbox (and your Mac via sync) and from the site. This cannot be undone.`)) return
+    setDeletingIds(prev => new Set(prev).add(img.id))
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: img.id }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert(`Delete failed: ${err.error || res.statusText}`)
+        return
+      }
+      setImages(prev => prev.filter(i => i.id !== img.id))
+    } finally {
+      setDeletingIds(prev => {
+        const next = new Set(prev)
+        next.delete(img.id)
+        return next
+      })
+    }
+  }
+
+  const projects = useMemo(() => {
+    const set = new Set<string>()
+    for (const img of images) if (img.project) set.add(img.project)
+    return ['', ...Array.from(set).sort((a, b) => a.localeCompare(b))]
+  }, [images])
+
+  const filteredImages = useMemo(() => {
+    if (!projectFilter) return images
+    return images.filter(i => i.project === projectFilter)
+  }, [images, projectFilter])
 
   if (authed === false) {
     return (
@@ -117,18 +164,25 @@ export default function Admin() {
               onClick={() => setTab('about')}
               type="button"
             >About</button>
-          </div>
-          <div className="admin-save-row">
-            {savedAt && Date.now() - savedAt < 3000 && (
-              <span className="admin-muted">Saved</span>
-            )}
             <button
-              className="admin-tab is-primary"
-              onClick={save}
-              disabled={saving}
+              className={`admin-tab${tab === 'images' ? ' is-active' : ''}`}
+              onClick={() => setTab('images')}
               type="button"
-            >{saving ? 'Saving…' : 'Save'}</button>
+            >Images</button>
           </div>
+          {tab !== 'images' && (
+            <div className="admin-save-row">
+              {savedAt && Date.now() - savedAt < 3000 && (
+                <span className="admin-muted">Saved</span>
+              )}
+              <button
+                className="admin-tab is-primary"
+                onClick={save}
+                disabled={saving}
+                type="button"
+              >{saving ? 'Saving…' : 'Save'}</button>
+            </div>
+          )}
         </div>
 
         {tab === 'work' && (
@@ -182,10 +236,48 @@ export default function Admin() {
           />
         )}
 
+        {tab === 'images' && (
+          <>
+            <div className="admin-filter-row">
+              <select
+                className="admin-select"
+                value={projectFilter}
+                onChange={(e) => setProjectFilter(e.target.value)}
+              >
+                {projects.map(p => (
+                  <option key={p} value={p}>{p ? p : `All projects (${images.length})`}</option>
+                ))}
+              </select>
+              <span className="admin-muted">{filteredImages.length} {filteredImages.length === 1 ? 'image' : 'images'}</span>
+            </div>
+            <div className="admin-grid">
+              {filteredImages.map(img => {
+                const deleting = deletingIds.has(img.id)
+                return (
+                  <div key={img.id} className={`admin-tile${deleting ? ' is-deleting' : ''}`}>
+                    <img src={img.url} alt={img.name} loading="lazy" />
+                    <button
+                      type="button"
+                      className="admin-delete"
+                      onClick={() => deleteImg(img)}
+                      disabled={deleting}
+                      aria-label={`Delete ${img.name}`}
+                    >{deleting ? '…' : '×'}</button>
+                    <div className="admin-tile-meta">
+                      {img.project && <span className="admin-tile-project">{img.project}</span>}
+                      <span className="admin-tile-name">{img.name}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
+
         <p className="admin-muted admin-hint">
-          {tab === 'work'
-            ? 'Drag rows to reorder, or use the arrows. New projects from Dropbox auto-prepend until you save a new order.'
-            : 'One paragraph per line. Empty lines are ignored.'}
+          {tab === 'work' && 'Drag rows to reorder, or use the arrows. New projects from Dropbox auto-prepend until you save a new order.'}
+          {tab === 'about' && 'One paragraph per line. Empty lines are ignored.'}
+          {tab === 'images' && 'Deleting also removes the file from Dropbox — your Mac will sync the deletion within seconds. This cannot be undone.'}
         </p>
       </main>
     </>
@@ -195,7 +287,7 @@ export default function Admin() {
 function AdminStyles() {
   return (
     <style dangerouslySetInnerHTML={{ __html: `
-.admin-page { max-width: 640px; margin: 0 auto; padding: 96px 32px 96px; display: flex; flex-direction: column; gap: 24px; }
+.admin-page { max-width: 960px; margin: 0 auto; padding: 96px 32px 96px; display: flex; flex-direction: column; gap: 24px; }
 .admin-login { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #fff; z-index: 50; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .admin-tabs { display: flex; gap: 4px; }
@@ -205,7 +297,7 @@ function AdminStyles() {
 .admin-tab.is-active { background: #fff; }
 .admin-tab.is-primary { background: #fff; }
 .admin-tab:disabled { opacity: 0.3; cursor: not-allowed; }
-.admin-list { display: flex; flex-direction: column; gap: 4px; }
+.admin-list { display: flex; flex-direction: column; gap: 4px; max-width: 640px; }
 .admin-row { background: #fff; border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 12px; cursor: grab; }
 .admin-row.is-drag-over { box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
 .admin-row:active { cursor: grabbing; }
@@ -214,11 +306,29 @@ function AdminStyles() {
 .admin-arrow { background: transparent; border: 0; padding: 4px 8px; font: inherit; color: #000; cursor: pointer; border-radius: 8px; transition: background 0.12s, opacity 0.12s; }
 .admin-arrow:hover:not(:disabled) { background: rgba(0,0,0,0.04); }
 .admin-arrow:disabled { opacity: 0.2; cursor: not-allowed; }
-.admin-textarea { width: 100%; background: #fff; border: 0; border-radius: 12px; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif; font-size: 14px; font-weight: 510; color: #000; outline: none; resize: vertical; min-height: 360px; line-height: 1.45; -webkit-user-select: text; user-select: text; }
+.admin-textarea { width: 100%; max-width: 640px; background: #fff; border: 0; border-radius: 12px; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif; font-size: 14px; font-weight: 510; color: #000; outline: none; resize: vertical; min-height: 360px; line-height: 1.45; -webkit-user-select: text; user-select: text; }
 .admin-textarea:focus { box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
+.admin-filter-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.admin-select { background: #fff; border: 0; border-radius: 12px; padding: 12px; font: inherit; color: #000; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; padding-right: 32px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='black' d='M0 0l5 6 5-6z'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; }
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.admin-tile { position: relative; background: #fff; border-radius: 12px; overflow: hidden; aspect-ratio: 1; display: flex; flex-direction: column; }
+.admin-tile.is-deleting { opacity: 0.4; pointer-events: none; }
+.admin-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.admin-tile-meta { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; background: linear-gradient(to top, rgba(0,0,0,0.55), transparent); color: #fff; font-size: 11px; line-height: 1.3; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+.admin-tile:hover .admin-tile-meta { opacity: 1; }
+.admin-tile-project { font-weight: 510; }
+.admin-tile-name { opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-delete { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 12px; border: 0; background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; font-size: 16px; line-height: 1; display: flex; align-items: center; justify-content: center; padding: 0; opacity: 0; transition: opacity 0.15s, background 0.12s; }
+.admin-tile:hover .admin-delete, .admin-tile.is-deleting .admin-delete { opacity: 1; }
+.admin-delete:hover { background: rgba(220,38,38,0.9); }
+.admin-delete:disabled { cursor: not-allowed; }
 .admin-muted { opacity: 0.4; margin: 0; }
 .admin-hint { font-size: 14px; }
-@media (max-width: 700px) { .admin-page { padding: 88px 24px 64px; } }
+@media (max-width: 700px) {
+  .admin-page { padding: 88px 24px 64px; }
+  .admin-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .admin-tile-meta, .admin-delete { opacity: 1; }
+}
     `.trim() }} />
   )
 }

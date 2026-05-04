@@ -62,3 +62,9 @@ export async function getDropboxTempLink(path: string): Promise<string> {
   const res = await dbx.filesGetTemporaryLink({ path })
   return res.result.link
 }
+
+export async function deleteDropboxFile(path: string): Promise<void> {
+  const accessToken = await getAccessToken()
+  const dbx = new Dropbox({ accessToken, fetch })
+  await dbx.filesDeleteV2({ path })
+}

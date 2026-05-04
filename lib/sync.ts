@@ -1,5 +1,5 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
-import { getDropboxImageFiles, getDropboxTempLink } from './dropbox'
+import { getDropboxImageFiles, getDropboxTempLink, deleteDropboxFile } from './dropbox'
 import bundledProjectOrder from '../project-order.json'
 import { getProjectOrderOverride } from './cms'
 
@@ -168,4 +168,23 @@ export async function syncWithDropbox(): Promise<{ added: number; deleted: numbe
   await saveManifest(newManifest)
   await updateRecentProjects(newManifest)
   return { added: added.length, deleted: toDelete.length }
+}
+
+export async function deleteImage(id: string): Promise<{ deleted: boolean }> {
+  const manifest = await getManifest()
+  const target = manifest.find(img => img.id === id)
+  if (!target) return { deleted: false }
+
+  // Dropbox first — if this fails the file would just resync into R2.
+  await deleteDropboxFile(target.path)
+
+  // Best-effort R2 cleanup. A failure here self-heals on the next sync.
+  const client = getS3Client()
+  const key = target.blobUrl.replace(`${PUBLIC_URL}/`, '')
+  await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key })).catch(() => {})
+
+  const newManifest = manifest.filter(img => img.id !== id)
+  await saveManifest(newManifest)
+  await updateRecentProjects(newManifest)
+  return { deleted: true }
 }

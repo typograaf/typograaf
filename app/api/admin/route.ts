@@ -6,7 +6,7 @@ import {
   saveAboutText,
   saveProjectOrderOverride,
 } from '../../../lib/cms'
-import { getProjectOrder } from '../../../lib/sync'
+import { getProjectOrder, getManifest, deleteImage } from '../../../lib/sync'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,8 +19,19 @@ export async function GET() {
   if (!(await isAuthed())) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
-  const [order, about] = await Promise.all([getProjectOrder(), getAboutText()])
-  return NextResponse.json({ order, about })
+  const folderPath = (process.env.DROPBOX_FOLDER_PATH || '').toLowerCase()
+  const baseDepth = folderPath.split('/').length
+  const [order, about, manifest] = await Promise.all([
+    getProjectOrder(),
+    getAboutText(),
+    getManifest(),
+  ])
+  const images = manifest.map(img => {
+    const parts = img.path.split('/')
+    const project = parts[baseDepth] || ''
+    return { id: img.id, name: img.name, url: img.blobUrl, project }
+  })
+  return NextResponse.json({ order, about, images })
 }
 
 export async function POST(request: NextRequest) {
@@ -45,4 +56,23 @@ export async function POST(request: NextRequest) {
   revalidatePath('/work')
 
   return NextResponse.json({ ok: true })
+}
+
+export async function DELETE(request: NextRequest) {
+  if (!(await isAuthed())) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  const body = await request.json().catch(() => ({}))
+  const id = typeof body?.id === 'string' ? body.id : ''
+  if (!id) return NextResponse.json({ error: 'missing id' }, { status: 400 })
+
+  try {
+    const result = await deleteImage(id)
+    revalidatePath('/')
+    revalidatePath('/work')
+    return NextResponse.json({ ok: result.deleted })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'delete failed'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
