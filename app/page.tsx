@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, useDeferredValue } from 'react'
 
 interface ImageData {
   id: string
@@ -44,26 +44,23 @@ export default function Home() {
     window.scrollTo(0, 0)
   }, [])
 
-  // Track scroll position (but not when lightbox is open)
+  // Track scroll position (but not when lightbox is open). rAF-coalesce
+  // so we set state at most once per frame even on high-DPI trackpads.
   const lightboxOpenRef = useRef(false)
   useEffect(() => {
+    let pending = false
     const handleScroll = () => {
-      if (!lightboxOpenRef.current) setScrollTop(window.scrollY)
+      if (lightboxOpenRef.current || pending) return
+      pending = true
+      requestAnimationFrame(() => {
+        pending = false
+        setScrollTop(window.scrollY)
+      })
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
-
-  // Preload icon layers
-  useEffect(() => {
-    ;['/icon-back.png', '/icon-middle.png', '/icon-front.png'].forEach((href) => {
-      const link = document.createElement('link')
-      link.rel = 'preload'
-      link.as = 'image'
-      link.href = href
-      document.head.appendChild(link)
-    })
-  }, [])
+  // Icon layers are preloaded from <head> in app/layout.tsx — no JS effect needed.
 
   const loadImages = useCallback((retryCount = 0) => {
     setLoading(true)
@@ -166,12 +163,14 @@ export default function Home() {
     return items
   }, [layout, columns, windowHeight])
 
-  // Virtual scrolling calculations
+  // Virtual scrolling — derive from a deferred scrollTop so React can
+  // skip stale recomputes when the user is actively scrolling fast.
+  const deferredScrollTop = useDeferredValue(scrollTop)
   const virtualData = useMemo(() => {
     if (images.length === 0) return { items: [], totalHeight: layout.totalHeight }
 
     const { padding, itemSize, rowHeight, gap, totalHeight } = layout
-    const startRow = Math.max(0, Math.floor((scrollTop - padding) / rowHeight) - BUFFER_ROWS)
+    const startRow = Math.max(0, Math.floor((deferredScrollTop - padding) / rowHeight) - BUFFER_ROWS)
     const visibleRows = Math.ceil(windowHeight / rowHeight) + BUFFER_ROWS * 2
     const endRow = startRow + visibleRows
 
@@ -192,7 +191,7 @@ export default function Home() {
     }
 
     return { items, totalHeight }
-  }, [images, scrollTop, columns, windowHeight, layout])
+  }, [images, deferredScrollTop, columns, windowHeight, layout])
 
   return (
     <>
