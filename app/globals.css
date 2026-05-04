@@ -94,28 +94,13 @@ body {
 
 /* Open state — front falls forward most, middle a little, back least.
    Values are JC's talking-peak translations (0.6/1.7/3.5 at 22.3px) scaled. */
-/* `.logo-open` cancels any in-flight close animation if the user clicks
-   the logo during the 0.55s open-on-load close. .logo-talk does NOT —
-   scroll events firing during the close (especially on /work where
-   the page auto-scrolls to top on mount) would otherwise yank the
-   folder open and chop the close animation. */
-.logo-open .logo-back   { animation: none; transform: translateY(0.86px); }
-.logo-open .logo-middle { animation: none; transform: translateY(2.44px); }
-.logo-open .logo-front  { animation: none; transform: translateY(5.02px); }
-.logo-talk .logo-back   { transform: translateY(0.86px); }
-.logo-talk .logo-middle { transform: translateY(2.44px); }
-.logo-talk .logo-front  { transform: translateY(5.02px); }
-
-/* Gentle close on page load — pre-paint script in <head> tags <html>
-   with .from-menu when arriving via a menu link, then CSS animates the
-   folder layers from their open pose down to rest. No fill-mode so the
-   animation stops applying after 0.55s and the cascade resumes. */
-@keyframes folderClose-back   { from { transform: translateY(0.86px); } to { transform: translateY(0); } }
-@keyframes folderClose-middle { from { transform: translateY(2.44px); } to { transform: translateY(0); } }
-@keyframes folderClose-front  { from { transform: translateY(5.02px); } to { transform: translateY(0); } }
-[data-from-menu] .logo-back   { animation: folderClose-back   0.55s cubic-bezier(0.32, 0.72, 0.35, 1); }
-[data-from-menu] .logo-middle { animation: folderClose-middle 0.55s cubic-bezier(0.32, 0.72, 0.35, 1); }
-[data-from-menu] .logo-front  { animation: folderClose-front  0.55s cubic-bezier(0.32, 0.72, 0.35, 1); }
+/* Logo open pose. The transition on .logo-layer animates between this
+   and the rest pose smoothly when the class toggles, which is also how
+   the gentle close on page-load works (LayoutShell starts logo open
+   when the URL had ?from=menu, then drops the class after rAF). */
+.logo-open .logo-back   { transform: translateY(0.86px); }
+.logo-open .logo-middle { transform: translateY(2.44px); }
+.logo-open .logo-front  { transform: translateY(5.02px); }
 
 /* The shared `transition: transform` on .logo-layer eases both directions —
    into the open/peek pose and back to rest when the class is removed. */

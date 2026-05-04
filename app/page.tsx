@@ -16,11 +16,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
-  const [menuOpen, setMenuOpen] = useState(false)
   const [scrollTop, setScrollTop] = useState(0)
   const [columns, setColumns] = useState(8)
   const [windowHeight, setWindowHeight] = useState(800)
-  const [isScrolling, setIsScrolling] = useState(false)
   // Initialize and update layout (useLayoutEffect to prevent flash)
   useLayoutEffect(() => {
     const updateLayout = () => {
@@ -49,20 +47,11 @@ export default function Home() {
   // Track scroll position (but not when lightbox is open)
   const lightboxOpenRef = useRef(false)
   useEffect(() => {
-    let scrollTimeout: ReturnType<typeof setTimeout> | null = null
     const handleScroll = () => {
-      if (!lightboxOpenRef.current) {
-        setScrollTop(window.scrollY)
-      }
-      setIsScrolling(true)
-      if (scrollTimeout) clearTimeout(scrollTimeout)
-      scrollTimeout = setTimeout(() => setIsScrolling(false), 220)
+      if (!lightboxOpenRef.current) setScrollTop(window.scrollY)
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', handleScroll)
-      if (scrollTimeout) clearTimeout(scrollTimeout)
-    }
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   // Preload icon layers
@@ -207,57 +196,32 @@ export default function Home() {
 
   return (
     <>
-      <button
-        type="button"
-        className={`logo${menuOpen ? ' logo-open' : ''}${!menuOpen && isScrolling ? ' logo-talk' : ''}`}
-        onClick={() => setMenuOpen(!menuOpen)}
-        aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-        aria-expanded={menuOpen}
-      >
-        <div className="logo-layer logo-back" />
-        <div className="logo-layer logo-middle" />
-        <div className="logo-layer logo-front" />
-      </button>
-      {menuOpen && (
-        <aside className="menu">
-          <div className="menu-inner">
-            <p className="menu-block">
-              <a href="/work?from=menu">Work</a>&nbsp;&nbsp;<a href="/calendar?from=menu">Calendar</a>&nbsp;&nbsp;<a href="/about?from=menu">About</a><br />
-              t. +32 (0) 493 45 92 96<br />
-              m. <a href="mailto:hello@typografie.be">hello@typografie.be</a><br />
-              i. <a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">@typograaf</a>
-            </p>
-          </div>
-        </aside>
-      )}
-      {!menuOpen && (
-        <div style={{ height: layout.totalHeight, position: 'relative' }}>
-          {loading
-            ? skeletonItems.map((item, i) => (
-                <div
-                  key={i}
-                  className="item"
-                  style={{
-                    position: 'absolute',
-                    top: item.top,
-                    left: item.left,
-                    width: item.size,
-                    height: item.size,
-                  }}
-                />
-              ))
-            : virtualData.items.map(({ image, index, top, left, size }) => (
-                <VirtualItem
-                  key={`${image.id}-${index}`}
-                  image={image}
-                  top={top}
-                  left={left}
-                  size={size}
-                  onClick={() => openLightbox(image)}
-                />
-              ))}
-        </div>
-      )}
+      <div style={{ height: layout.totalHeight, position: 'relative' }}>
+        {loading
+          ? skeletonItems.map((item, i) => (
+              <div
+                key={i}
+                className="item"
+                style={{
+                  position: 'absolute',
+                  top: item.top,
+                  left: item.left,
+                  width: item.size,
+                  height: item.size,
+                }}
+              />
+            ))
+          : virtualData.items.map(({ image, index, top, left, size }) => (
+              <VirtualItem
+                key={`${image.id}-${index}`}
+                image={image}
+                top={top}
+                left={left}
+                size={size}
+                onClick={() => openLightbox(image)}
+              />
+            ))}
+      </div>
 
       {selectedImage && (
         <Lightbox
