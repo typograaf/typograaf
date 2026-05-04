@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { getDropboxImageFiles, getDropboxTempLink } from './dropbox'
 import bundledProjectOrder from '../project-order.json'
+import { getProjectOrderOverride } from './cms'
 
 export interface ManifestImage {
   id: string
@@ -66,8 +67,17 @@ async function saveRecentProjects(projects: string[]): Promise<void> {
 }
 
 export async function getProjectOrder(): Promise<string[]> {
-  const recent = await getRecentProjects()
-  return [...recent, ...bundledProjectOrder]
+  const [recent, override] = await Promise.all([getRecentProjects(), getProjectOrderOverride()])
+  const main = override || bundledProjectOrder
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const p of [...recent, ...main]) {
+    const key = p.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(p)
+  }
+  return out
 }
 
 function projectFromPath(path: string): string {
