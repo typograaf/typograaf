@@ -52,17 +52,16 @@ body {
   min-height: 100vh;
 }
 
-/* View Transitions — cross-fade page content during client-side
-   navigation; the logo stays mounted (and is fixed-positioned), so we
-   give it its own transition name and skip animating it. */
+/* View Transitions — cross-fade the entire page on client-side nav.
+   The logo participates in the root snapshot (no dedicated name), so
+   it cross-fades from itself to itself — invisibly, since it sits at
+   the same position on every page. */
 @view-transition { navigation: auto; }
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 0.18s;
   animation-timing-function: cubic-bezier(0.32, 0.72, 0.35, 1);
 }
-::view-transition-old(logo),
-::view-transition-new(logo) { animation: none; }
 
 /* Layered folder logo — proportions match the JC tool's menu-bar/avatar
    icon (22.3 × 22), scaled to 32px wide. */
@@ -79,7 +78,6 @@ body {
   padding: 0;
   display: block;
   -webkit-tap-highlight-color: transparent;
-  view-transition-name: logo;
 }
 
 .logo-layer {
