@@ -2,53 +2,30 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 
 // Persistent layout shell — the logo button + menu overlay live here so
 // they stay mounted across same-domain navigations (no flicker between
 // /work and /about). Page content renders as `children` below the menu
 // overlay (which sits z-index 90 over the page when open).
 //
-// Cross-domain navigation to calendar.typografie.be still does a full
-// page reload; the booking app reads ?from=menu via its inline <head>
-// script and runs the same close animation independently.
+// The gentle close on landing via ?from=menu is handled separately in
+// the head <script> + CSS @keyframes (data-from-menu attribute path),
+// so this component doesn't need to know about it.
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const pathname = usePathname()
-  const searchParams = useSearchParams()
 
-  // ?from=menu on initial load means we just arrived from another site's
-  // menu (e.g. calendar.typografie.be). Start the logo in its open pose
-  // and transition closed after first paint. Using useSearchParams so the
-  // value matches between SSR and CSR (no hydration mismatch).
-  const fromMenu = searchParams.get('from') === 'menu'
-  const [closingFromMenu, setClosingFromMenu] = useState(fromMenu)
-
-  // Strip ?from=menu from the URL and trigger the close transition once
-  // the open pose has been painted at least once.
-  useEffect(() => {
-    if (!closingFromMenu) return
-    const url = new URL(window.location.href)
-    url.searchParams.delete('from')
-    window.history.replaceState({}, '', url.pathname + url.search + url.hash)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => setClosingFromMenu(false))
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Close the menu whenever the route changes (e.g. user clicked About).
+  // Close the menu whenever the route changes (Link navigation).
   useEffect(() => {
     setMenuOpen(false)
   }, [pathname])
-
-  const logoOpen = menuOpen || closingFromMenu
 
   return (
     <>
       <button
         type="button"
-        className={`logo${logoOpen ? ' logo-open' : ''}`}
+        className={`logo${menuOpen ? ' logo-open' : ''}`}
         onClick={() => setMenuOpen((o) => !o)}
         aria-label={menuOpen ? 'Close menu' : 'Open menu'}
         aria-expanded={menuOpen}
