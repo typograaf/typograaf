@@ -292,7 +292,7 @@ export default function CalendarPage() {
               {calendarRows.map((row, ri) => (
                 <div key={ri} className="cal-row">
                   {row.map((cell, ci) => {
-                    if (cell.empty) return <div key={ci} className="cal-day is-empty" />
+                    if (!('date' in cell)) return <div key={ci} className="cal-day is-empty" />
                     const { date, dateStr } = cell
                     const dow = date.getDay()
                     const isWeekend = dow === 0 || dow === 6
