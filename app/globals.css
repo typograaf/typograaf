@@ -39,6 +39,13 @@ html::-webkit-scrollbar {
 body {
   background: #f8f8f8;
   min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 510;
+  font-variation-settings: 'wdth' 100;
+  line-height: normal;
+  color: #000;
+  -webkit-font-smoothing: antialiased;
 }
 
 .loading {
