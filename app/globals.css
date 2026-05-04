@@ -553,7 +553,7 @@ body {
 
 /* Mobile */
 @media (max-width: 700px) {
-  .page { padding: 88px 20px 64px; gap: 64px; }
+  .page { padding: 88px 24px 64px; gap: 64px; }
   .book-area { gap: 36px; }
 
   .field-row.two { flex-direction: column; align-items: stretch; }
@@ -563,7 +563,8 @@ body {
 
   .booking-rows { gap: 20px; }
   .booking-row { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .booking-slots { align-self: stretch; flex-wrap: wrap; justify-content: flex-start; gap: 12px; }
+  .booking-slots { align-self: stretch; justify-content: flex-start; gap: 12px; }
+  .booking-slots > .pill:not(:last-child) { flex: 1 1 0; min-width: 0; padding-left: 0; padding-right: 0; }
 
   .where-options { flex-direction: column; gap: 12px; }
 
