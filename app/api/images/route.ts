@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server'
 import { getManifest, getProjectOrder } from '../../../lib/sync'
+import { getHiddenImageIds } from '../../../lib/cms'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const [manifest, projectOrder] = await Promise.all([getManifest(), getProjectOrder()])
+    const [manifest, projectOrder, hiddenIds] = await Promise.all([
+      getManifest(),
+      getProjectOrder(),
+      getHiddenImageIds(),
+    ])
+    const hidden = new Set(hiddenIds)
+    const visible = manifest.filter(img => !hidden.has(img.id))
     const folderPath = (process.env.DROPBOX_FOLDER_PATH || '').toLowerCase()
 
     const getProject = (path: string) => {
@@ -14,7 +21,7 @@ export async function GET() {
       return parts[baseDepth] || ''
     }
 
-    const sorted = [...manifest].sort((a, b) => {
+    const sorted = [...visible].sort((a, b) => {
       const projectA = getProject(a.path)
       const projectB = getProject(b.path)
       const indexA = projectOrder.findIndex(p => p.toLowerCase() === projectA)

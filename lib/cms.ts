@@ -5,6 +5,7 @@ const BUCKET = 'typograaf'
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || ''
 const ORDER_KEY = 'cms/project-order.json'
 const ABOUT_KEY = 'cms/about.json'
+const HIDDEN_KEY = 'cms/hidden-images.json'
 
 function getS3() {
   return new S3Client({
@@ -64,6 +65,28 @@ export async function saveAboutText(text: string): Promise<void> {
     Bucket: BUCKET,
     Key: ABOUT_KEY,
     Body: JSON.stringify({ text }),
+    ContentType: 'application/json',
+  }))
+}
+
+export async function getHiddenImageIds(): Promise<string[]> {
+  try {
+    const res = await fetch(`${PUBLIC_URL}/${HIDDEN_KEY}`, { cache: 'no-store' })
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data) ? data.filter((p): p is string => typeof p === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+export async function saveHiddenImageIds(ids: string[]): Promise<void> {
+  const client = getS3()
+  const unique = Array.from(new Set(ids))
+  await client.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: HIDDEN_KEY,
+    Body: JSON.stringify(unique),
     ContentType: 'application/json',
   }))
 }

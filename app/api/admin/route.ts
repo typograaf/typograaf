@@ -5,6 +5,8 @@ import {
   getAboutText,
   saveAboutText,
   saveProjectOrderOverride,
+  getHiddenImageIds,
+  saveHiddenImageIds,
 } from '../../../lib/cms'
 import { getProjectOrder, getManifest, deleteImage } from '../../../lib/sync'
 
@@ -21,15 +23,23 @@ export async function GET() {
   }
   const folderPath = (process.env.DROPBOX_FOLDER_PATH || '').toLowerCase()
   const baseDepth = folderPath.split('/').length
-  const [order, about, manifest] = await Promise.all([
+  const [order, about, manifest, hiddenIds] = await Promise.all([
     getProjectOrder(),
     getAboutText(),
     getManifest(),
+    getHiddenImageIds(),
   ])
+  const hidden = new Set(hiddenIds)
   const images = manifest.map(img => {
     const parts = img.path.split('/')
     const project = parts[baseDepth] || ''
-    return { id: img.id, name: img.name, url: img.blobUrl, project }
+    return {
+      id: img.id,
+      name: img.name,
+      url: img.blobUrl,
+      project,
+      hidden: hidden.has(img.id),
+    }
   })
   return NextResponse.json({ order, about, images })
 }
@@ -56,6 +66,28 @@ export async function POST(request: NextRequest) {
   revalidatePath('/work')
 
   return NextResponse.json({ ok: true })
+}
+
+export async function PATCH(request: NextRequest) {
+  if (!(await isAuthed())) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  const body = await request.json().catch(() => ({}))
+  const id = typeof body?.id === 'string' ? body.id : ''
+  if (!id) return NextResponse.json({ error: 'missing id' }, { status: 400 })
+  if (typeof body?.hidden !== 'boolean') {
+    return NextResponse.json({ error: 'missing hidden flag' }, { status: 400 })
+  }
+
+  const current = await getHiddenImageIds()
+  const set = new Set(current)
+  if (body.hidden) set.add(id)
+  else set.delete(id)
+  await saveHiddenImageIds(Array.from(set))
+
+  revalidatePath('/')
+  revalidatePath('/work')
+  return NextResponse.json({ ok: true, hidden: body.hidden })
 }
 
 export async function DELETE(request: NextRequest) {
