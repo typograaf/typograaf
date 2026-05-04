@@ -39,7 +39,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
         <aside className="menu">
           <div className="menu-inner">
             <p className="menu-block">
-              <Link href="/work">Work</Link>&nbsp;&nbsp;<a href="/calendar?from=menu">Calendar</a>&nbsp;&nbsp;<Link href="/about">About</Link><br />
+              <Link href="/work">Work</Link>&nbsp;&nbsp;<Link href="/calendar">Calendar</Link>&nbsp;&nbsp;<Link href="/about">About</Link><br />
               t. +32 (0) 493 45 92 96<br />
               m. <a href="mailto:hello@typografie.be">hello@typografie.be</a><br />
               i. <a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">@typograaf</a>

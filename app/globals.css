@@ -322,3 +322,247 @@ body {
   color: #ff0000;
   -webkit-text-fill-color: #ff0000;
 }
+/* =====================================================================
+   Calendar booking page (/calendar) — ported from calendar.typografie.be
+   Single uniform style: SF Pro Medium 14px black on #f8f8f8.
+   Every interactive element is a 12px-padded, 12px-radius white pill.
+   ===================================================================== */
+
+:root {
+  --bg-cal: #f8f8f8;
+  --surface: #ffffff;
+  --hover: rgba(0, 0, 0, 0.04);
+  --error: #ff3b30;
+  --disabled: 0.1;
+  --pill-radius: 12px;
+  --pill-pad: 12px;
+  --weight: 510;
+}
+
+/* Vertical trim (Safari 18.2+/Chrome 133+; older browsers ignore). */
+.pill, .cal-day, .cal-nav, .cal-month, .cal-weekday,
+.intro h1, .intro .rate p, .bookings-summary p, .booking-date,
+.form > h2, .field label, .where > h2, .scope > h2,
+.summary p, .agree-text,
+.confirm h2, .confirm p, .error h2, .error p,
+.legal h1, .legal h2, .legal p {
+  text-box: trim-both cap alphabetic;
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+}
+
+/* Page layout — 640px centered column, 96px between major sections */
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 32px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 96px;
+  font-weight: 510;
+}
+
+/* Generic pill — base for every interactive control */
+.pill {
+  background: transparent;
+  border: 0;
+  padding: 12px;
+  border-radius: 12px;
+  font: inherit;
+  color: #000;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  transition: background 0.12s, opacity 0.12s;
+}
+.pill:hover:not(:disabled):not(.is-selected) { background: rgba(0, 0, 0, 0.04); }
+.pill.is-selected { background: #fff; }
+.pill.is-filled   { background: #fff; }
+.pill:disabled { opacity: 0.1; cursor: not-allowed; }
+
+/* Header */
+.intro { display: flex; flex-direction: column; gap: 24px; }
+.intro h1 { font-size: 14px; font-weight: 510; margin: 0; }
+.intro .rate { display: flex; justify-content: space-between; }
+.intro .rate p { margin: 0; }
+
+/* Calendar */
+.cal { display: flex; flex-direction: column; gap: 36px; }
+.cal-top { display: flex; flex-direction: column; gap: 24px; }
+.cal-header { display: flex; justify-content: space-between; align-items: center; }
+.cal-month { font: inherit; }
+.cal-nav {
+  background: transparent;
+  border: 0;
+  padding: 4px 8px;
+  font: inherit;
+  color: #000;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.12s, opacity 0.12s;
+}
+.cal-nav:hover:not(:disabled) { background: rgba(0, 0, 0, 0.04); }
+.cal-nav:disabled { opacity: 0.1; cursor: not-allowed; }
+
+.cal-weekdays { display: flex; gap: 12px; }
+.cal-weekday { flex: 1 0 0; min-width: 0; display: flex; align-items: center; justify-content: center; }
+
+.cal-grid { display: flex; flex-direction: column; gap: 12px; }
+.cal-row { display: flex; gap: 12px; }
+.cal-day {
+  flex: 1 0 0;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  padding: 12px 0;
+  font: inherit;
+  color: #000;
+  cursor: pointer;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, opacity 0.12s;
+}
+.cal-day:hover:not(:disabled):not(.is-empty):not(.is-selected) { background: rgba(0, 0, 0, 0.04); }
+.cal-day.is-empty { background: transparent; cursor: default; pointer-events: none; }
+.cal-day:disabled,
+.cal-day.is-blocked,
+.cal-day.is-past,
+.cal-day.is-weekend { opacity: 0.1; cursor: not-allowed; }
+.cal-day.is-selected { background: #fff; }
+
+.cal-loading { text-align: center; padding: 12px 0; opacity: 0.4; }
+
+/* Booking area */
+.book-area { display: flex; flex-direction: column; gap: 36px; }
+
+.bookings { display: flex; flex-direction: column; gap: 12px; }
+.bookings-summary { display: flex; justify-content: space-between; align-items: center; }
+.bookings-summary p { margin: 0; }
+
+.booking-rows { display: flex; flex-direction: column; gap: 12px; }
+.booking-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.booking-date { white-space: nowrap; }
+.booking-slots { display: flex; gap: 12px; align-items: center; }
+
+/* Form */
+.form { display: flex; flex-direction: column; gap: 12px; }
+.form > h2 { font-size: 14px; font-weight: 510; margin: 0; }
+
+#bookingForm { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+
+.field-row { display: flex; gap: 12px; align-items: center; width: 100%; }
+.field-row.two { gap: 12px; }
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 0 0;
+  min-width: 0;
+}
+.field label { white-space: nowrap; cursor: pointer; }
+
+.field input,
+.field textarea {
+  flex: 1 0 0;
+  min-width: 0;
+  background: #fff;
+  border: 0;
+  border-radius: 12px;
+  height: 34px;
+  padding: 8px 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 510;
+  color: #000;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.field input:focus,
+.field textarea:focus { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15); }
+.field textarea { height: 51px; min-height: 51px; resize: vertical; }
+
+/* Where */
+.where { display: flex; flex-direction: column; gap: 12px; }
+.where > h2 { font-size: 14px; font-weight: 510; margin: 0; }
+.where-options { display: flex; gap: 12px; }
+.where-option { flex: 1 0 0; min-width: 0; text-align: center; }
+
+/* Project scope */
+.scope { display: flex; flex-direction: column; gap: 12px; }
+.scope > h2 { font-size: 14px; font-weight: 510; margin: 0; }
+.scope textarea {
+  width: 100%;
+  background: #fff;
+  border: 0;
+  border-radius: 12px;
+  height: 51px;
+  min-height: 51px;
+  padding: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 510;
+  color: #000;
+  outline: none;
+  resize: vertical;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.scope textarea:focus { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15); }
+
+/* Footer (agree + submit) */
+.foot { display: flex; flex-direction: column; gap: 12px; }
+.agree-row { display: flex; gap: 12px; align-items: center; }
+.agree-check { width: 38px; height: 38px; flex-shrink: 0; background: #fff; }
+.agree-check:hover { background: #fff; }
+.agree-check.is-empty span { visibility: hidden; }
+.agree-text { line-height: normal; }
+.agree-text a { text-decoration: underline; text-underline-offset: 2px; }
+
+.submit-row { display: flex; justify-content: space-between; align-items: center; }
+.summary { display: flex; gap: 48px; align-items: center; }
+.summary p { margin: 0; }
+.summary.is-error { color: #ff3b30; }
+
+/* Confirm / error */
+.confirm, .error { display: flex; flex-direction: column; gap: 12px; }
+.confirm h2, .error h2 { font-size: 14px; font-weight: 510; margin: 0; }
+.error h2 { color: #ff3b30; }
+.confirm p, .error p { margin: 0; }
+
+/* Terms */
+.legal { gap: 36px; }
+.legal h1 { font-size: 14px; font-weight: 510; margin: 0; }
+.legal section { display: flex; flex-direction: column; gap: 12px; }
+.legal h2 { font-size: 14px; font-weight: 510; margin: 0; }
+.legal p { margin: 0; line-height: 1.45; }
+.legal .updated { opacity: 0.4; }
+.legal .back { display: inline-block; }
+
+/* Mobile */
+@media (max-width: 700px) {
+  .page { padding: 88px 20px 64px; gap: 64px; }
+  .book-area { gap: 36px; }
+
+  .field-row.two { flex-direction: column; align-items: stretch; }
+  .field-row.two .field { width: 100%; }
+
+  #bookingForm { gap: 16px; }
+
+  .booking-rows { gap: 20px; }
+  .booking-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .booking-slots { align-self: stretch; flex-wrap: wrap; justify-content: flex-start; gap: 12px; }
+
+  .where-options { flex-direction: column; gap: 12px; }
+
+  .foot { gap: 20px; }
+  .submit-row { flex-direction: column; gap: 16px; align-items: stretch; }
+  .summary { justify-content: center; gap: 24px; flex-wrap: wrap; }
+
+  .cal-day { padding: 14px 0; }
+}
