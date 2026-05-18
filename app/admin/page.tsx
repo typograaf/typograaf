@@ -488,25 +488,6 @@ export default function Admin() {
                           <span>Annual {formatEur(annualFirstYear(d))} first year, then {formatEur(annualYearly(d))} / yr</span>
                         </div>
 
-                        <div className="admin-qfield">
-                          <label>Annual footnote — tokens: {'{design} {perpetual} {firstYear} {annual} {creditMax}'}</label>
-                          <textarea
-                            className="admin-input admin-input-area"
-                            value={o.footnoteAnnual}
-                            rows={3}
-                            onChange={(e) => updateOption(qi, oi, { footnoteAnnual: e.target.value })}
-                          />
-                        </div>
-                        <div className="admin-qfield">
-                          <label>Perpetual footnote — same tokens</label>
-                          <textarea
-                            className="admin-input admin-input-area"
-                            value={o.footnotePerpetual}
-                            rows={3}
-                            onChange={(e) => updateOption(qi, oi, { footnotePerpetual: e.target.value })}
-                          />
-                        </div>
-
                         <button
                           className="admin-arrow admin-danger"
                           type="button"
@@ -585,7 +566,7 @@ export default function Admin() {
           {tab === 'work' && 'Drag rows to reorder, or use the arrows. New projects from Dropbox auto-prepend until you save a new order.'}
           {tab === 'about' && 'One paragraph per line. Empty lines are ignored.'}
           {tab === 'images' && 'Click ◎ to hide an image from the public site (file stays in Dropbox). Click × to delete it from Dropbox — your Mac will sync the deletion within seconds. Deletion cannot be undone.'}
-          {tab === 'quotes' && 'You enter the design price per asset. Perpetual = one-time design + 50%. Annual = first year at the design price, then 1/3 of design per year. Footnote tokens: {design} {perpetual} {firstYear} (annual first year) {annual} (annual per-year price) {creditMax} (max conversion credit = 2 annual payments). Changes go live on Save.'}
+          {tab === 'quotes' && 'You enter the design price per asset. Perpetual = one-time design + 50%. Annual = first year at the design price, then 1/3 of design per year. Footnotes are fixed and shown automatically on the quote. Changes go live on Save.'}
         </p>
       </main>
     </>

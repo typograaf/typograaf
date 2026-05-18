@@ -13,6 +13,8 @@ import {
   formatVariable,
   formatQuoteDate,
   fillTokens,
+  DEFAULT_FOOTNOTE_ANNUAL,
+  DEFAULT_FOOTNOTE_PERPETUAL,
 } from '@/lib/quote'
 
 function headline(model: LicenseModel, d: number): string {
@@ -29,7 +31,7 @@ function OptionBlock({ option }: { option: QuoteOption }) {
   const d = effectiveDesignCost(option, italic)
   const amount = headline(model, d)
   const footnote = fillTokens(
-    model === 'annual' ? option.footnoteAnnual : option.footnotePerpetual,
+    model === 'annual' ? DEFAULT_FOOTNOTE_ANNUAL : DEFAULT_FOOTNOTE_PERPETUAL,
     d,
   )
 

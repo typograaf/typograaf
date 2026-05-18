@@ -29,8 +29,6 @@ export interface QuoteOption {
   title: string // "Option 1"
   description: string
   assets: QuoteAsset[]
-  footnoteAnnual: string
-  footnotePerpetual: string
 }
 
 export interface Quote {
@@ -130,36 +128,19 @@ export function emptyAsset(): QuoteAsset {
   return { name: '', variable: '', price: 0, offersItalic: true, styles: [] }
 }
 
+// Footnotes are fixed (not editable in the CMS). The public page
+// renders these per the selected license model, with tokens filled in.
 export const DEFAULT_FOOTNOTE_ANNUAL =
   '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {firstYear}.\n*Thereafter the license renews at {annual} per year. The annual license may be converted into a perpetual, all-inclusive usage license at any time for {design}. Previously paid annual license fees will be credited against this, up to a maximum of {creditMax}. All prices exclude VAT.'
 
-// Verbatim annual defaults shipped before the current clause. A saved
-// footnote matching one of these is stale default text (the user never
-// customised it) and is migrated to DEFAULT_FOOTNOTE_ANNUAL.
-const LEGACY_DEFAULT_ANNUAL = [
-  '*The annual license grants the client full usage rights across print, digital, and environmental applications for one year.\n*The license can be renewed annually at {annual} per year. The annual license may be converted into a perpetual, all-inclusive usage license at any time. All prices exclude VAT.',
-  '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {annual}.\n*Thereafter the license renews at {annualYearly} per year. It may be converted into a perpetual, all-inclusive usage license at any time. All prices exclude VAT.',
-  '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {firstYear}.\n*Thereafter the license renews at {annual} per year. It may be converted into a perpetual, all-inclusive usage license at any time. All prices exclude VAT.',
-  '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {firstYear}.\n*Thereafter the license renews at {annual} per year. The annual license may be converted into a perpetual, all-inclusive usage license at any time. Previously paid annual license fees will be credited against the perpetual license fee, up to a maximum of {creditMax}. All prices exclude VAT.',
-]
-
 export const DEFAULT_FOOTNOTE_PERPETUAL =
   '*The perpetual license grants the client full, unlimited usage rights across print, digital, and environmental applications. It comprises the design cost plus a one-time license fee of 50% of the design cost, totalling {perpetual}. All prices exclude VAT.'
-
-// Verbatim perpetual defaults shipped earlier; migrated forward when
-// matched exactly so existing default-derived quotes get the clearer
-// design + license wording.
-const LEGACY_DEFAULT_PERPETUAL = [
-  '*The perpetual license grants the client full, unlimited usage rights across print, digital, and environmental applications for a one-time fee of {perpetual}. All prices exclude VAT.',
-]
 
 export function emptyOption(n: number): QuoteOption {
   return {
     title: `Option ${n}`,
     description: '',
     assets: [emptyAsset()],
-    footnoteAnnual: DEFAULT_FOOTNOTE_ANNUAL,
-    footnotePerpetual: DEFAULT_FOOTNOTE_PERPETUAL,
   }
 }
 
@@ -199,27 +180,10 @@ export function normalizeQuote(raw: unknown): Quote | null {
           : [],
       }
     })
-    // {perpetualYearly} only ever existed in the pre-swap perpetual
-    // default. Perpetual is now a one-time fee with no yearly part, so
-    // any footnote still carrying that dead token is stale default
-    // text — migrate it to the current one-time wording.
-    let footnotePerpetual = String(oo.footnotePerpetual || '')
-    if (
-      footnotePerpetual.includes('{perpetualYearly}') ||
-      LEGACY_DEFAULT_PERPETUAL.includes(footnotePerpetual)
-    ) {
-      footnotePerpetual = DEFAULT_FOOTNOTE_PERPETUAL
-    }
-    let footnoteAnnual = String(oo.footnoteAnnual || '')
-    if (LEGACY_DEFAULT_ANNUAL.includes(footnoteAnnual)) {
-      footnoteAnnual = DEFAULT_FOOTNOTE_ANNUAL
-    }
     return {
       title: String(oo.title || ''),
       description: String(oo.description || ''),
       assets,
-      footnoteAnnual,
-      footnotePerpetual,
     }
   })
   return {
