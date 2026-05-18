@@ -71,9 +71,9 @@ export function annualFirstYear(d: number): number {
   return Math.round(d)
 }
 
-// Annual: recurring cost per year after the first year.
+// Annual: recurring license cost per year after the first year.
 export function annualYearly(d: number): number {
-  return Math.round(d / 3)
+  return Math.round(d / 6)
 }
 
 // On converting annual → perpetual, previously paid annual fees are
@@ -108,7 +108,7 @@ export function formatQuoteDate(iso: string): string {
 //   {design}    = base design cost D
 //   {perpetual} = one-time buyout (D * 1.5)
 //   {firstYear} = annual, first year (D)
-//   {annual}    = annual recurring price per year (D / 3) — reads
+//   {annual}    = annual recurring price per year (D / 6) — reads
 //                 naturally in "renewed annually at {annual} per year"
 //   {creditMax} = max annual-fee credit toward conversion (2 × {annual})
 //   {annualYearly} = legacy alias for {annual}

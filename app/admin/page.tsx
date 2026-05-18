@@ -566,7 +566,7 @@ export default function Admin() {
           {tab === 'work' && 'Drag rows to reorder, or use the arrows. New projects from Dropbox auto-prepend until you save a new order.'}
           {tab === 'about' && 'One paragraph per line. Empty lines are ignored.'}
           {tab === 'images' && 'Click ◎ to hide an image from the public site (file stays in Dropbox). Click × to delete it from Dropbox — your Mac will sync the deletion within seconds. Deletion cannot be undone.'}
-          {tab === 'quotes' && 'You enter the design price per asset. Perpetual = one-time design + 50%. Annual = first year at the design price, then 1/3 of design per year. Footnotes are fixed and shown automatically on the quote. Changes go live on Save.'}
+          {tab === 'quotes' && 'You enter the design price per asset. Perpetual = one-time design + 50%. Annual = first year at the design price, then 1/6 of design per year. Footnotes are fixed and shown automatically on the quote. Changes go live on Save.'}
         </p>
       </main>
     </>
