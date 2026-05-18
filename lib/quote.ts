@@ -3,8 +3,8 @@
 //
 // Pricing model (per option):
 //   design cost  D  = sum of all asset prices entered in the CMS
-//   ANNUAL       = D + 50% license surplus = D * 1.5, recurring per year
-//   PERPETUAL    = D upfront (first year of use included),
+//   PERPETUAL    = one-time D + 50% = D * 1.5
+//   ANNUAL       = first year of use included (D upfront),
 //                  then 1/3 of D per year after the first year
 
 export type LicenseModel = 'annual' | 'perpetual'
@@ -63,15 +63,18 @@ export function effectiveDesignCost(opt: QuoteOption, italic: boolean[]): number
   )
 }
 
-export function annualTotal(d: number): number {
+// One-time buyout: design + 50%.
+export function perpetualTotal(d: number): number {
   return Math.round(d * 1.5)
 }
 
-export function perpetualUpfront(d: number): number {
+// Annual: the first year of use is included for this amount (= D).
+export function annualFirstYear(d: number): number {
   return Math.round(d)
 }
 
-export function perpetualYearly(d: number): number {
+// Annual: recurring cost per year after the first year.
+export function annualYearly(d: number): number {
   return Math.round(d / 3)
 }
 
@@ -96,14 +99,18 @@ export function formatQuoteDate(iso: string): string {
 }
 
 // Footnote / description token substitution. Authors can write
-// {design} {annual} {perpetual} {perpetualYearly} and get the live,
+// {design} {perpetual} {annual} {annualYearly} and get the live,
 // formatted amounts for the option.
+//   {design}      = base design cost D
+//   {perpetual}   = one-time buyout (D * 1.5)
+//   {annual}      = annual, first year included (D)
+//   {annualYearly}= annual recurring per year after year 1 (D / 3)
 export function fillTokens(text: string, d: number): string {
   return text
     .replace(/\{design\}/g, formatEur(d))
-    .replace(/\{annual\}/g, formatEur(annualTotal(d)))
-    .replace(/\{perpetualYearly\}/g, formatEur(perpetualYearly(d)))
-    .replace(/\{perpetual\}/g, formatEur(perpetualUpfront(d)))
+    .replace(/\{annualYearly\}/g, formatEur(annualYearly(d)))
+    .replace(/\{annual\}/g, formatEur(annualFirstYear(d)))
+    .replace(/\{perpetual\}/g, formatEur(perpetualTotal(d)))
 }
 
 export function emptyAsset(): QuoteAsset {
@@ -116,9 +123,9 @@ export function emptyOption(n: number): QuoteOption {
     description: '',
     assets: [emptyAsset()],
     footnoteAnnual:
-      '*The annual license grants the client full usage rights across print, digital, and environmental applications for one year.\n*The license can be renewed annually at {annual} per year. The annual license may be converted into a perpetual, all-inclusive usage license at any time. All prices exclude VAT.',
+      '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {annual}.\n*Thereafter the license renews at {annualYearly} per year. It may be converted into a perpetual, all-inclusive usage license at any time. All prices exclude VAT.',
     footnotePerpetual:
-      '*The perpetual license grants the client full usage rights across print, digital, and environmental applications. The first year is included; thereafter {perpetualYearly} per year. All prices exclude VAT.',
+      '*The perpetual license grants the client full, unlimited usage rights across print, digital, and environmental applications for a one-time fee of {perpetual}. All prices exclude VAT.',
   }
 }
 

@@ -7,9 +7,9 @@ import {
   type LicenseModel,
   effectiveDesignCost,
   assetEffectivePrice,
-  annualTotal,
-  perpetualUpfront,
-  perpetualYearly,
+  perpetualTotal,
+  annualFirstYear,
+  annualYearly,
   formatEur,
   formatVariable,
   formatQuoteDate,
@@ -18,8 +18,8 @@ import {
 
 function headline(model: LicenseModel, d: number): string {
   return model === 'annual'
-    ? `${formatEur(annualTotal(d))} / year`
-    : formatEur(perpetualUpfront(d))
+    ? `${formatEur(annualFirstYear(d))} first year, then ${formatEur(annualYearly(d))} / year`
+    : formatEur(perpetualTotal(d))
 }
 
 function OptionBlock({ option }: { option: QuoteOption }) {

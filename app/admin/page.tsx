@@ -10,9 +10,9 @@ import {
   emptyAsset,
   slugify,
   designCost,
-  annualTotal,
-  perpetualUpfront,
-  perpetualYearly,
+  perpetualTotal,
+  annualFirstYear,
+  annualYearly,
   formatEur,
 } from '../../lib/quote'
 
@@ -483,13 +483,13 @@ export default function Admin() {
                         <div className="admin-price-preview">
                           <span>Design cost {formatEur(d)}</span>
                           <span>·</span>
-                          <span>Annual {formatEur(annualTotal(d))} / yr</span>
+                          <span>Perpetual {formatEur(perpetualTotal(d))} one-time</span>
                           <span>·</span>
-                          <span>Perpetual {formatEur(perpetualUpfront(d))}, then {formatEur(perpetualYearly(d))} / yr</span>
+                          <span>Annual {formatEur(annualFirstYear(d))} first year, then {formatEur(annualYearly(d))} / yr</span>
                         </div>
 
                         <div className="admin-qfield">
-                          <label>Annual footnote — tokens: {'{design} {annual} {perpetual} {perpetualYearly}'}</label>
+                          <label>Annual footnote — tokens: {'{design} {perpetual} {annual} {annualYearly}'}</label>
                           <textarea
                             className="admin-input admin-input-area"
                             value={o.footnoteAnnual}
@@ -585,7 +585,7 @@ export default function Admin() {
           {tab === 'work' && 'Drag rows to reorder, or use the arrows. New projects from Dropbox auto-prepend until you save a new order.'}
           {tab === 'about' && 'One paragraph per line. Empty lines are ignored.'}
           {tab === 'images' && 'Click ◎ to hide an image from the public site (file stays in Dropbox). Click × to delete it from Dropbox — your Mac will sync the deletion within seconds. Deletion cannot be undone.'}
-          {tab === 'quotes' && 'You enter the yearly design price per asset. Annual = design + 50% license (recurring/year). Perpetual = design upfront, first year included, then 1/3 of design per year. Use {design} {annual} {perpetual} {perpetualYearly} in footnotes for live amounts. Changes go live on Save.'}
+          {tab === 'quotes' && 'You enter the design price per asset. Perpetual = one-time design + 50%. Annual = first year included (design), then 1/3 of design per year. Use {design} {perpetual} {annual} {annualYearly} in footnotes for live amounts. Changes go live on Save.'}
         </p>
       </main>
     </>
