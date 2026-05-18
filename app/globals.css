@@ -580,7 +580,7 @@ body {
    640px column, 96px between sections, white 12px pills on #f8f8f8.
    ===================================================================== */
 
-.quote-head, .quote-meta p,
+.quote-head > p, .quote-meta p,
 .quote-option-title p, .quote-desc,
 .quote-label, .quote-subhead,
 .quote-head-row p, .quote-cell, .quote-foot {
