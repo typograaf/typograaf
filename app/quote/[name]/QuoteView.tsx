@@ -5,7 +5,8 @@ import {
   type Quote,
   type QuoteOption,
   type LicenseModel,
-  designCost,
+  effectiveDesignCost,
+  assetEffectivePrice,
   annualTotal,
   perpetualUpfront,
   perpetualYearly,
@@ -22,7 +23,10 @@ function headline(model: LicenseModel, d: number): string {
 
 function OptionBlock({ option }: { option: QuoteOption }) {
   const [model, setModel] = useState<LicenseModel>('annual')
-  const d = designCost(option)
+  const [italic, setItalic] = useState<boolean[]>(() => option.assets.map(() => false))
+  const setAssetItalic = (i: number, on: boolean) =>
+    setItalic((prev) => prev.map((v, j) => (j === i ? on : v)))
+  const d = effectiveDesignCost(option, italic)
   const amount = headline(model, d)
   const footnote = fillTokens(
     model === 'annual' ? option.footnoteAnnual : option.footnotePerpetual,
@@ -66,15 +70,22 @@ function OptionBlock({ option }: { option: QuoteOption }) {
           <div className="quote-row">
             <div className="quote-cell">{a.name}</div>
             <div className="quote-cell">{a.variable}</div>
-            <div className="quote-cell">{formatEur(a.price)}</div>
+            <div className="quote-cell">{formatEur(assetEffectivePrice(a, !!italic[i]))}</div>
           </div>
-          {a.extras.length > 0 && (
+          {a.offersItalic && (
             <>
               <p className="quote-subhead">Extras</p>
-              <div className="quote-chips">
-                {a.extras.map((x, j) => (
-                  <div key={j} className="quote-cell quote-chip">{x}</div>
-                ))}
+              <div className="quote-toggle">
+                <button
+                  type="button"
+                  className={`pill${!italic[i] ? ' is-selected' : ''}`}
+                  onClick={() => setAssetItalic(i, false)}
+                >Oblique</button>
+                <button
+                  type="button"
+                  className={`pill${italic[i] ? ' is-selected' : ''}`}
+                  onClick={() => setAssetItalic(i, true)}
+                >Italic</button>
               </div>
             </>
           )}

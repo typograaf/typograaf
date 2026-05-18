@@ -13,8 +13,16 @@ export interface QuoteAsset {
   name: string // "Display Typeface"
   variable: string // "1 Axis"
   price: number // design-cost component, EUR
-  extras: string[] // ["Italic", "Oblique"]
+  offersItalic: boolean // if true, client can pick Italic (+70% of this asset's price); Oblique is the free default
   styles: string[] // ["400 Regular (+Oblique)", …, "Variable"]
+}
+
+// Italic upgrade adds 70% of the asset's own price. Oblique is free.
+export const ITALIC_SURCHARGE = 0.7
+
+export function assetEffectivePrice(a: QuoteAsset, italic: boolean): number {
+  const base = Number(a.price) || 0
+  return italic ? base + base * ITALIC_SURCHARGE : base
 }
 
 export interface QuoteOption {
@@ -41,8 +49,18 @@ export function slugify(input: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
+// Base design cost — every asset as Oblique (no Italic surcharge).
 export function designCost(opt: QuoteOption): number {
   return opt.assets.reduce((sum, a) => sum + (Number(a.price) || 0), 0)
+}
+
+// Design cost with the client's per-asset Italic selection applied.
+// The license formulas (annual / perpetual) run on top of this.
+export function effectiveDesignCost(opt: QuoteOption, italic: boolean[]): number {
+  return opt.assets.reduce(
+    (sum, a, i) => sum + assetEffectivePrice(a, !!italic[i]),
+    0,
+  )
 }
 
 export function annualTotal(d: number): number {
@@ -80,7 +98,7 @@ export function fillTokens(text: string, d: number): string {
 }
 
 export function emptyAsset(): QuoteAsset {
-  return { name: '', variable: '', price: 0, extras: [], styles: [] }
+  return { name: '', variable: '', price: 0, offersItalic: true, styles: [] }
 }
 
 export function emptyOption(n: number): QuoteOption {
@@ -125,7 +143,7 @@ export function normalizeQuote(raw: unknown): Quote | null {
         name: String(aa.name || ''),
         variable: String(aa.variable || ''),
         price: Number(aa.price) || 0,
-        extras: Array.isArray(aa.extras) ? aa.extras.map(String) : [],
+        offersItalic: aa.offersItalic === undefined ? true : Boolean(aa.offersItalic),
         styles: Array.isArray(aa.styles) ? aa.styles.map(String) : [],
       }
     })

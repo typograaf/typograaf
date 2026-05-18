@@ -18,7 +18,6 @@ import {
 
 type Tab = 'work' | 'about' | 'images' | 'quotes'
 
-const splitList = (v: string) => v.split(',').map(s => s.trim()).filter(Boolean)
 const splitLines = (v: string) => v.split('\n').map(s => s.trim()).filter(Boolean)
 
 interface AdminImage {
@@ -452,13 +451,15 @@ export default function Admin() {
                               </div>
                               <div className="admin-asset-row admin-asset-row-two">
                                 <div className="admin-qfield">
-                                  <label>Extras (comma separated)</label>
-                                  <input
-                                    className="admin-input"
-                                    value={a.extras.join(', ')}
-                                    placeholder="Italic, Oblique"
-                                    onChange={(e) => updateAsset(qi, oi, ai, { extras: splitList(e.target.value) })}
-                                  />
+                                  <label>Italic option</label>
+                                  <label className="admin-checkbox">
+                                    <input
+                                      type="checkbox"
+                                      checked={a.offersItalic}
+                                      onChange={(e) => updateAsset(qi, oi, ai, { offersItalic: e.target.checked })}
+                                    />
+                                    <span>Offer Italic (+70% of this asset&rsquo;s price). Oblique is the free default.</span>
+                                  </label>
                                 </div>
                                 <div className="admin-qfield">
                                   <label>Styles (one per line)</label>
