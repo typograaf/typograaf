@@ -84,6 +84,13 @@ export function creditMax(d: number): number {
   return Math.round((d * 2) / 3)
 }
 
+// Append the selected slanted-variant to a style ("Bold" → "Bold
+// (+Oblique)"). "TBC" means styles aren't defined yet — left untouched.
+export function styleLabel(style: string, variant: 'Oblique' | 'Italic'): string {
+  if (style.trim().toUpperCase() === 'TBC') return style
+  return `${style} (+${variant})`
+}
+
 // A non-variable font has 0 axes — show that as "No" rather than "0".
 // "0" → "No", "0 Axis" → "No Axis", "0 Axes" → "No Axes". Other
 // values ("1 Axis", "Variable", …) pass through unchanged.

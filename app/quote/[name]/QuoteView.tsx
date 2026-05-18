@@ -11,6 +11,7 @@ import {
   annualFirstYear,
   formatEur,
   formatVariable,
+  styleLabel,
   formatQuoteDate,
   fillTokens,
   DEFAULT_FOOTNOTE_ANNUAL,
@@ -96,7 +97,9 @@ function OptionBlock({ option }: { option: QuoteOption }) {
               <p className="quote-subhead">Styles</p>
               <div className="quote-chips">
                 {a.styles.map((s, j) => (
-                  <div key={j} className="quote-cell quote-chip">{s}</div>
+                  <div key={j} className="quote-cell quote-chip">
+                    {styleLabel(s, a.offersItalic && italic[i] ? 'Italic' : 'Oblique')}
+                  </div>
                 ))}
               </div>
             </>
