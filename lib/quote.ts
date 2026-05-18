@@ -77,9 +77,11 @@ export function annualYearly(d: number): number {
 }
 
 // On converting annual → perpetual, previously paid annual fees are
-// credited up to this cap: two annual payments (2 × {annual}).
+// credited up to this cap: 2/3 of the design cost (so the client
+// always pays ~1/3 of design net to convert), independent of the
+// yearly rate.
 export function creditMax(d: number): number {
-  return 2 * annualYearly(d)
+  return Math.round((d * 2) / 3)
 }
 
 // A non-variable font has 0 axes — show that as "No" rather than "0".
@@ -110,7 +112,7 @@ export function formatQuoteDate(iso: string): string {
 //   {firstYear} = annual, first year (D)
 //   {annual}    = annual recurring price per year (D / 6) — reads
 //                 naturally in "renewed annually at {annual} per year"
-//   {creditMax} = max annual-fee credit toward conversion (2 × {annual})
+//   {creditMax} = max annual-fee credit toward conversion (2/3 of design)
 //   {annualYearly} = legacy alias for {annual}
 export function fillTokens(text: string, d: number): string {
   return text
