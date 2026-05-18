@@ -595,6 +595,9 @@ body {
 .quote-meta p { margin: 0; white-space: nowrap; }
 
 .quote-option { display: flex; flex-direction: column; gap: 48px; }
+/* Double the gap between consecutive options (on top of the 96px
+   .page gap) without widening the header → first option gap. */
+.quote-option + .quote-option { margin-top: 96px; }
 
 .quote-option-head { display: flex; flex-direction: column; gap: 12px; }
 .quote-option-title { display: flex; justify-content: space-between; gap: 12px; white-space: nowrap; }
@@ -631,6 +634,7 @@ body {
 
 @media (max-width: 700px) {
   .quote-option { gap: 36px; }
+  .quote-option + .quote-option { margin-top: 64px; }
   .quote-chips .quote-chip { min-width: 0; }
   .quote-total-amount { flex: 0 0 40%; }
 }
