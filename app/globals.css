@@ -574,3 +574,63 @@ body {
 
   .cal-day { padding: 14px 0; }
 }
+
+/* =====================================================================
+   Quote page (/quote/<name>) — same system as the calendar page.
+   640px column, 96px between sections, white 12px pills on #f8f8f8.
+   ===================================================================== */
+
+.quote-head, .quote-meta p,
+.quote-option-title p, .quote-desc,
+.quote-label, .quote-subhead,
+.quote-head-row p, .quote-cell, .quote-foot {
+  text-box: trim-both cap alphabetic;
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+}
+
+.quote-head { display: flex; flex-direction: column; gap: 24px; }
+.quote-head > p { margin: 0; white-space: nowrap; }
+.quote-meta { display: flex; justify-content: space-between; gap: 12px; }
+.quote-meta p { margin: 0; white-space: nowrap; }
+
+.quote-option { display: flex; flex-direction: column; gap: 48px; }
+
+.quote-option-head { display: flex; flex-direction: column; gap: 12px; }
+.quote-option-title { display: flex; justify-content: space-between; gap: 12px; white-space: nowrap; }
+.quote-option-title p { margin: 0; }
+.quote-desc { margin: 0; line-height: 1.4; }
+
+.quote-block { display: flex; flex-direction: column; gap: 12px; }
+.quote-label, .quote-subhead { margin: 0; }
+
+.quote-toggle { display: flex; gap: 12px; }
+.quote-toggle .pill { flex: 1 0 0; min-width: 0; justify-content: flex-start; }
+
+.quote-head-row { display: flex; gap: 12px; }
+.quote-head-row p { flex: 1 0 0; min-width: 0; margin: 0; }
+
+.quote-row { display: flex; gap: 12px; align-items: stretch; }
+.quote-row > .quote-cell { flex: 1 0 0; min-width: 0; }
+
+.quote-cell {
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px;
+  word-break: break-word;
+}
+
+.quote-chips { display: flex; flex-wrap: wrap; gap: 12px; }
+.quote-chips .quote-chip { flex: 1 0 0; min-width: 200px; white-space: nowrap; }
+
+.quote-total-row { display: flex; gap: 12px; }
+.quote-total-row .quote-cell:first-child { flex: 1 0 0; min-width: 0; }
+.quote-total-amount { flex: 0 0 205px; }
+
+.quote-foot { margin: 0; line-height: 1.4; white-space: pre-line; }
+
+@media (max-width: 700px) {
+  .quote-option { gap: 36px; }
+  .quote-chips .quote-chip { min-width: 0; }
+  .quote-total-amount { flex: 0 0 40%; }
+}

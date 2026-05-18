@@ -1,8 +1,25 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type Quote,
+  type QuoteOption,
+  type QuoteAsset,
+  emptyQuote,
+  emptyOption,
+  emptyAsset,
+  slugify,
+  designCost,
+  annualTotal,
+  perpetualUpfront,
+  perpetualYearly,
+  formatEur,
+} from '../../lib/quote'
 
-type Tab = 'work' | 'about' | 'images'
+type Tab = 'work' | 'about' | 'images' | 'quotes'
+
+const splitList = (v: string) => v.split(',').map(s => s.trim()).filter(Boolean)
+const splitLines = (v: string) => v.split('\n').map(s => s.trim()).filter(Boolean)
 
 interface AdminImage {
   id: string
@@ -19,6 +36,7 @@ export default function Admin() {
   const [tab, setTab] = useState<Tab>('work')
   const [order, setOrder] = useState<string[]>([])
   const [about, setAbout] = useState('')
+  const [quotes, setQuotes] = useState<Quote[]>([])
   const [images, setImages] = useState<AdminImage[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -41,6 +59,7 @@ export default function Admin() {
     const data = await res.json()
     setOrder(data.order || [])
     setAbout(data.about || '')
+    setQuotes(Array.isArray(data.quotes) ? data.quotes : [])
     setImages(data.images || [])
     setAuthed(true)
     setLoading(false)
@@ -80,11 +99,49 @@ export default function Admin() {
     await fetch('/api/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order, about }),
+      body: JSON.stringify({ order, about, quotes }),
     })
     setSaving(false)
     setSavedAt(Date.now())
   }
+
+  const updateQuote = (qi: number, patch: Partial<Quote>) => {
+    setQuotes(prev => prev.map((q, i) => i === qi ? { ...q, ...patch } : q))
+  }
+  const updateOption = (qi: number, oi: number, patch: Partial<QuoteOption>) => {
+    setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
+      ...q,
+      options: q.options.map((o, j) => j === oi ? { ...o, ...patch } : o),
+    }))
+  }
+  const updateAsset = (qi: number, oi: number, ai: number, patch: Partial<QuoteAsset>) => {
+    setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
+      ...q,
+      options: q.options.map((o, j) => j !== oi ? o : {
+        ...o,
+        assets: o.assets.map((a, k) => k === ai ? { ...a, ...patch } : a),
+      }),
+    }))
+  }
+  const addQuote = () => setQuotes(prev => [...prev, emptyQuote()])
+  const removeQuote = (qi: number) => {
+    if (!confirm(`Delete quote "${quotes[qi]?.project || quotes[qi]?.slug || 'untitled'}"? This cannot be undone after saving.`)) return
+    setQuotes(prev => prev.filter((_, i) => i !== qi))
+  }
+  const addOption = (qi: number) => setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
+    ...q, options: [...q.options, emptyOption(q.options.length + 1)],
+  }))
+  const removeOption = (qi: number, oi: number) => setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
+    ...q, options: q.options.filter((_, j) => j !== oi),
+  }))
+  const addAsset = (qi: number, oi: number) => setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
+    ...q,
+    options: q.options.map((o, j) => j !== oi ? o : { ...o, assets: [...o.assets, emptyAsset()] }),
+  }))
+  const removeAsset = (qi: number, oi: number, ai: number) => setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
+    ...q,
+    options: q.options.map((o, j) => j !== oi ? o : { ...o, assets: o.assets.filter((_, k) => k !== ai) }),
+  }))
 
   const toggleHide = async (img: AdminImage) => {
     setTogglingIds(prev => new Set(prev).add(img.id))
@@ -201,6 +258,11 @@ export default function Admin() {
               onClick={() => setTab('images')}
               type="button"
             >Images</button>
+            <button
+              className={`admin-tab${tab === 'quotes' ? ' is-active' : ''}`}
+              onClick={() => setTab('quotes')}
+              type="button"
+            >Quotes</button>
           </div>
           {tab !== 'images' && (
             <div className="admin-save-row">
@@ -268,6 +330,184 @@ export default function Admin() {
           />
         )}
 
+        {tab === 'quotes' && (
+          <div className="admin-quotes">
+            {quotes.length === 0 && (
+              <p className="admin-muted">No quotes yet.</p>
+            )}
+            {quotes.map((q, qi) => {
+              const slug = q.slug || slugify(q.project)
+              return (
+                <div key={qi} className="admin-quote">
+                  <div className="admin-quote-top">
+                    <div className="admin-qfield">
+                      <label>Project</label>
+                      <input
+                        className="admin-input"
+                        value={q.project}
+                        placeholder="MirrorMirror Sports Pitch"
+                        onChange={(e) => updateQuote(qi, { project: e.target.value })}
+                      />
+                    </div>
+                    <div className="admin-qfield">
+                      <label>URL slug</label>
+                      <input
+                        className="admin-input"
+                        value={q.slug}
+                        placeholder="mirrormirror"
+                        onChange={(e) => updateQuote(qi, { slug: slugify(e.target.value) })}
+                      />
+                    </div>
+                    <div className="admin-qfield admin-qfield-sm">
+                      <label>Date</label>
+                      <input
+                        className="admin-input"
+                        type="date"
+                        value={q.date}
+                        onChange={(e) => updateQuote(qi, { date: e.target.value })}
+                      />
+                    </div>
+                    <div className="admin-qfield admin-qfield-sm">
+                      <label>Valid through</label>
+                      <input
+                        className="admin-input"
+                        type="date"
+                        value={q.validThrough}
+                        onChange={(e) => updateQuote(qi, { validThrough: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="admin-quote-meta">
+                    {slug
+                      ? <a className="admin-link" href={`/quote/${slug}`} target="_blank" rel="noreferrer">typografie.be/quote/{slug} ↗</a>
+                      : <span className="admin-muted">set a project name or slug for a URL</span>}
+                    <button className="admin-arrow admin-danger" type="button" onClick={() => removeQuote(qi)}>Delete quote</button>
+                  </div>
+
+                  {q.options.map((o, oi) => {
+                    const d = designCost(o)
+                    return (
+                      <div key={oi} className="admin-option">
+                        <div className="admin-qfield">
+                          <label>Option title</label>
+                          <input
+                            className="admin-input"
+                            value={o.title}
+                            placeholder={`Option ${oi + 1}`}
+                            onChange={(e) => updateOption(qi, oi, { title: e.target.value })}
+                          />
+                        </div>
+                        <div className="admin-qfield">
+                          <label>Description</label>
+                          <textarea
+                            className="admin-input admin-input-area"
+                            value={o.description}
+                            rows={3}
+                            onChange={(e) => updateOption(qi, oi, { description: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="admin-assets">
+                          {o.assets.map((a, ai) => (
+                            <div key={ai} className="admin-asset">
+                              <div className="admin-asset-row">
+                                <input
+                                  className="admin-input"
+                                  value={a.name}
+                                  placeholder="Display Typeface"
+                                  onChange={(e) => updateAsset(qi, oi, ai, { name: e.target.value })}
+                                />
+                                <input
+                                  className="admin-input"
+                                  value={a.variable}
+                                  placeholder="1 Axis"
+                                  onChange={(e) => updateAsset(qi, oi, ai, { variable: e.target.value })}
+                                />
+                                <input
+                                  className="admin-input admin-input-num"
+                                  type="number"
+                                  value={a.price || ''}
+                                  placeholder="3600"
+                                  onChange={(e) => updateAsset(qi, oi, ai, { price: Number(e.target.value) || 0 })}
+                                />
+                                <button
+                                  className="admin-arrow admin-danger"
+                                  type="button"
+                                  onClick={() => removeAsset(qi, oi, ai)}
+                                  disabled={o.assets.length === 1}
+                                  aria-label="Remove asset"
+                                >×</button>
+                              </div>
+                              <div className="admin-asset-row admin-asset-row-two">
+                                <div className="admin-qfield">
+                                  <label>Extras (comma separated)</label>
+                                  <input
+                                    className="admin-input"
+                                    value={a.extras.join(', ')}
+                                    placeholder="Italic, Oblique"
+                                    onChange={(e) => updateAsset(qi, oi, ai, { extras: splitList(e.target.value) })}
+                                  />
+                                </div>
+                                <div className="admin-qfield">
+                                  <label>Styles (one per line)</label>
+                                  <textarea
+                                    className="admin-input admin-input-area"
+                                    value={a.styles.join('\n')}
+                                    rows={3}
+                                    placeholder={'400 Regular (+Oblique)\n500 Medium (+Oblique)\nVariable'}
+                                    onChange={(e) => updateAsset(qi, oi, ai, { styles: splitLines(e.target.value) })}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          <button className="admin-arrow" type="button" onClick={() => addAsset(qi, oi)}>+ Add asset</button>
+                        </div>
+
+                        <div className="admin-price-preview">
+                          <span>Design cost {formatEur(d)}</span>
+                          <span>·</span>
+                          <span>Annual {formatEur(annualTotal(d))} / yr</span>
+                          <span>·</span>
+                          <span>Perpetual {formatEur(perpetualUpfront(d))}, then {formatEur(perpetualYearly(d))} / yr</span>
+                        </div>
+
+                        <div className="admin-qfield">
+                          <label>Annual footnote — tokens: {'{design} {annual} {perpetual} {perpetualYearly}'}</label>
+                          <textarea
+                            className="admin-input admin-input-area"
+                            value={o.footnoteAnnual}
+                            rows={3}
+                            onChange={(e) => updateOption(qi, oi, { footnoteAnnual: e.target.value })}
+                          />
+                        </div>
+                        <div className="admin-qfield">
+                          <label>Perpetual footnote — same tokens</label>
+                          <textarea
+                            className="admin-input admin-input-area"
+                            value={o.footnotePerpetual}
+                            rows={3}
+                            onChange={(e) => updateOption(qi, oi, { footnotePerpetual: e.target.value })}
+                          />
+                        </div>
+
+                        <button
+                          className="admin-arrow admin-danger"
+                          type="button"
+                          onClick={() => removeOption(qi, oi)}
+                          disabled={q.options.length === 1}
+                        >Remove option</button>
+                      </div>
+                    )
+                  })}
+                  <button className="admin-arrow" type="button" onClick={() => addOption(qi)}>+ Add option</button>
+                </div>
+              )
+            })}
+            <button className="admin-tab is-primary" type="button" onClick={addQuote}>+ Add quote</button>
+          </div>
+        )}
+
         {tab === 'images' && (
           <>
             <div className="admin-filter-row">
@@ -329,6 +569,7 @@ export default function Admin() {
           {tab === 'work' && 'Drag rows to reorder, or use the arrows. New projects from Dropbox auto-prepend until you save a new order.'}
           {tab === 'about' && 'One paragraph per line. Empty lines are ignored.'}
           {tab === 'images' && 'Click ◎ to hide an image from the public site (file stays in Dropbox). Click × to delete it from Dropbox — your Mac will sync the deletion within seconds. Deletion cannot be undone.'}
+          {tab === 'quotes' && 'You enter the yearly design price per asset. Annual = design + 50% license (recurring/year). Perpetual = design upfront, first year included, then 1/3 of design per year. Use {design} {annual} {perpetual} {perpetualYearly} in footnotes for live amounts. Changes go live on Save.'}
         </p>
       </main>
     </>
@@ -382,10 +623,33 @@ function AdminStyles() {
 .admin-checkbox input { margin: 0; cursor: pointer; }
 .admin-muted { opacity: 0.4; margin: 0; }
 .admin-hint { font-size: 14px; }
+.admin-quotes { display: flex; flex-direction: column; gap: 24px; max-width: 760px; }
+.admin-quote { background: #fff; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.admin-quote-top { display: flex; gap: 12px; flex-wrap: wrap; }
+.admin-quote-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-qfield { display: flex; flex-direction: column; gap: 6px; flex: 1 0 0; min-width: 140px; }
+.admin-qfield-sm { flex: 0 0 150px; }
+.admin-qfield label { font-size: 12px; opacity: 0.5; }
+.admin-input { background: #f8f8f8; border: 0; border-radius: 12px; padding: 10px 12px; font: inherit; font-size: 14px; color: #000; outline: none; width: 100%; -webkit-appearance: none; appearance: none; -webkit-user-select: text; user-select: text; }
+.admin-input:focus { box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
+.admin-input-area { resize: vertical; line-height: 1.45; font-family: inherit; }
+.admin-input-num { max-width: 120px; }
+.admin-link { text-decoration: underline; text-underline-offset: 2px; -webkit-user-select: text; user-select: text; }
+.admin-danger { color: #ff3b30; }
+.admin-option { background: #f8f8f8; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.admin-assets { display: flex; flex-direction: column; gap: 12px; }
+.admin-asset { background: #fff; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.admin-asset-row { display: flex; gap: 12px; align-items: flex-start; }
+.admin-asset-row-two { gap: 12px; }
+.admin-asset-row-two .admin-qfield { flex: 1 0 0; }
+.admin-price-preview { display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; opacity: 0.55; }
 @media (max-width: 700px) {
   .admin-page { padding: 88px 24px 64px; }
   .admin-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   .admin-tile-meta, .admin-tile-btn { opacity: 1; }
+  .admin-quote-top { flex-direction: column; }
+  .admin-asset-row, .admin-asset-row-two { flex-direction: column; }
+  .admin-input-num { max-width: none; }
 }
     `.trim() }} />
   )

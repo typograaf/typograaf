@@ -1,11 +1,13 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import bundledProjectOrder from '../project-order.json'
+import { type Quote, normalizeQuote } from './quote'
 
 const BUCKET = 'typograaf'
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || ''
 const ORDER_KEY = 'cms/project-order.json'
 const ABOUT_KEY = 'cms/about.json'
 const HIDDEN_KEY = 'cms/hidden-images.json'
+const QUOTES_KEY = 'cms/quotes.json'
 
 function getS3() {
   return new S3Client({
@@ -87,6 +89,41 @@ export async function saveHiddenImageIds(ids: string[]): Promise<void> {
     Bucket: BUCKET,
     Key: HIDDEN_KEY,
     Body: JSON.stringify(unique),
+    ContentType: 'application/json',
+  }))
+}
+
+export async function getQuotes(): Promise<Quote[]> {
+  try {
+    const res = await fetch(`${PUBLIC_URL}/${QUOTES_KEY}`, { cache: 'no-store' })
+    if (!res.ok) return []
+    const data = await res.json()
+    if (!Array.isArray(data)) return []
+    return data
+      .map(normalizeQuote)
+      .filter((q): q is Quote => q !== null)
+  } catch {
+    return []
+  }
+}
+
+export async function getQuoteBySlug(slug: string): Promise<Quote | null> {
+  const quotes = await getQuotes()
+  return quotes.find((q) => q.slug === slug) || null
+}
+
+export async function saveQuotes(quotes: Quote[]): Promise<void> {
+  const cleaned = quotes
+    .map(normalizeQuote)
+    .filter((q): q is Quote => q !== null)
+  // Last write wins on duplicate slugs.
+  const bySlug = new Map<string, Quote>()
+  for (const q of cleaned) bySlug.set(q.slug, q)
+  const client = getS3()
+  await client.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: QUOTES_KEY,
+    Body: JSON.stringify(Array.from(bySlug.values())),
     ContentType: 'application/json',
   }))
 }

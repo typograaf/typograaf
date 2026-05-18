@@ -7,8 +7,11 @@ import {
   saveProjectOrderOverride,
   getHiddenImageIds,
   saveHiddenImageIds,
+  getQuotes,
+  saveQuotes,
 } from '../../../lib/cms'
 import { getProjectOrder, getManifest, deleteImage } from '../../../lib/sync'
+import type { Quote } from '../../../lib/quote'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,11 +26,12 @@ export async function GET() {
   }
   const folderPath = (process.env.DROPBOX_FOLDER_PATH || '').toLowerCase()
   const baseDepth = folderPath.split('/').length
-  const [order, about, manifest, hiddenIds] = await Promise.all([
+  const [order, about, manifest, hiddenIds, quotes] = await Promise.all([
     getProjectOrder(),
     getAboutText(),
     getManifest(),
     getHiddenImageIds(),
+    getQuotes(),
   ])
   const hidden = new Set(hiddenIds)
   const images = manifest.map(img => {
@@ -41,7 +45,7 @@ export async function GET() {
       hidden: hidden.has(img.id),
     }
   })
-  return NextResponse.json({ order, about, images })
+  return NextResponse.json({ order, about, images, quotes })
 }
 
 export async function POST(request: NextRequest) {
@@ -59,6 +63,16 @@ export async function POST(request: NextRequest) {
   }
   if (typeof body.about === 'string') {
     await saveAboutText(body.about)
+  }
+  if (Array.isArray(body.quotes)) {
+    const prev = await getQuotes()
+    await saveQuotes(body.quotes as Quote[])
+    const slugs = new Set<string>()
+    for (const q of body.quotes as Quote[]) {
+      if (q && typeof q.slug === 'string' && q.slug) slugs.add(q.slug)
+    }
+    for (const q of prev) slugs.add(q.slug)
+    for (const slug of slugs) revalidatePath(`/quote/${slug}`)
   }
 
   revalidatePath('/about')
