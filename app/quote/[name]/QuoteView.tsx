@@ -9,7 +9,6 @@ import {
   assetEffectivePrice,
   perpetualTotal,
   annualFirstYear,
-  annualYearly,
   formatEur,
   formatVariable,
   formatQuoteDate,
@@ -18,7 +17,7 @@ import {
 
 function headline(model: LicenseModel, d: number): string {
   return model === 'annual'
-    ? `${formatEur(annualFirstYear(d))} first year, then ${formatEur(annualYearly(d))} / year`
+    ? `${formatEur(annualFirstYear(d))} first year`
     : formatEur(perpetualTotal(d))
 }
 

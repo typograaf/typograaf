@@ -99,18 +99,21 @@ export function formatQuoteDate(iso: string): string {
 }
 
 // Footnote / description token substitution. Authors can write
-// {design} {perpetual} {annual} {annualYearly} and get the live,
+// {design} {perpetual} {firstYear} {annual} and get the live,
 // formatted amounts for the option.
-//   {design}      = base design cost D
-//   {perpetual}   = one-time buyout (D * 1.5)
-//   {annual}      = annual, first year included (D)
-//   {annualYearly}= annual recurring per year after year 1 (D / 3)
+//   {design}    = base design cost D
+//   {perpetual} = one-time buyout (D * 1.5)
+//   {firstYear} = annual, first year (D)
+//   {annual}    = annual recurring price per year (D / 3) — reads
+//                 naturally in "renewed annually at {annual} per year"
+//   {annualYearly} = legacy alias for {annual}
 export function fillTokens(text: string, d: number): string {
   return text
     .replace(/\{design\}/g, formatEur(d))
-    .replace(/\{annualYearly\}/g, formatEur(annualYearly(d)))
-    .replace(/\{annual\}/g, formatEur(annualFirstYear(d)))
     .replace(/\{perpetual\}/g, formatEur(perpetualTotal(d)))
+    .replace(/\{firstYear\}/g, formatEur(annualFirstYear(d)))
+    .replace(/\{annualYearly\}/g, formatEur(annualYearly(d)))
+    .replace(/\{annual\}/g, formatEur(annualYearly(d)))
 }
 
 export function emptyAsset(): QuoteAsset {
@@ -123,7 +126,7 @@ export function emptyOption(n: number): QuoteOption {
     description: '',
     assets: [emptyAsset()],
     footnoteAnnual:
-      '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {annual}.\n*Thereafter the license renews at {annualYearly} per year. It may be converted into a perpetual, all-inclusive usage license at any time. All prices exclude VAT.',
+      '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {firstYear}.\n*Thereafter the license renews at {annual} per year. It may be converted into a perpetual, all-inclusive usage license at any time. All prices exclude VAT.',
     footnotePerpetual:
       '*The perpetual license grants the client full, unlimited usage rights across print, digital, and environmental applications for a one-time fee of {perpetual}. All prices exclude VAT.',
   }

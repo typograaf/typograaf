@@ -489,7 +489,7 @@ export default function Admin() {
                         </div>
 
                         <div className="admin-qfield">
-                          <label>Annual footnote — tokens: {'{design} {perpetual} {annual} {annualYearly}'}</label>
+                          <label>Annual footnote — tokens: {'{design} {perpetual} {firstYear} {annual}'}</label>
                           <textarea
                             className="admin-input admin-input-area"
                             value={o.footnoteAnnual}
@@ -585,7 +585,7 @@ export default function Admin() {
           {tab === 'work' && 'Drag rows to reorder, or use the arrows. New projects from Dropbox auto-prepend until you save a new order.'}
           {tab === 'about' && 'One paragraph per line. Empty lines are ignored.'}
           {tab === 'images' && 'Click ◎ to hide an image from the public site (file stays in Dropbox). Click × to delete it from Dropbox — your Mac will sync the deletion within seconds. Deletion cannot be undone.'}
-          {tab === 'quotes' && 'You enter the design price per asset. Perpetual = one-time design + 50%. Annual = first year included (design), then 1/3 of design per year. Use {design} {perpetual} {annual} {annualYearly} in footnotes for live amounts. Changes go live on Save.'}
+          {tab === 'quotes' && 'You enter the design price per asset. Perpetual = one-time design + 50%. Annual = first year at the design price, then 1/3 of design per year. Footnote tokens: {design} {perpetual} {firstYear} (annual first year) {annual} (annual per-year price). Changes go live on Save.'}
         </p>
       </main>
     </>
