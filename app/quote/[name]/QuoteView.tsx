@@ -11,6 +11,7 @@ import {
   perpetualUpfront,
   perpetualYearly,
   formatEur,
+  formatVariable,
   formatQuoteDate,
   fillTokens,
 } from '@/lib/quote'
@@ -69,7 +70,7 @@ function OptionBlock({ option }: { option: QuoteOption }) {
           </div>
           <div className="quote-row">
             <div className="quote-cell">{a.name}</div>
-            <div className="quote-cell">{a.variable}</div>
+            <div className="quote-cell">{formatVariable(a.variable)}</div>
             <div className="quote-cell">{formatEur(assetEffectivePrice(a, !!italic[i]))}</div>
           </div>
           {a.offersItalic && (

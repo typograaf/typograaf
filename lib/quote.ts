@@ -75,6 +75,15 @@ export function perpetualYearly(d: number): number {
   return Math.round(d / 3)
 }
 
+// A non-variable font has 0 axes — show that as "No" rather than "0".
+// "0" → "No", "0 Axis" → "No Axis", "0 Axes" → "No Axes". Other
+// values ("1 Axis", "Variable", …) pass through unchanged.
+export function formatVariable(v: string): string {
+  const t = v.trim()
+  if (t === '0') return 'No'
+  return t.replace(/^0(\s+Ax[ie]s)\b/i, 'No$1')
+}
+
 export function formatEur(n: number): string {
   return `€ ${Math.round(n).toLocaleString('de-DE')} EUR`
 }
