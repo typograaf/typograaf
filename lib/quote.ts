@@ -79,9 +79,9 @@ export function annualYearly(d: number): number {
 }
 
 // On converting annual → perpetual, previously paid annual fees are
-// credited up to this cap: 2/3 of the perpetual price (= design cost).
+// credited up to this cap: two annual payments (2 × {annual}).
 export function creditMax(d: number): number {
-  return Math.round((perpetualTotal(d) * 2) / 3)
+  return 2 * annualYearly(d)
 }
 
 // A non-variable font has 0 axes — show that as "No" rather than "0".
@@ -112,7 +112,7 @@ export function formatQuoteDate(iso: string): string {
 //   {firstYear} = annual, first year (D)
 //   {annual}    = annual recurring price per year (D / 3) — reads
 //                 naturally in "renewed annually at {annual} per year"
-//   {creditMax} = max annual-fee credit toward perpetual (2/3 of perpetual)
+//   {creditMax} = max annual-fee credit toward conversion (2 × {annual})
 //   {annualYearly} = legacy alias for {annual}
 export function fillTokens(text: string, d: number): string {
   return text
@@ -131,19 +131,27 @@ export function emptyAsset(): QuoteAsset {
 }
 
 export const DEFAULT_FOOTNOTE_ANNUAL =
-  '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {firstYear}.\n*Thereafter the license renews at {annual} per year. The annual license may be converted into a perpetual, all-inclusive usage license at any time. Previously paid annual license fees will be credited against the perpetual license fee, up to a maximum of {creditMax}. All prices exclude VAT.'
+  '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {firstYear}.\n*Thereafter the license renews at {annual} per year. The annual license may be converted into a perpetual, all-inclusive usage license at any time for {design}. Previously paid annual license fees will be credited against this, up to a maximum of {creditMax}. All prices exclude VAT.'
 
-// Verbatim annual defaults shipped before the credit clause existed.
-// A saved footnote matching one of these is stale default text (the
-// user never customised it) and is migrated to DEFAULT_FOOTNOTE_ANNUAL.
+// Verbatim annual defaults shipped before the current clause. A saved
+// footnote matching one of these is stale default text (the user never
+// customised it) and is migrated to DEFAULT_FOOTNOTE_ANNUAL.
 const LEGACY_DEFAULT_ANNUAL = [
   '*The annual license grants the client full usage rights across print, digital, and environmental applications for one year.\n*The license can be renewed annually at {annual} per year. The annual license may be converted into a perpetual, all-inclusive usage license at any time. All prices exclude VAT.',
   '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {annual}.\n*Thereafter the license renews at {annualYearly} per year. It may be converted into a perpetual, all-inclusive usage license at any time. All prices exclude VAT.',
   '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {firstYear}.\n*Thereafter the license renews at {annual} per year. It may be converted into a perpetual, all-inclusive usage license at any time. All prices exclude VAT.',
+  '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {firstYear}.\n*Thereafter the license renews at {annual} per year. The annual license may be converted into a perpetual, all-inclusive usage license at any time. Previously paid annual license fees will be credited against the perpetual license fee, up to a maximum of {creditMax}. All prices exclude VAT.',
 ]
 
 export const DEFAULT_FOOTNOTE_PERPETUAL =
-  '*The perpetual license grants the client full, unlimited usage rights across print, digital, and environmental applications for a one-time fee of {perpetual}. All prices exclude VAT.'
+  '*The perpetual license grants the client full, unlimited usage rights across print, digital, and environmental applications. It comprises the design cost plus a one-time license fee of 50% of the design cost, totalling {perpetual}. All prices exclude VAT.'
+
+// Verbatim perpetual defaults shipped earlier; migrated forward when
+// matched exactly so existing default-derived quotes get the clearer
+// design + license wording.
+const LEGACY_DEFAULT_PERPETUAL = [
+  '*The perpetual license grants the client full, unlimited usage rights across print, digital, and environmental applications for a one-time fee of {perpetual}. All prices exclude VAT.',
+]
 
 export function emptyOption(n: number): QuoteOption {
   return {
@@ -196,7 +204,10 @@ export function normalizeQuote(raw: unknown): Quote | null {
     // any footnote still carrying that dead token is stale default
     // text — migrate it to the current one-time wording.
     let footnotePerpetual = String(oo.footnotePerpetual || '')
-    if (footnotePerpetual.includes('{perpetualYearly}')) {
+    if (
+      footnotePerpetual.includes('{perpetualYearly}') ||
+      LEGACY_DEFAULT_PERPETUAL.includes(footnotePerpetual)
+    ) {
       footnotePerpetual = DEFAULT_FOOTNOTE_PERPETUAL
     }
     let footnoteAnnual = String(oo.footnoteAnnual || '')
