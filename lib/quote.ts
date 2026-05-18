@@ -114,21 +114,27 @@ export function fillTokens(text: string, d: number): string {
     .replace(/\{firstYear\}/g, formatEur(annualFirstYear(d)))
     .replace(/\{annualYearly\}/g, formatEur(annualYearly(d)))
     .replace(/\{annual\}/g, formatEur(annualYearly(d)))
+    // Safety net: never leak an unrecognised {token} to the client.
+    .replace(/\{[a-zA-Z][\w-]*\}/g, '')
 }
 
 export function emptyAsset(): QuoteAsset {
   return { name: '', variable: '', price: 0, offersItalic: true, styles: [] }
 }
 
+export const DEFAULT_FOOTNOTE_ANNUAL =
+  '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {firstYear}.\n*Thereafter the license renews at {annual} per year. It may be converted into a perpetual, all-inclusive usage license at any time. All prices exclude VAT.'
+
+export const DEFAULT_FOOTNOTE_PERPETUAL =
+  '*The perpetual license grants the client full, unlimited usage rights across print, digital, and environmental applications for a one-time fee of {perpetual}. All prices exclude VAT.'
+
 export function emptyOption(n: number): QuoteOption {
   return {
     title: `Option ${n}`,
     description: '',
     assets: [emptyAsset()],
-    footnoteAnnual:
-      '*The annual license grants the client full usage rights across print, digital, and environmental applications. The first year is included at {firstYear}.\n*Thereafter the license renews at {annual} per year. It may be converted into a perpetual, all-inclusive usage license at any time. All prices exclude VAT.',
-    footnotePerpetual:
-      '*The perpetual license grants the client full, unlimited usage rights across print, digital, and environmental applications for a one-time fee of {perpetual}. All prices exclude VAT.',
+    footnoteAnnual: DEFAULT_FOOTNOTE_ANNUAL,
+    footnotePerpetual: DEFAULT_FOOTNOTE_PERPETUAL,
   }
 }
 
@@ -168,12 +174,20 @@ export function normalizeQuote(raw: unknown): Quote | null {
           : [],
       }
     })
+    // {perpetualYearly} only ever existed in the pre-swap perpetual
+    // default. Perpetual is now a one-time fee with no yearly part, so
+    // any footnote still carrying that dead token is stale default
+    // text — migrate it to the current one-time wording.
+    let footnotePerpetual = String(oo.footnotePerpetual || '')
+    if (footnotePerpetual.includes('{perpetualYearly}')) {
+      footnotePerpetual = DEFAULT_FOOTNOTE_PERPETUAL
+    }
     return {
       title: String(oo.title || ''),
       description: String(oo.description || ''),
       assets,
       footnoteAnnual: String(oo.footnoteAnnual || ''),
-      footnotePerpetual: String(oo.footnotePerpetual || ''),
+      footnotePerpetual,
     }
   })
   return {
