@@ -84,11 +84,41 @@ export function creditMax(d: number): number {
   return Math.round((d * 2) / 3)
 }
 
-// Append the selected slanted-variant to a style ("Bold" → "Bold
-// (+Oblique)"). "TBC" means styles aren't defined yet — left untouched.
+// Weight ladder. A typed style is matched by its name (any leading
+// weight number and spacing/casing ignored) and rendered canonically
+// with the number prefixed.
+const WEIGHT_LADDER: { num: number; name: string }[] = [
+  { num: 400, name: 'Regular' },
+  { num: 500, name: 'Medium' },
+  { num: 600, name: 'SemiBold' },
+  { num: 700, name: 'Bold' },
+  { num: 400, name: 'Regular Extended' },
+  { num: 500, name: 'Medium Extended' },
+  { num: 600, name: 'SemiBold Extended' },
+  { num: 700, name: 'Bold Extended' },
+]
+const LADDER_BY_KEY = new Map(
+  WEIGHT_LADDER.map((w) => [w.name.toLowerCase().replace(/\s+/g, ''), w]),
+)
+
+// "bold" → "700 Bold", "700 Bold" → "700 Bold", "Regular Extended" →
+// "400 Regular Extended". Unknown styles pass through trimmed.
+export function canonicalStyle(style: string): string {
+  const key = style
+    .trim()
+    .replace(/^\d+\s*/, '') // drop a leading weight number if typed
+    .toLowerCase()
+    .replace(/\s+/g, '')
+  const match = LADDER_BY_KEY.get(key)
+  return match ? `${match.num} ${match.name}` : style.trim()
+}
+
+// Canonicalise the weight, then append the selected slanted-variant
+// ("bold" → "700 Bold (+Oblique)"). "TBC" means styles aren't defined
+// yet — left untouched.
 export function styleLabel(style: string, variant: 'Oblique' | 'Italic'): string {
   if (style.trim().toUpperCase() === 'TBC') return style
-  return `${style} (+${variant})`
+  return `${canonicalStyle(style)} (+${variant})`
 }
 
 // A non-variable font has 0 axes — show that as "No" rather than "0".
