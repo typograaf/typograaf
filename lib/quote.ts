@@ -144,7 +144,9 @@ export function normalizeQuote(raw: unknown): Quote | null {
         variable: String(aa.variable || ''),
         price: Number(aa.price) || 0,
         offersItalic: aa.offersItalic === undefined ? true : Boolean(aa.offersItalic),
-        styles: Array.isArray(aa.styles) ? aa.styles.map(String) : [],
+        styles: Array.isArray(aa.styles)
+          ? aa.styles.map(String).map((s) => s.trim()).filter(Boolean)
+          : [],
       }
     })
     return {

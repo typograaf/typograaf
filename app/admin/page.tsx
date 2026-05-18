@@ -18,7 +18,10 @@ import {
 
 type Tab = 'work' | 'about' | 'images' | 'quotes'
 
-const splitLines = (v: string) => v.split('\n').map(s => s.trim()).filter(Boolean)
+// Keep the textarea's raw text while editing (preserve spaces / blank
+// lines so typing works). Lines are trimmed and emptied out at save
+// time by normalizeQuote.
+const rawLines = (v: string) => v.split('\n')
 
 interface AdminImage {
   id: string
@@ -468,7 +471,7 @@ export default function Admin() {
                                     value={a.styles.join('\n')}
                                     rows={3}
                                     placeholder={'400 Regular (+Oblique)\n500 Medium (+Oblique)\nVariable'}
-                                    onChange={(e) => updateAsset(qi, oi, ai, { styles: splitLines(e.target.value) })}
+                                    onChange={(e) => updateAsset(qi, oi, ai, { styles: rawLines(e.target.value) })}
                                   />
                                 </div>
                               </div>
