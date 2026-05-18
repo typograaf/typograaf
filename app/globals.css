@@ -637,6 +637,8 @@ body {
   .quote-option { gap: 36px; }
   .quote-head + .quote-option,
   .quote-option + .quote-option { margin-top: 64px; }
-  .quote-chips .quote-chip { min-width: 0; }
+  /* One chip per row on mobile — flex:1 0 0 + nowrap squashed them
+     into shared rows and the text overlapped. Calendar-style stack. */
+  .quote-chips .quote-chip { flex: 1 0 100%; min-width: 0; white-space: normal; }
   .quote-total-amount { flex: 0 0 40%; }
 }
