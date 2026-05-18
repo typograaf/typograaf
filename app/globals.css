@@ -583,7 +583,7 @@ body {
 .quote-head > p, .quote-meta p,
 .quote-option-title p, .quote-desc,
 .quote-label, .quote-subhead,
-.quote-head-row p, .quote-cell, .quote-foot {
+.quote-colhead, .quote-cell, .quote-foot {
   text-box: trim-both cap alphabetic;
   text-box-trim: trim-both;
   text-box-edge: cap alphabetic;
@@ -611,11 +611,9 @@ body {
 .quote-toggle { display: flex; gap: 12px; }
 .quote-toggle .pill { flex: 1 0 0; min-width: 0; justify-content: flex-start; }
 
-.quote-head-row { display: flex; gap: 12px; }
-.quote-head-row p { flex: 1 0 0; min-width: 0; margin: 0; }
-
-.quote-row { display: flex; gap: 12px; align-items: stretch; }
-.quote-row > .quote-cell { flex: 1 0 0; min-width: 0; }
+.quote-row { display: flex; gap: 12px; align-items: flex-start; }
+.quote-col { flex: 1 0 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.quote-colhead { margin: 0; }
 
 .quote-cell {
   background: #fff;
@@ -637,6 +635,10 @@ body {
   .quote-option { gap: 36px; }
   .quote-head + .quote-option,
   .quote-option + .quote-option { margin-top: 64px; }
+  /* Asset on its own full-width row; Variable + Price split the next
+     row so the price has room and doesn't wrap to two lines. */
+  .quote-row { flex-wrap: wrap; }
+  .col-asset { flex: 1 0 100%; }
   /* One chip per row on mobile — flex:1 0 0 + nowrap squashed them
      into shared rows and the text overlapped. Calendar-style stack. */
   .quote-chips .quote-chip { flex: 1 0 100%; min-width: 0; white-space: normal; }

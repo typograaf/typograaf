@@ -65,15 +65,19 @@ function OptionBlock({ option }: { option: QuoteOption }) {
 
       {option.assets.map((a, i) => (
         <div key={i} className="quote-block">
-          <div className="quote-head-row">
-            <p>Asset</p>
-            <p>Variable</p>
-            <p>Price</p>
-          </div>
           <div className="quote-row">
-            <div className="quote-cell">{a.name}</div>
-            <div className="quote-cell">{formatVariable(a.variable)}</div>
-            <div className="quote-cell">{formatEur(assetEffectivePrice(a, !!italic[i]))}</div>
+            <div className="quote-col col-asset">
+              <p className="quote-colhead">Asset</p>
+              <div className="quote-cell">{a.name}</div>
+            </div>
+            <div className="quote-col">
+              <p className="quote-colhead">Variable</p>
+              <div className="quote-cell">{formatVariable(a.variable)}</div>
+            </div>
+            <div className="quote-col">
+              <p className="quote-colhead">Price</p>
+              <div className="quote-cell">{formatEur(assetEffectivePrice(a, !!italic[i]))}</div>
+            </div>
           </div>
           {a.offersItalic && (
             <>
