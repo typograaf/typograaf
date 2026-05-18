@@ -111,7 +111,9 @@ export function emptyQuote(): Quote {
 export function normalizeQuote(raw: unknown): Quote | null {
   if (!raw || typeof raw !== 'object') return null
   const q = raw as Record<string, unknown>
-  const slug = slugify(String(q.slug || ''))
+  // Fall back to a project-derived slug so a quote with only a project
+  // name still persists and gets a working URL.
+  const slug = slugify(String(q.slug || '')) || slugify(String(q.project || ''))
   if (!slug) return null
   const optionsRaw = Array.isArray(q.options) ? q.options : []
   const options: QuoteOption[] = optionsRaw.map((o) => {

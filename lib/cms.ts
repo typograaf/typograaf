@@ -95,7 +95,9 @@ export async function saveHiddenImageIds(ids: string[]): Promise<void> {
 
 export async function getQuotes(): Promise<Quote[]> {
   try {
-    const res = await fetch(`${PUBLIC_URL}/${QUOTES_KEY}`, { cache: 'no-store' })
+    // Cache-buster: R2's public URL is edge-cached, so a freshly saved
+    // quote wouldn't appear without defeating that cache.
+    const res = await fetch(`${PUBLIC_URL}/${QUOTES_KEY}?t=${Date.now()}`, { cache: 'no-store' })
     if (!res.ok) return []
     const data = await res.json()
     if (!Array.isArray(data)) return []

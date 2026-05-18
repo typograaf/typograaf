@@ -101,6 +101,15 @@ export default function Admin() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order, about, quotes }),
     })
+    // Re-read what actually persisted so dropped/invalid quotes surface
+    // instead of looking saved only in local state.
+    try {
+      const res = await fetch('/api/admin', { cache: 'no-store' })
+      if (res.ok) {
+        const data = await res.json()
+        setQuotes(Array.isArray(data.quotes) ? data.quotes : [])
+      }
+    } catch {}
     setSaving(false)
     setSavedAt(Date.now())
   }
@@ -346,7 +355,10 @@ export default function Admin() {
                         className="admin-input"
                         value={q.project}
                         placeholder="MirrorMirror Sports Pitch"
-                        onChange={(e) => updateQuote(qi, { project: e.target.value })}
+                        onChange={(e) => {
+                          const project = e.target.value
+                          updateQuote(qi, q.slug ? { project } : { project, slug: slugify(project) })
+                        }}
                       />
                     </div>
                     <div className="admin-qfield">
