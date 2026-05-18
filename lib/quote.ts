@@ -17,8 +17,8 @@ export interface QuoteAsset {
   styles: string[] // ["400 Regular (+Oblique)", …, "Variable"]
 }
 
-// Italic upgrade adds 25% of the asset's own price. Oblique is free.
-export const ITALIC_SURCHARGE = 0.25
+// Italic upgrade adds 35% of the asset's own price. Oblique is free.
+export const ITALIC_SURCHARGE = 0.35
 
 export function assetEffectivePrice(a: QuoteAsset, italic: boolean): number {
   const base = Number(a.price) || 0
