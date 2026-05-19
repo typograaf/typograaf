@@ -414,7 +414,11 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
     void deferred
     if (!mutated && state.complete) {
       const blockToConn = state.byBlock
-      const want = desired
+      // Reversed: Are.na shows position 1 at the top, and the board should
+      // lead with the newest work (the end of the canonical site order),
+      // not the oldest.
+      const want = [...desired]
+        .reverse()
         .filter(img => map[img.id] !== undefined)
         .map(img => blockId(map[img.id]))
         .filter(b => blockToConn.has(b))
