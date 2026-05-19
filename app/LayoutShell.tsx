@@ -54,7 +54,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
               t. +32 (0) 493 45 92 96<br />
               m. <a href="mailto:hello@typografie.be">hello@typografie.be</a><br />
               i. <a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">@typograaf</a><br />
-              <a href="https://www.are.na/martijn-mertens/channels" target="_blank" rel="noopener noreferrer">✶✶ Martijn Mertens</a>
+              a. <a href="https://www.are.na/martijn-mertens/channels" target="_blank" rel="noopener noreferrer">Martijn Mertens</a>
             </p>
           </div>
         </aside>
