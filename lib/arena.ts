@@ -3,14 +3,18 @@ import type { ManifestImage } from './sync'
 
 // Mirrors the public portfolio to an Are.na channel. Every synced image is
 // pushed as a block (Are.na fetches it from its public R2 URL); deletions and
-// hides remove the block. The whole feature is opt-in: with no
-// ARENA_ACCESS_TOKEN set, every function here is a no-op so the core
-// Dropbox -> R2 sync is never affected.
+// hides remove it. The whole feature is opt-in: with no ARENA_ACCESS_TOKEN
+// set, every function here is a no-op so the core Dropbox -> R2 sync is never
+// affected.
+//
+// Uses Are.na's v3 API. v2 is deprecated and the new personal access tokens
+// only authenticate against v3. The token needs *write* scope to add/remove
+// blocks (a read-only token simply makes this a silent no-op).
 
 const BUCKET = 'typograaf'
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || ''
 const ARENA_MAP_KEY = 'arena-map.json'
-const ARENA_API = 'https://api.are.na/v2'
+const ARENA_API = 'https://api.are.na/v3'
 
 // Maps manifest image id -> Are.na block id.
 type ArenaMap = Record<string, number>
@@ -20,6 +24,10 @@ function arenaConfig(): { token: string; slug: string } | null {
   const slug = process.env.ARENA_CHANNEL_SLUG
   if (!token || !slug) return null
   return { token, slug }
+}
+
+function authHeaders(token: string): Record<string, string> {
+  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 }
 
 function getS3() {
@@ -54,15 +62,33 @@ async function saveArenaMap(map: ArenaMap): Promise<void> {
   }))
 }
 
-async function addBlock(slug: string, token: string, source: string, title: string): Promise<number | null> {
+// v3 block creation needs the numeric channel id; the slug only works on
+// reads. Resolved once per process.
+let cachedChannelId: number | null = null
+async function resolveChannelId(slug: string, token: string): Promise<number | null> {
+  if (cachedChannelId !== null) return cachedChannelId
   try {
-    const res = await fetch(`${ARENA_API}/channels/${slug}/blocks`, {
+    const res = await fetch(`${ARENA_API}/channels/${encodeURIComponent(slug)}`, {
+      headers: authHeaders(token),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    if (typeof data?.id === 'number') {
+      cachedChannelId = data.id
+      return data.id
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+async function addBlock(channelId: number, token: string, value: string, title: string): Promise<number | null> {
+  try {
+    const res = await fetch(`${ARENA_API}/blocks`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ source, title }),
+      headers: authHeaders(token),
+      body: JSON.stringify({ value, title, channels: [{ id: channelId }] }),
     })
     if (!res.ok) return null
     const block = await res.json()
@@ -72,13 +98,42 @@ async function addBlock(slug: string, token: string, source: string, title: stri
   }
 }
 
-async function removeBlock(slug: string, token: string, blockId: number): Promise<boolean> {
+// Walks the channel's contents and builds blockId -> connectionId. The
+// connection id is required to remove a block from the channel and is not
+// returned by block creation, so it has to be looked up here.
+async function getConnectionIndex(slug: string, token: string): Promise<Map<number, number>> {
+  const index = new Map<number, number>()
   try {
-    const res = await fetch(`${ARENA_API}/channels/${slug}/blocks/${blockId}`, {
+    let page = 1
+    for (;;) {
+      const res = await fetch(
+        `${ARENA_API}/channels/${encodeURIComponent(slug)}/contents?per=100&page=${page}`,
+        { headers: authHeaders(token) },
+      )
+      if (!res.ok) break
+      const body = await res.json()
+      const data: unknown[] = Array.isArray(body?.data) ? body.data : []
+      for (const item of data as Array<{ id?: number; connection?: { id?: number } }>) {
+        if (typeof item?.id === 'number' && typeof item?.connection?.id === 'number') {
+          index.set(item.id, item.connection.id)
+        }
+      }
+      if (!body?.meta?.has_more_pages) break
+      page++
+    }
+  } catch {
+    /* partial index is fine — unresolved removals retry next reconcile */
+  }
+  return index
+}
+
+async function removeConnection(connectionId: number, token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${ARENA_API}/connections/${connectionId}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: authHeaders(token),
     })
-    // 404 means the block is already gone — treat as success so the map heals.
+    // 404 = already gone; treat as success so the map heals.
     return res.ok || res.status === 404
   } catch {
     return false
@@ -110,6 +165,9 @@ export async function reconcileArena(manifest: ManifestImage[], hiddenIds: strin
   const { token, slug } = config
 
   try {
+    const channelId = await resolveChannelId(slug, token)
+    if (channelId === null) return { added: 0, removed: 0 }
+
     const hidden = new Set(hiddenIds)
     const desired = manifest.filter(img => !hidden.has(img.id))
     const desiredIds = new Set(desired.map(img => img.id))
@@ -123,20 +181,28 @@ export async function reconcileArena(manifest: ManifestImage[], hiddenIds: strin
     let removed = 0
 
     await pooled(toAdd, 5, async (img) => {
-      const blockId = await addBlock(slug, token, img.blobUrl, img.name)
+      const blockId = await addBlock(channelId, token, img.blobUrl, img.name)
       if (blockId !== null) {
         map[img.id] = blockId
         added++
       }
     })
 
-    await pooled(toRemove, 5, async (id) => {
-      const ok = await removeBlock(slug, token, map[id])
-      if (ok) {
-        delete map[id]
-        removed++
-      }
-    })
+    if (toRemove.length > 0) {
+      // One contents walk resolves every connection id we need to delete.
+      const connIndex = await getConnectionIndex(slug, token)
+      await pooled(toRemove, 5, async (id) => {
+        const blockId = map[id]
+        const connectionId = connIndex.get(blockId)
+        // No connection found means it's no longer in the channel — drop it
+        // from the map so we stop trying.
+        const ok = connectionId === undefined ? true : await removeConnection(connectionId, token)
+        if (ok) {
+          delete map[id]
+          removed++
+        }
+      })
+    }
 
     if (added > 0 || removed > 0) {
       await saveArenaMap(map)
