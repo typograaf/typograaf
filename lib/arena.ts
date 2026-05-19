@@ -175,22 +175,14 @@ async function arenaSource(img: ManifestImage): Promise<string | null> {
       const buf = Buffer.from(await (await fetch(img.blobUrl)).arrayBuffer())
       const hasAlpha = (await sharp(buf).metadata()).hasAlpha
       if (hasAlpha) {
-        // ".a.png" = alpha preserved. Keep real transparency, but composite
-        // the RGB over white and re-attach the original alpha. That way
-        // transparent/edge pixels carry white (not the source's grey
-        // transparent RGB), so Are.na's resizer can't bleed a grey halo —
-        // yet the image still floats on the channel background.
-        key = `${base}.a.png`
+        // ".w.png" = flattened onto white (opaque). Are.na renders image
+        // blocks on a grey card in the channel grid, so true transparency
+        // just shows that grey behind the shape — there's no API/image way
+        // to get the page background through. A baked white background is
+        // the deterministic, grey-free choice.
+        key = `${base}.w.png`
         if (!(await r2Exists(key))) {
-          const meta = await sharp(buf).metadata()
-          const w = meta.width || 0
-          const h = meta.height || 0
-          const rgb = await sharp(buf).flatten({ background: '#ffffff' }).toColourspace('srgb').raw().toBuffer()
-          const alpha = await sharp(buf).ensureAlpha().extractChannel(3).raw().toBuffer()
-          const png = await sharp(rgb, { raw: { width: w, height: h, channels: 3 } })
-            .joinChannel(alpha, { raw: { width: w, height: h, channels: 1 } })
-            .png()
-            .toBuffer()
+          const png = await sharp(buf).flatten({ background: '#ffffff' }).png().toBuffer()
           await r2Put(key, png, 'image/png')
         }
       } else {
@@ -345,9 +337,9 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
       const block = blockId(raw)
       const src = typeof raw === 'number' ? '' : raw.src
       const validSrc = src.startsWith(`${PUBLIC_URL}/${ARENA_PREFIX}/`)
-      // Old white-baked PNGs (".png", pre-transparency) must be re-pushed as
-      // the transparency-preserving ".a.png".
-      const stalePng = src.endsWith('.png') && !src.endsWith('.a.png')
+      // The only valid PNG variant is the white-flattened ".w.png"; any
+      // earlier PNG (".png" white-bake or ".a.png" alpha) must be re-pushed.
+      const stalePng = src.endsWith('.png') && !src.endsWith('.w.png')
       // Re-create when the strategy version is stale, when the recorded
       // source isn't a real arena/v<N> transcode (a stale fallback baked by
       // older code), when it's a superseded PNG, when Are.na failed to
