@@ -339,9 +339,11 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
     }
     const toRemove = Object.keys(map).filter(id => !desiredIds.has(id))
 
-    // Concurrency 2: some sources are huge animated strips (100+ frames,
-    // >100k px tall) and decoding several at once peaks function memory.
-    await pooled(toAdd, 2, async (img) => {
+    // Concurrency 1: some sources are huge animated strips (100+ frames,
+    // >100k px tall); on the Hobby plan's 2GB cap even two at once OOMs.
+    // The backfill is one-time and idempotent; steady-state syncs only
+    // touch a new image or two so the serialization cost is negligible.
+    await pooled(toAdd, 1, async (img) => {
       const src = await arenaSource(img)
       if (src === null) { deferred = true; return }
       const id = await addBlock(channelId, token, src, img.name)
@@ -354,7 +356,7 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
       }
     })
 
-    await pooled(toReplace, 2, async (img) => {
+    await pooled(toReplace, 1, async (img) => {
       const oldBlock = blockId(map[img.id])
       const conn = state.byBlock.get(oldBlock)
       if (conn === undefined && !state.complete) { deferred = true; return }

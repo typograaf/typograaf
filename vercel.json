@@ -1,6 +1,6 @@
 {
   "functions": {
-    "app/api/sync/route.ts": { "memory": 3008, "maxDuration": 300 },
-    "app/api/admin/route.ts": { "memory": 3008, "maxDuration": 300 }
+    "app/api/sync/route.ts": { "memory": 2048, "maxDuration": 300 },
+    "app/api/admin/route.ts": { "memory": 2048, "maxDuration": 300 }
   }
 }
