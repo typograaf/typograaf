@@ -119,6 +119,20 @@ async function r2Exists(key: string): Promise<boolean> {
   }
 }
 
+// Are.na fetches the source URL the moment a block is created. If the object
+// isn't publicly served yet the block fails permanently, so block on a real
+// GET (not just HEAD) being 200 before handing the URL to Are.na.
+async function r2Ready(key: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      const res = await fetch(`${PUBLIC_URL}/${key}`, { cache: 'no-store' })
+      if (res.ok) { await res.arrayBuffer(); return true }
+    } catch { /* retry */ }
+    await new Promise(r => setTimeout(r, 400 * (attempt + 1)))
+  }
+  return false
+}
+
 async function r2Put(key: string, body: Buffer, contentType: string): Promise<void> {
   const client = getS3()
   await client.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: body, ContentType: contentType }))
@@ -126,50 +140,52 @@ async function r2Put(key: string, body: Buffer, contentType: string): Promise<vo
 
 /**
  * The URL Are.na should ingest for this image, transcoding an Are.na-friendly
- * copy into R2 the first time it's needed (cached & reused afterwards). Falls
- * back to the original blobUrl on any failure so the mirror still gets
- * something.
+ * copy into R2 the first time it's needed (cached & reused afterwards).
+ * Returns null on any failure (transcode error, or the object not yet
+ * publicly served) — the caller then skips this image and retries next run,
+ * rather than baking a source Are.na can't ingest.
  */
-async function arenaSource(img: ManifestImage): Promise<string> {
+async function arenaSource(img: ManifestImage): Promise<string | null> {
   const ext = img.name.split('.').pop()?.toLowerCase() || ''
   const base = `${ARENA_PREFIX}/${safeId(img.id)}`
   try {
-    // The convert pipeline only ever produces WebP from an animated GIF, so
-    // every .webp here is animated and must become a GIF for Are.na.
+    let key: string
     if (ext === 'webp') {
-      const key = `${base}.gif`
+      // The convert pipeline only ever produces WebP from an animated GIF,
+      // so every .webp here is animated and must become a GIF for Are.na.
+      key = `${base}.gif`
       if (!(await r2Exists(key))) {
         const buf = Buffer.from(await (await fetch(img.blobUrl)).arrayBuffer())
         const gif = await sharp(buf, { animated: true }).gif().toBuffer()
         await r2Put(key, gif, 'image/gif')
       }
-      return `${PUBLIC_URL}/${key}`
-    }
-
-    if (ext === 'avif') {
+    } else if (ext === 'avif') {
       const buf = Buffer.from(await (await fetch(img.blobUrl)).arrayBuffer())
       const hasAlpha = (await sharp(buf).metadata()).hasAlpha
       if (hasAlpha) {
-        const key = `${base}.png`
+        key = `${base}.png`
         if (!(await r2Exists(key))) {
           // Flatten onto white: transparent areas become solid white instead
           // of the source's grey transparent RGB bleeding through.
           const png = await sharp(buf).flatten({ background: '#ffffff' }).png().toBuffer()
           await r2Put(key, png, 'image/png')
         }
-        return `${PUBLIC_URL}/${key}`
+      } else {
+        key = `${base}.jpg`
+        if (!(await r2Exists(key))) {
+          const jpg = await sharp(buf).jpeg({ quality: 90 }).toBuffer()
+          await r2Put(key, jpg, 'image/jpeg')
+        }
       }
-      const key = `${base}.jpg`
-      if (!(await r2Exists(key))) {
-        const jpg = await sharp(buf).jpeg({ quality: 90 }).toBuffer()
-        await r2Put(key, jpg, 'image/jpeg')
-      }
-      return `${PUBLIC_URL}/${key}`
+    } else {
+      return null
     }
+    // Don't hand Are.na a URL it can't fetch yet — that fails the block.
+    if (!(await r2Ready(key))) return null
+    return `${PUBLIC_URL}/${key}`
   } catch {
-    return img.blobUrl
+    return null
   }
-  return img.blobUrl
 }
 
 async function addBlock(channelId: number, token: string, value: string, title: string): Promise<number | null> {
@@ -215,6 +231,7 @@ async function moveConnection(connectionId: number, token: string, position: num
 type ChannelState = {
   byBlock: Map<number, number>      // block id -> connection id
   ordered: number[]                 // block ids in channel position order
+  failed: Set<number>               // block ids Are.na failed to ingest
   complete: boolean
 }
 
@@ -224,6 +241,7 @@ type ChannelState = {
 async function getChannelState(slug: string, token: string): Promise<ChannelState> {
   const byBlock = new Map<number, number>()
   const positioned: Array<{ block: number; pos: number }> = []
+  const failed = new Set<number>()
   let complete = true
   try {
     let page = 1
@@ -241,10 +259,11 @@ async function getChannelState(slug: string, token: string): Promise<ChannelStat
       if (!res || !res.ok) { complete = false; break }
       const body = await res.json()
       const data: unknown[] = Array.isArray(body?.data) ? body.data : []
-      for (const item of data as Array<{ id?: number; connection?: { id?: number; position?: number } }>) {
+      for (const item of data as Array<{ id?: number; state?: string; connection?: { id?: number; position?: number } }>) {
         if (typeof item?.id === 'number' && typeof item?.connection?.id === 'number') {
           byBlock.set(item.id, item.connection.id)
           positioned.push({ block: item.id, pos: item.connection.position ?? 0 })
+          if (item.state === 'failed') failed.add(item.id)
         }
       }
       if (!body?.meta?.has_more_pages) break
@@ -255,7 +274,7 @@ async function getChannelState(slug: string, token: string): Promise<ChannelStat
     complete = false
   }
   positioned.sort((a, b) => a.pos - b.pos)
-  return { byBlock, ordered: positioned.map(p => p.block), complete }
+  return { byBlock, ordered: positioned.map(p => p.block), failed, complete }
 }
 
 async function pooled<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
@@ -292,26 +311,39 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
       return saveChain
     }
 
+    const state = await getChannelState(slug, token)
+    let deferred = false
+
     const toAdd: ManifestImage[] = []
     const toReplace: ManifestImage[] = []
     for (const img of desired) {
       const raw = map[img.id]
-      if (raw === undefined) toAdd.push(img)
-      else if (entryVersion(raw) !== SRC_VERSION) toReplace.push(img)
-      // Entries already at SRC_VERSION are trusted (no re-download).
+      if (raw === undefined) { toAdd.push(img); continue }
+      const block = blockId(raw)
+      // Re-create when the strategy version is stale, when Are.na failed to
+      // ingest the block, or when our tracked block has vanished from the
+      // channel (only trust "vanished" if the walk was complete).
+      if (
+        entryVersion(raw) !== SRC_VERSION ||
+        state.failed.has(block) ||
+        (state.complete && !state.byBlock.has(block))
+      ) {
+        toReplace.push(img)
+      }
+      // Otherwise the entry is at SRC_VERSION and healthy — trust it.
     }
     const toRemove = Object.keys(map).filter(id => !desiredIds.has(id))
 
-    const state = await getChannelState(slug, token)
-    let deferred = false
-
     await pooled(toAdd, 3, async (img) => {
       const src = await arenaSource(img)
+      if (src === null) { deferred = true; return }
       const id = await addBlock(channelId, token, src, img.name)
       if (id !== null) {
         map[img.id] = { block: id, src, v: SRC_VERSION }
         result.added++
         await persist()
+      } else {
+        deferred = true
       }
     })
 
@@ -320,8 +352,9 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
       const conn = state.byBlock.get(oldBlock)
       if (conn === undefined && !state.complete) { deferred = true; return }
       const src = await arenaSource(img)
+      if (src === null) { deferred = true; return } // keep old until good
       const id = await addBlock(channelId, token, src, img.name)
-      if (id === null) return
+      if (id === null) { deferred = true; return }
       if (conn !== undefined) await removeConnection(conn, token)
       map[img.id] = { block: id, src, v: SRC_VERSION }
       result.replaced++
