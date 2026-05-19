@@ -320,11 +320,16 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
       const raw = map[img.id]
       if (raw === undefined) { toAdd.push(img); continue }
       const block = blockId(raw)
-      // Re-create when the strategy version is stale, when Are.na failed to
-      // ingest the block, or when our tracked block has vanished from the
-      // channel (only trust "vanished" if the walk was complete).
+      const src = typeof raw === 'number' ? '' : raw.src
+      const validSrc = src.startsWith(`${PUBLIC_URL}/${ARENA_PREFIX}/`)
+      // Re-create when the strategy version is stale, when the recorded
+      // source isn't a real arena/v<N> transcode (a stale fallback baked by
+      // older code), when Are.na failed to ingest the block, or when our
+      // tracked block vanished from the channel (only trust "vanished" if
+      // the walk was complete).
       if (
         entryVersion(raw) !== SRC_VERSION ||
+        !validSrc ||
         state.failed.has(block) ||
         (state.complete && !state.byBlock.has(block))
       ) {
