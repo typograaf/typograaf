@@ -339,7 +339,9 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
     }
     const toRemove = Object.keys(map).filter(id => !desiredIds.has(id))
 
-    await pooled(toAdd, 3, async (img) => {
+    // Concurrency 2: some sources are huge animated strips (100+ frames,
+    // >100k px tall) and decoding several at once peaks function memory.
+    await pooled(toAdd, 2, async (img) => {
       const src = await arenaSource(img)
       if (src === null) { deferred = true; return }
       const id = await addBlock(channelId, token, src, img.name)
@@ -352,7 +354,7 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
       }
     })
 
-    await pooled(toReplace, 3, async (img) => {
+    await pooled(toReplace, 2, async (img) => {
       const oldBlock = blockId(map[img.id])
       const conn = state.byBlock.get(oldBlock)
       if (conn === undefined && !state.complete) { deferred = true; return }
@@ -391,11 +393,15 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
     await saveChain
 
     const mutated = result.added + result.replaced + result.removed > 0
-    // Order only once the set is exactly right — otherwise moves get undone
-    // by pending adds/removes. Converges over repeated runs.
-    if (!mutated && !deferred && state.complete) {
+    // Order once nothing changed this run. Don't gate on `deferred`: a few
+    // images may be permanently un-transcodable (undecodable source, etc.)
+    // and must not block ordering the rest forever. Missing blocks are just
+    // skipped below.
+    void deferred
+    if (!mutated && state.complete) {
       const blockToConn = state.byBlock
       const want = desired
+        .filter(img => map[img.id] !== undefined)
         .map(img => blockId(map[img.id]))
         .filter(b => blockToConn.has(b))
       const current = state.ordered.filter(b => blockToConn.has(b))
