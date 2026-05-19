@@ -156,7 +156,19 @@ async function arenaSource(img: ManifestImage): Promise<string | null> {
       key = `${base}.gif`
       if (!(await r2Exists(key))) {
         const buf = Buffer.from(await (await fetch(img.blobUrl)).arrayBuffer())
-        const gif = await sharp(buf, { animated: true }).gif().toBuffer()
+        const meta = await sharp(buf, { animated: true }).metadata()
+        // Animated WebP is decoded as one tall strip (frameHeight * frames).
+        // The big ones are 100+ frames / >100k px tall and OOM the 2GB
+        // function. Cap the working pixel budget by downscaling — animation
+        // is preserved, just at lower resolution (fine for a board).
+        const totalPx = (meta.width || 0) * (meta.height || 0)
+        const BUDGET = 24_000_000
+        let pipeline = sharp(buf, { animated: true })
+        if (totalPx > BUDGET && meta.width) {
+          const scale = Math.sqrt(BUDGET / totalPx)
+          pipeline = pipeline.resize({ width: Math.max(1, Math.round(meta.width * scale)) })
+        }
+        const gif = await pipeline.gif().toBuffer()
         await r2Put(key, gif, 'image/gif')
       }
     } else if (ext === 'avif') {
