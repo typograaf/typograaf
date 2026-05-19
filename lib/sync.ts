@@ -1,7 +1,8 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { getDropboxImageFiles, getDropboxTempLink, deleteDropboxFile } from './dropbox'
 import bundledProjectOrder from '../project-order.json'
-import { getProjectOrderOverride } from './cms'
+import { getProjectOrderOverride, getHiddenImageIds } from './cms'
+import { reconcileArena } from './arena'
 
 export interface ManifestImage {
   id: string
@@ -167,6 +168,12 @@ export async function syncWithDropbox(): Promise<{ added: number; deleted: numbe
 
   await saveManifest(newManifest)
   await updateRecentProjects(newManifest)
+
+  // Mirror to Are.na (best-effort; no-op unless ARENA_* env is set). Runs the
+  // full reconcile so existing images are backfilled on the first sync.
+  const hidden = await getHiddenImageIds()
+  await reconcileArena(newManifest, hidden)
+
   return { added: added.length, deleted: toDelete.length }
 }
 
@@ -186,5 +193,10 @@ export async function deleteImage(id: string): Promise<{ deleted: boolean }> {
   const newManifest = manifest.filter(img => img.id !== id)
   await saveManifest(newManifest)
   await updateRecentProjects(newManifest)
+
+  // Drop the matching Are.na block so the board mirrors the deletion.
+  const hidden = await getHiddenImageIds()
+  await reconcileArena(newManifest, hidden)
+
   return { deleted: true }
 }

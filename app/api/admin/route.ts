@@ -11,6 +11,7 @@ import {
   saveQuotes,
 } from '../../../lib/cms'
 import { getProjectOrder, getManifest, deleteImage } from '../../../lib/sync'
+import { reconcileArena } from '../../../lib/arena'
 import type { Quote } from '../../../lib/quote'
 
 export const dynamic = 'force-dynamic'
@@ -97,7 +98,12 @@ export async function PATCH(request: NextRequest) {
   const set = new Set(current)
   if (body.hidden) set.add(id)
   else set.delete(id)
-  await saveHiddenImageIds(Array.from(set))
+  const nextHidden = Array.from(set)
+  await saveHiddenImageIds(nextHidden)
+
+  // Keep Are.na in step: hiding removes the block, unhiding re-adds it.
+  const manifest = await getManifest()
+  await reconcileArena(manifest, nextHidden)
 
   revalidatePath('/')
   revalidatePath('/work')
