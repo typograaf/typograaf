@@ -2,36 +2,46 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import sharp from 'sharp'
 import type { ManifestImage } from './sync'
 
-// Mirrors the public portfolio to an Are.na channel. Every synced image is
-// pushed as a block (Are.na fetches it from a public R2 URL); deletions and
-// hides remove it. Opt-in: with no ARENA_ACCESS_TOKEN set, every function
-// here is a no-op so the core Dropbox -> R2 sync is never affected.
+// Mirrors the public portfolio to an Are.na channel as a *pure ordered
+// mirror*: the channel ends up containing exactly the site's visible
+// portfolio, in the same order as typografie.be, and nothing else. Opt-in:
+// with no ARENA_ACCESS_TOKEN set every function here is a no-op so the core
+// Dropbox -> R2 sync is never affected.
 //
-// Uses Are.na's v3 API. v2 is deprecated and the new personal access tokens
-// only authenticate against v3. The token needs *write* scope.
+// Uses Are.na's v3 API (v2 is deprecated; the new personal access tokens
+// only authenticate against v3). The token needs *write* scope.
 //
-// Are.na re-encodes whatever it ingests through its own pipeline, which
-// flattens alpha to JPEG and strips WebP animation. Our R2 stores AVIF +
-// animated WebP, both of which Are.na mangles. So for the formats Are.na
-// can't handle we transcode a compatibility copy into R2 under arena/ and
-// hand Are.na *that*:
-//   - AVIF with alpha   -> PNG  (Are.na preserves PNG transparency)
-//   - animated WebP      -> GIF  (Are.na animates GIF, not WebP)
-//   - opaque AVIF        -> left as-is (Are.na's AVIF->JPEG is fine)
+// Are.na re-encodes whatever it ingests and its AVIF support is unreliable
+// (silently fails some files) while WebP animation and alpha are mangled. So
+// we never let Are.na touch our AVIF/WebP: a compatibility copy is transcoded
+// into R2 under arena/v<N>/ and Are.na ingests that instead:
+//   - animated WebP      -> animated GIF
+//   - AVIF with alpha     -> PNG flattened onto white (deterministic white,
+//                            not the source's grey transparent pixels)
+//   - opaque AVIF         -> JPEG (Are.na ingests JPEG reliably)
 
 const BUCKET = 'typograaf'
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || ''
 const ARENA_MAP_KEY = 'arena-map.json'
 const ARENA_API = 'https://api.are.na/v3'
 
-// Per image id: the Are.na block id plus the exact source URL we pushed, so a
-// later run can tell a block was created from a now-superseded source (e.g.
-// the pre-transcode blobUrl) and replace it. Legacy entries are bare numbers.
-type Entry = { block: number; src: string }
+// Bump when the transcode strategy changes: existing entries below this
+// version are re-evaluated and their blocks replaced. The version is also in
+// the R2 key so a new source URL forces Are.na to re-ingest.
+const SRC_VERSION = 2
+const ARENA_PREFIX = `arena/v${SRC_VERSION}`
+
+// Per image id: the Are.na block id, the source URL we pushed, and the
+// strategy version it was built with. Legacy entries are bare numbers or
+// lack `v`.
+type Entry = { block: number; src: string; v?: number }
 type ArenaMap = Record<string, number | Entry>
 
 function blockId(raw: number | Entry): number {
   return typeof raw === 'number' ? raw : raw.block
+}
+function entryVersion(raw: number | Entry): number {
+  return typeof raw === 'number' ? 0 : raw.v ?? 0
 }
 
 function arenaConfig(): { token: string; slug: string } | null {
@@ -77,8 +87,6 @@ async function saveArenaMap(map: ArenaMap): Promise<void> {
   }))
 }
 
-// v3 block creation needs the numeric channel id; the slug only works on
-// reads. Resolved once per process.
 let cachedChannelId: number | null = null
 async function resolveChannelId(slug: string, token: string): Promise<number | null> {
   if (cachedChannelId !== null) return cachedChannelId
@@ -113,27 +121,23 @@ async function r2Exists(key: string): Promise<boolean> {
 
 async function r2Put(key: string, body: Buffer, contentType: string): Promise<void> {
   const client = getS3()
-  await client.send(new PutObjectCommand({
-    Bucket: BUCKET,
-    Key: key,
-    Body: body,
-    ContentType: contentType,
-  }))
+  await client.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: body, ContentType: contentType }))
 }
 
 /**
- * Returns the URL Are.na should ingest for this image, transcoding an
- * Are.na-friendly copy into R2 the first time it's needed. Idempotent: a
- * transcoded variant already in R2 is reused. Falls back to the original
- * blobUrl on any failure so the mirror still gets *something*.
+ * The URL Are.na should ingest for this image, transcoding an Are.na-friendly
+ * copy into R2 the first time it's needed (cached & reused afterwards). Falls
+ * back to the original blobUrl on any failure so the mirror still gets
+ * something.
  */
 async function arenaSource(img: ManifestImage): Promise<string> {
   const ext = img.name.split('.').pop()?.toLowerCase() || ''
+  const base = `${ARENA_PREFIX}/${safeId(img.id)}`
   try {
     // The convert pipeline only ever produces WebP from an animated GIF, so
     // every .webp here is animated and must become a GIF for Are.na.
     if (ext === 'webp') {
-      const key = `arena/${safeId(img.id)}.gif`
+      const key = `${base}.gif`
       if (!(await r2Exists(key))) {
         const buf = Buffer.from(await (await fetch(img.blobUrl)).arrayBuffer())
         const gif = await sharp(buf, { animated: true }).gif().toBuffer()
@@ -143,14 +147,23 @@ async function arenaSource(img: ManifestImage): Promise<string> {
     }
 
     if (ext === 'avif') {
-      const key = `arena/${safeId(img.id)}.png`
-      if (await r2Exists(key)) return `${PUBLIC_URL}/${key}`
       const buf = Buffer.from(await (await fetch(img.blobUrl)).arrayBuffer())
-      const meta = await sharp(buf).metadata()
-      // Opaque AVIF: Are.na's AVIF->JPEG is fine, keep the original.
-      if (!meta.hasAlpha) return img.blobUrl
-      const png = await sharp(buf).png().toBuffer()
-      await r2Put(key, png, 'image/png')
+      const hasAlpha = (await sharp(buf).metadata()).hasAlpha
+      if (hasAlpha) {
+        const key = `${base}.png`
+        if (!(await r2Exists(key))) {
+          // Flatten onto white: transparent areas become solid white instead
+          // of the source's grey transparent RGB bleeding through.
+          const png = await sharp(buf).flatten({ background: '#ffffff' }).png().toBuffer()
+          await r2Put(key, png, 'image/png')
+        }
+        return `${PUBLIC_URL}/${key}`
+      }
+      const key = `${base}.jpg`
+      if (!(await r2Exists(key))) {
+        const jpg = await sharp(buf).jpeg({ quality: 90 }).toBuffer()
+        await r2Put(key, jpg, 'image/jpeg')
+      }
       return `${PUBLIC_URL}/${key}`
     }
   } catch {
@@ -174,21 +187,48 @@ async function addBlock(channelId: number, token: string, value: string, title: 
   }
 }
 
-// Walks the channel's contents and builds blockId -> connectionId. The
-// connection id is required to remove a block from the channel and is not
-// returned by block creation, so it has to be looked up here.
-// `complete` is false if any page failed to load. Callers must not drop
-// tracking for a block whose connection id is missing from an incomplete
-// index — that would orphan the block. They should defer and retry instead.
-async function getConnectionIndex(slug: string, token: string): Promise<{ index: Map<number, number>; complete: boolean }> {
-  const index = new Map<number, number>()
+async function removeConnection(connectionId: number, token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${ARENA_API}/connections/${connectionId}`, {
+      method: 'DELETE',
+      headers: authHeaders(token),
+    })
+    return res.ok || res.status === 404
+  } catch {
+    return false
+  }
+}
+
+async function moveConnection(connectionId: number, token: string, position: number): Promise<boolean> {
+  try {
+    const res = await fetch(`${ARENA_API}/connections/${connectionId}/move`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ movement: 'insert_at', position }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+type ChannelState = {
+  byBlock: Map<number, number>      // block id -> connection id
+  ordered: number[]                 // block ids in channel position order
+  complete: boolean
+}
+
+// Walks the whole channel: needed to resolve connection ids, find foreign
+// blocks to delete, and know the current order. `complete` is false if any
+// page failed, so callers don't drop tracking off a truncated walk.
+async function getChannelState(slug: string, token: string): Promise<ChannelState> {
+  const byBlock = new Map<number, number>()
+  const positioned: Array<{ block: number; pos: number }> = []
   let complete = true
   try {
     let page = 1
     for (;;) {
       let res: Response | null = null
-      // The contents walk rate-limits under load; back off and retry a few
-      // times before giving up on a page.
       for (let attempt = 0; attempt < 4; attempt++) {
         res = await fetch(
           `${ARENA_API}/channels/${encodeURIComponent(slug)}/contents?per=100&page=${page}`,
@@ -201,54 +241,40 @@ async function getConnectionIndex(slug: string, token: string): Promise<{ index:
       if (!res || !res.ok) { complete = false; break }
       const body = await res.json()
       const data: unknown[] = Array.isArray(body?.data) ? body.data : []
-      for (const item of data as Array<{ id?: number; connection?: { id?: number } }>) {
+      for (const item of data as Array<{ id?: number; connection?: { id?: number; position?: number } }>) {
         if (typeof item?.id === 'number' && typeof item?.connection?.id === 'number') {
-          index.set(item.id, item.connection.id)
+          byBlock.set(item.id, item.connection.id)
+          positioned.push({ block: item.id, pos: item.connection.position ?? 0 })
         }
       }
       if (!body?.meta?.has_more_pages) break
       page++
-      await new Promise(r => setTimeout(r, 250)) // pace pages to avoid 429
+      await new Promise(r => setTimeout(r, 250))
     }
   } catch {
     complete = false
   }
-  return { index, complete }
+  positioned.sort((a, b) => a.pos - b.pos)
+  return { byBlock, ordered: positioned.map(p => p.block), complete }
 }
 
-async function removeConnection(connectionId: number, token: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${ARENA_API}/connections/${connectionId}`, {
-      method: 'DELETE',
-      headers: authHeaders(token),
-    })
-    // 404 = already gone; treat as success so the map heals.
-    return res.ok || res.status === 404
-  } catch {
-    return false
-  }
-}
-
-// Concurrency cap: transcoding is CPU-heavy, so keep this low.
 async function pooled<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
   let i = 0
   const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (i < items.length) {
-      const item = items[i++]
-      await worker(item)
-    }
+    while (i < items.length) await worker(items[i++])
   })
   await Promise.all(runners)
 }
 
 /**
- * Reconciles the Are.na channel against the desired set of public images.
- * Idempotent: only the diff is applied, so a backfill (or a batch of
- * transcodes) that doesn't finish within one run continues on the next sync.
- * Never throws — Are.na failures must not break the Dropbox -> R2 pipeline.
+ * Reconciles the Are.na channel to be exactly `desired` (already filtered to
+ * visible images and sorted into the canonical site order), and nothing else.
+ * Idempotent and crash-safe: heavy work (transcodes, replaces) that doesn't
+ * finish in one run resumes on the next; the order pass only runs once the
+ * set is fully converged so moves aren't wasted. Never throws.
  */
-export async function reconcileArena(manifest: ManifestImage[], hiddenIds: string[]): Promise<{ added: number; replaced: number; removed: number }> {
-  const result = { added: 0, replaced: 0, removed: 0 }
+export async function reconcileArena(desired: ManifestImage[]): Promise<{ added: number; replaced: number; removed: number; reordered: number }> {
+  const result = { added: 0, replaced: 0, removed: 0, reordered: 0 }
   const config = arenaConfig()
   if (!config) return result
   const { token, slug } = config
@@ -257,15 +283,9 @@ export async function reconcileArena(manifest: ManifestImage[], hiddenIds: strin
     const channelId = await resolveChannelId(slug, token)
     if (channelId === null) return result
 
-    const hidden = new Set(hiddenIds)
-    const desired = manifest.filter(img => !hidden.has(img.id))
+    const map = await getArenaMap()
     const desiredIds = new Set(desired.map(img => img.id))
 
-    const map = await getArenaMap()
-
-    // A long transcoding backfill can hit the function timeout mid-run. Save
-    // after every mutation (serialized) so a kill never orphans created
-    // blocks — the map JSON is tiny and the next run resumes from it.
     let saveChain: Promise<void> = Promise.resolve()
     const persist = (): Promise<void> => {
       saveChain = saveChain.then(() => saveArenaMap(map)).catch(() => {})
@@ -273,70 +293,45 @@ export async function reconcileArena(manifest: ManifestImage[], hiddenIds: strin
     }
 
     const toAdd: ManifestImage[] = []
-    // Legacy bare-number entries: created before transcoding, so the source
-    // may be wrong. Recheck and replace if so.
-    const toCheck: ManifestImage[] = []
+    const toReplace: ManifestImage[] = []
     for (const img of desired) {
       const raw = map[img.id]
       if (raw === undefined) toAdd.push(img)
-      else if (typeof raw === 'number') toCheck.push(img)
-      // Object entries are trusted as already-correct (skip — no re-download).
+      else if (entryVersion(raw) !== SRC_VERSION) toReplace.push(img)
+      // Entries already at SRC_VERSION are trusted (no re-download).
     }
     const toRemove = Object.keys(map).filter(id => !desiredIds.has(id))
+
+    const state = await getChannelState(slug, token)
+    let deferred = false
 
     await pooled(toAdd, 3, async (img) => {
       const src = await arenaSource(img)
       const id = await addBlock(channelId, token, src, img.name)
       if (id !== null) {
-        map[img.id] = { block: id, src }
+        map[img.id] = { block: id, src, v: SRC_VERSION }
         result.added++
         await persist()
       }
     })
 
-    // Resolving + replacing legacy entries and removals both need connection
-    // ids — one contents walk covers all of it.
-    const needIndex = toCheck.length > 0 || toRemove.length > 0
-    const { index: connIndex, complete: indexComplete } = needIndex
-      ? await getConnectionIndex(slug, token)
-      : { index: new Map<number, number>(), complete: true }
-
-    await pooled(toCheck, 3, async (img) => {
+    await pooled(toReplace, 3, async (img) => {
       const oldBlock = blockId(map[img.id])
+      const conn = state.byBlock.get(oldBlock)
+      if (conn === undefined && !state.complete) { deferred = true; return }
       const src = await arenaSource(img)
-      if (src === img.blobUrl) {
-        // Source unchanged — the existing block is fine, just upgrade the
-        // map entry so we don't re-download it next time.
-        map[img.id] = { block: oldBlock, src }
-        await persist()
-        return
-      }
-      // Source superseded by a transcoded copy: drop the old block and
-      // recreate from the good source.
-      const connId = connIndex.get(oldBlock)
-      if (connId === undefined && !indexComplete) {
-        // Couldn't confirm the old block's connection because the index is
-        // partial — defer rather than orphan it. Retries next reconcile.
-        return
-      }
-      if (connId !== undefined) await removeConnection(connId, token)
       const id = await addBlock(channelId, token, src, img.name)
-      if (id !== null) {
-        map[img.id] = { block: id, src }
-        result.replaced++
-        await persist()
-      }
+      if (id === null) return
+      if (conn !== undefined) await removeConnection(conn, token)
+      map[img.id] = { block: id, src, v: SRC_VERSION }
+      result.replaced++
+      await persist()
     })
 
     await pooled(toRemove, 3, async (id) => {
-      const connId = connIndex.get(blockId(map[id]))
-      if (connId === undefined && !indexComplete) {
-        // Block not found in a partial index — can't tell if it's genuinely
-        // gone or just missing from the truncated walk. Defer to avoid
-        // leaking an orphan; retries next reconcile.
-        return
-      }
-      const ok = connId === undefined ? true : await removeConnection(connId, token)
+      const conn = state.byBlock.get(blockId(map[id]))
+      if (conn === undefined && !state.complete) { deferred = true; return }
+      const ok = conn === undefined ? true : await removeConnection(conn, token)
       if (ok) {
         delete map[id]
         result.removed++
@@ -344,7 +339,44 @@ export async function reconcileArena(manifest: ManifestImage[], hiddenIds: strin
       }
     })
 
+    // Pure mirror: any block in the channel that isn't one we currently track
+    // is foreign (the pre-existing blocks, or superseded old ones) and gets
+    // removed. Presence-based, so a partial walk only means we catch the
+    // rest next run — never a false positive.
+    const ours = new Set(Object.values(map).map(blockId))
+    for (const [block, conn] of state.byBlock) {
+      if (!ours.has(block)) {
+        if (await removeConnection(conn, token)) result.removed++
+      }
+    }
+
     await saveChain
+
+    const mutated = result.added + result.replaced + result.removed > 0
+    // Order only once the set is exactly right — otherwise moves get undone
+    // by pending adds/removes. Converges over repeated runs.
+    if (!mutated && !deferred && state.complete) {
+      const blockToConn = state.byBlock
+      const want = desired
+        .map(img => blockId(map[img.id]))
+        .filter(b => blockToConn.has(b))
+      const current = state.ordered.filter(b => blockToConn.has(b))
+      // Walk target positions; move any block that isn't already there and
+      // keep a local model in sync so later comparisons stay correct.
+      for (let i = 0; i < want.length; i++) {
+        if (current[i] === want[i]) continue
+        const conn = blockToConn.get(want[i])
+        if (conn === undefined) continue
+        if (await moveConnection(conn, token, i + 1)) {
+          const from = current.indexOf(want[i])
+          if (from !== -1) current.splice(from, 1)
+          current.splice(i, 0, want[i])
+          result.reordered++
+          await new Promise(r => setTimeout(r, 120)) // pace to avoid 429
+        }
+      }
+    }
+
     return result
   } catch {
     return result

@@ -10,7 +10,7 @@ import {
   getQuotes,
   saveQuotes,
 } from '../../../lib/cms'
-import { getProjectOrder, getManifest, deleteImage } from '../../../lib/sync'
+import { getProjectOrder, getManifest, deleteImage, orderedVisible } from '../../../lib/sync'
 import { reconcileArena } from '../../../lib/arena'
 import type { Quote } from '../../../lib/quote'
 
@@ -102,8 +102,8 @@ export async function PATCH(request: NextRequest) {
   await saveHiddenImageIds(nextHidden)
 
   // Keep Are.na in step: hiding removes the block, unhiding re-adds it.
-  const manifest = await getManifest()
-  await reconcileArena(manifest, nextHidden)
+  const [manifest, projectOrder] = await Promise.all([getManifest(), getProjectOrder()])
+  await reconcileArena(orderedVisible(manifest, projectOrder, nextHidden))
 
   revalidatePath('/')
   revalidatePath('/work')

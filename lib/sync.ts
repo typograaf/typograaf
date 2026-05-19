@@ -88,6 +88,32 @@ function projectFromPath(path: string): string {
   return parts[baseDepth] || ''
 }
 
+/**
+ * The canonical public display order: by project order (case-insensitive;
+ * projects not in the order list sort first), then filename. The portfolio
+ * page and the Are.na mirror both consume this so the board can't drift out
+ * of sync with the site.
+ */
+export function orderedVisible(
+  manifest: ManifestImage[],
+  projectOrder: string[],
+  hiddenIds: string[],
+): ManifestImage[] {
+  const hidden = new Set(hiddenIds)
+  const visible = manifest.filter(img => !hidden.has(img.id))
+  const orderIndex = (path: string) => {
+    const project = projectFromPath(path)
+    const i = projectOrder.findIndex(p => p.toLowerCase() === project)
+    return i === -1 ? -1 : i
+  }
+  return [...visible].sort((a, b) => {
+    const oa = orderIndex(a.path)
+    const ob = orderIndex(b.path)
+    if (oa !== ob) return oa - ob
+    return a.name.localeCompare(b.name)
+  })
+}
+
 async function updateRecentProjects(manifest: ManifestImage[]): Promise<void> {
   const projectsInManifest = new Set(
     manifest.map(img => projectFromPath(img.path)).filter(Boolean)
@@ -115,7 +141,7 @@ async function updateRecentProjects(manifest: ManifestImage[]): Promise<void> {
   await saveRecentProjects(newRecent)
 }
 
-export async function syncWithDropbox(): Promise<{ added: number; deleted: number; arena: { added: number; replaced: number; removed: number } }> {
+export async function syncWithDropbox(): Promise<{ added: number; deleted: number; arena: { added: number; replaced: number; removed: number; reordered: number } }> {
   const [dropboxFiles, manifest] = await Promise.all([
     getDropboxImageFiles(),
     getManifest(),
@@ -169,10 +195,11 @@ export async function syncWithDropbox(): Promise<{ added: number; deleted: numbe
   await saveManifest(newManifest)
   await updateRecentProjects(newManifest)
 
-  // Mirror to Are.na (best-effort; no-op unless ARENA_* env is set). Runs the
-  // full reconcile so existing images are backfilled on the first sync.
-  const hidden = await getHiddenImageIds()
-  const arena = await reconcileArena(newManifest, hidden)
+  // Mirror to Are.na (best-effort; no-op unless ARENA_* env is set). The
+  // desired set is the canonical ordered, visible portfolio so the board is
+  // an exact mirror of the site.
+  const [projectOrder, hidden] = await Promise.all([getProjectOrder(), getHiddenImageIds()])
+  const arena = await reconcileArena(orderedVisible(newManifest, projectOrder, hidden))
 
   return { added: added.length, deleted: toDelete.length, arena }
 }
@@ -195,8 +222,8 @@ export async function deleteImage(id: string): Promise<{ deleted: boolean }> {
   await updateRecentProjects(newManifest)
 
   // Drop the matching Are.na block so the board mirrors the deletion.
-  const hidden = await getHiddenImageIds()
-  await reconcileArena(newManifest, hidden)
+  const [projectOrder, hidden] = await Promise.all([getProjectOrder(), getHiddenImageIds()])
+  await reconcileArena(orderedVisible(newManifest, projectOrder, hidden))
 
   return { deleted: true }
 }
