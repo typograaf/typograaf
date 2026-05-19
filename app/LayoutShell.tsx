@@ -53,7 +53,8 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
               <Link href="/work" prefetch>Work</Link>&nbsp;&nbsp;<Link href="/calendar" prefetch>Calendar</Link>&nbsp;&nbsp;<Link href="/about" prefetch>About</Link><br />
               t. +32 (0) 493 45 92 96<br />
               m. <a href="mailto:hello@typografie.be">hello@typografie.be</a><br />
-              i. <a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">@typograaf</a>
+              i. <a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">@typograaf</a><br />
+              <a href="https://www.are.na/martijn-mertens/channels" target="_blank" rel="noopener noreferrer">✶✶ Martijn Mertens</a>
             </p>
           </div>
         </aside>
