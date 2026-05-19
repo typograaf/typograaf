@@ -115,7 +115,7 @@ async function updateRecentProjects(manifest: ManifestImage[]): Promise<void> {
   await saveRecentProjects(newRecent)
 }
 
-export async function syncWithDropbox(): Promise<{ added: number; deleted: number }> {
+export async function syncWithDropbox(): Promise<{ added: number; deleted: number; arena: { added: number; replaced: number; removed: number } }> {
   const [dropboxFiles, manifest] = await Promise.all([
     getDropboxImageFiles(),
     getManifest(),
@@ -172,9 +172,9 @@ export async function syncWithDropbox(): Promise<{ added: number; deleted: numbe
   // Mirror to Are.na (best-effort; no-op unless ARENA_* env is set). Runs the
   // full reconcile so existing images are backfilled on the first sync.
   const hidden = await getHiddenImageIds()
-  await reconcileArena(newManifest, hidden)
+  const arena = await reconcileArena(newManifest, hidden)
 
-  return { added: added.length, deleted: toDelete.length }
+  return { added: added.length, deleted: toDelete.length, arena }
 }
 
 export async function deleteImage(id: string): Promise<{ deleted: boolean }> {

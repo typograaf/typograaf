@@ -4,6 +4,10 @@ const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
 
+  // sharp ships native binaries — keep it external so Next doesn't try to
+  // bundle it into the serverless function (used by the Are.na mirror).
+  serverExternalPackages: ['sharp'],
+
   async rewrites() {
     return [
       // /work serves the portfolio (same as /). URL stays /work.

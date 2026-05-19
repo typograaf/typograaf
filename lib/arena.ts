@@ -1,23 +1,38 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import sharp from 'sharp'
 import type { ManifestImage } from './sync'
 
 // Mirrors the public portfolio to an Are.na channel. Every synced image is
-// pushed as a block (Are.na fetches it from its public R2 URL); deletions and
-// hides remove it. The whole feature is opt-in: with no ARENA_ACCESS_TOKEN
-// set, every function here is a no-op so the core Dropbox -> R2 sync is never
-// affected.
+// pushed as a block (Are.na fetches it from a public R2 URL); deletions and
+// hides remove it. Opt-in: with no ARENA_ACCESS_TOKEN set, every function
+// here is a no-op so the core Dropbox -> R2 sync is never affected.
 //
 // Uses Are.na's v3 API. v2 is deprecated and the new personal access tokens
-// only authenticate against v3. The token needs *write* scope to add/remove
-// blocks (a read-only token simply makes this a silent no-op).
+// only authenticate against v3. The token needs *write* scope.
+//
+// Are.na re-encodes whatever it ingests through its own pipeline, which
+// flattens alpha to JPEG and strips WebP animation. Our R2 stores AVIF +
+// animated WebP, both of which Are.na mangles. So for the formats Are.na
+// can't handle we transcode a compatibility copy into R2 under arena/ and
+// hand Are.na *that*:
+//   - AVIF with alpha   -> PNG  (Are.na preserves PNG transparency)
+//   - animated WebP      -> GIF  (Are.na animates GIF, not WebP)
+//   - opaque AVIF        -> left as-is (Are.na's AVIF->JPEG is fine)
 
 const BUCKET = 'typograaf'
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || ''
 const ARENA_MAP_KEY = 'arena-map.json'
 const ARENA_API = 'https://api.are.na/v3'
 
-// Maps manifest image id -> Are.na block id.
-type ArenaMap = Record<string, number>
+// Per image id: the Are.na block id plus the exact source URL we pushed, so a
+// later run can tell a block was created from a now-superseded source (e.g.
+// the pre-transcode blobUrl) and replace it. Legacy entries are bare numbers.
+type Entry = { block: number; src: string }
+type ArenaMap = Record<string, number | Entry>
+
+function blockId(raw: number | Entry): number {
+  return typeof raw === 'number' ? raw : raw.block
+}
 
 function arenaConfig(): { token: string; slug: string } | null {
   const token = process.env.ARENA_ACCESS_TOKEN
@@ -83,6 +98,67 @@ async function resolveChannelId(slug: string, token: string): Promise<number | n
   }
 }
 
+function safeId(id: string): string {
+  return id.replace(':', '_')
+}
+
+async function r2Exists(key: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${PUBLIC_URL}/${key}`, { method: 'HEAD' })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+async function r2Put(key: string, body: Buffer, contentType: string): Promise<void> {
+  const client = getS3()
+  await client.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    Body: body,
+    ContentType: contentType,
+  }))
+}
+
+/**
+ * Returns the URL Are.na should ingest for this image, transcoding an
+ * Are.na-friendly copy into R2 the first time it's needed. Idempotent: a
+ * transcoded variant already in R2 is reused. Falls back to the original
+ * blobUrl on any failure so the mirror still gets *something*.
+ */
+async function arenaSource(img: ManifestImage): Promise<string> {
+  const ext = img.name.split('.').pop()?.toLowerCase() || ''
+  try {
+    // The convert pipeline only ever produces WebP from an animated GIF, so
+    // every .webp here is animated and must become a GIF for Are.na.
+    if (ext === 'webp') {
+      const key = `arena/${safeId(img.id)}.gif`
+      if (!(await r2Exists(key))) {
+        const buf = Buffer.from(await (await fetch(img.blobUrl)).arrayBuffer())
+        const gif = await sharp(buf, { animated: true }).gif().toBuffer()
+        await r2Put(key, gif, 'image/gif')
+      }
+      return `${PUBLIC_URL}/${key}`
+    }
+
+    if (ext === 'avif') {
+      const key = `arena/${safeId(img.id)}.png`
+      if (await r2Exists(key)) return `${PUBLIC_URL}/${key}`
+      const buf = Buffer.from(await (await fetch(img.blobUrl)).arrayBuffer())
+      const meta = await sharp(buf).metadata()
+      // Opaque AVIF: Are.na's AVIF->JPEG is fine, keep the original.
+      if (!meta.hasAlpha) return img.blobUrl
+      const png = await sharp(buf).png().toBuffer()
+      await r2Put(key, png, 'image/png')
+      return `${PUBLIC_URL}/${key}`
+    }
+  } catch {
+    return img.blobUrl
+  }
+  return img.blobUrl
+}
+
 async function addBlock(channelId: number, token: string, value: string, title: string): Promise<number | null> {
   try {
     const res = await fetch(`${ARENA_API}/blocks`, {
@@ -122,7 +198,7 @@ async function getConnectionIndex(slug: string, token: string): Promise<Map<numb
       page++
     }
   } catch {
-    /* partial index is fine — unresolved removals retry next reconcile */
+    /* partial index is fine — unresolved ops retry next reconcile */
   }
   return index
 }
@@ -140,8 +216,7 @@ async function removeConnection(connectionId: number, token: string): Promise<bo
   }
 }
 
-// Runs tasks with a small concurrency cap so a large backfill doesn't hammer
-// the Are.na API (or blow the function timeout) all at once.
+// Concurrency cap: transcoding is CPU-heavy, so keep this low.
 async function pooled<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
   let i = 0
   const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
@@ -155,18 +230,19 @@ async function pooled<T>(items: T[], limit: number, worker: (item: T) => Promise
 
 /**
  * Reconciles the Are.na channel against the desired set of public images.
- * Idempotent: only the diff is applied, so a backfill that doesn't finish
- * within one run simply continues on the next sync. Never throws — Are.na
- * failures must not break the Dropbox -> R2 pipeline.
+ * Idempotent: only the diff is applied, so a backfill (or a batch of
+ * transcodes) that doesn't finish within one run continues on the next sync.
+ * Never throws — Are.na failures must not break the Dropbox -> R2 pipeline.
  */
-export async function reconcileArena(manifest: ManifestImage[], hiddenIds: string[]): Promise<{ added: number; removed: number }> {
+export async function reconcileArena(manifest: ManifestImage[], hiddenIds: string[]): Promise<{ added: number; replaced: number; removed: number }> {
+  const result = { added: 0, replaced: 0, removed: 0 }
   const config = arenaConfig()
-  if (!config) return { added: 0, removed: 0 }
+  if (!config) return result
   const { token, slug } = config
 
   try {
     const channelId = await resolveChannelId(slug, token)
-    if (channelId === null) return { added: 0, removed: 0 }
+    if (channelId === null) return result
 
     const hidden = new Set(hiddenIds)
     const desired = manifest.filter(img => !hidden.has(img.id))
@@ -174,42 +250,77 @@ export async function reconcileArena(manifest: ManifestImage[], hiddenIds: strin
 
     const map = await getArenaMap()
 
-    const toAdd = desired.filter(img => !(img.id in map))
+    // A long transcoding backfill can hit the function timeout mid-run. Save
+    // after every mutation (serialized) so a kill never orphans created
+    // blocks — the map JSON is tiny and the next run resumes from it.
+    let saveChain: Promise<void> = Promise.resolve()
+    const persist = (): Promise<void> => {
+      saveChain = saveChain.then(() => saveArenaMap(map)).catch(() => {})
+      return saveChain
+    }
+
+    const toAdd: ManifestImage[] = []
+    // Legacy bare-number entries: created before transcoding, so the source
+    // may be wrong. Recheck and replace if so.
+    const toCheck: ManifestImage[] = []
+    for (const img of desired) {
+      const raw = map[img.id]
+      if (raw === undefined) toAdd.push(img)
+      else if (typeof raw === 'number') toCheck.push(img)
+      // Object entries are trusted as already-correct (skip — no re-download).
+    }
     const toRemove = Object.keys(map).filter(id => !desiredIds.has(id))
 
-    let added = 0
-    let removed = 0
-
-    await pooled(toAdd, 5, async (img) => {
-      const blockId = await addBlock(channelId, token, img.blobUrl, img.name)
-      if (blockId !== null) {
-        map[img.id] = blockId
-        added++
+    await pooled(toAdd, 3, async (img) => {
+      const src = await arenaSource(img)
+      const id = await addBlock(channelId, token, src, img.name)
+      if (id !== null) {
+        map[img.id] = { block: id, src }
+        result.added++
+        await persist()
       }
     })
 
-    if (toRemove.length > 0) {
-      // One contents walk resolves every connection id we need to delete.
-      const connIndex = await getConnectionIndex(slug, token)
-      await pooled(toRemove, 5, async (id) => {
-        const blockId = map[id]
-        const connectionId = connIndex.get(blockId)
-        // No connection found means it's no longer in the channel — drop it
-        // from the map so we stop trying.
-        const ok = connectionId === undefined ? true : await removeConnection(connectionId, token)
-        if (ok) {
-          delete map[id]
-          removed++
-        }
-      })
-    }
+    // Resolving + replacing legacy entries and removals both need connection
+    // ids — one contents walk covers all of it.
+    const needIndex = toCheck.length > 0 || toRemove.length > 0
+    const connIndex = needIndex ? await getConnectionIndex(slug, token) : new Map<number, number>()
 
-    if (added > 0 || removed > 0) {
-      await saveArenaMap(map)
-    }
+    await pooled(toCheck, 3, async (img) => {
+      const oldBlock = blockId(map[img.id])
+      const src = await arenaSource(img)
+      if (src === img.blobUrl) {
+        // Source unchanged — the existing block is fine, just upgrade the
+        // map entry so we don't re-download it next time.
+        map[img.id] = { block: oldBlock, src }
+        await persist()
+        return
+      }
+      // Source superseded by a transcoded copy: drop the old block and
+      // recreate from the good source.
+      const connId = connIndex.get(oldBlock)
+      if (connId !== undefined) await removeConnection(connId, token)
+      const id = await addBlock(channelId, token, src, img.name)
+      if (id !== null) {
+        map[img.id] = { block: id, src }
+        result.replaced++
+        await persist()
+      }
+    })
 
-    return { added, removed }
+    await pooled(toRemove, 3, async (id) => {
+      const connId = connIndex.get(blockId(map[id]))
+      const ok = connId === undefined ? true : await removeConnection(connId, token)
+      if (ok) {
+        delete map[id]
+        result.removed++
+        await persist()
+      }
+    })
+
+    await saveChain
+    return result
   } catch {
-    return { added: 0, removed: 0 }
+    return result
   }
 }
