@@ -177,16 +177,28 @@ async function addBlock(channelId: number, token: string, value: string, title: 
 // Walks the channel's contents and builds blockId -> connectionId. The
 // connection id is required to remove a block from the channel and is not
 // returned by block creation, so it has to be looked up here.
-async function getConnectionIndex(slug: string, token: string): Promise<Map<number, number>> {
+// `complete` is false if any page failed to load. Callers must not drop
+// tracking for a block whose connection id is missing from an incomplete
+// index — that would orphan the block. They should defer and retry instead.
+async function getConnectionIndex(slug: string, token: string): Promise<{ index: Map<number, number>; complete: boolean }> {
   const index = new Map<number, number>()
+  let complete = true
   try {
     let page = 1
     for (;;) {
-      const res = await fetch(
-        `${ARENA_API}/channels/${encodeURIComponent(slug)}/contents?per=100&page=${page}`,
-        { headers: authHeaders(token) },
-      )
-      if (!res.ok) break
+      let res: Response | null = null
+      // The contents walk rate-limits under load; back off and retry a few
+      // times before giving up on a page.
+      for (let attempt = 0; attempt < 4; attempt++) {
+        res = await fetch(
+          `${ARENA_API}/channels/${encodeURIComponent(slug)}/contents?per=100&page=${page}`,
+          { headers: authHeaders(token) },
+        )
+        if (res.ok) break
+        if (res.status !== 429 && res.status < 500) break
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)))
+      }
+      if (!res || !res.ok) { complete = false; break }
       const body = await res.json()
       const data: unknown[] = Array.isArray(body?.data) ? body.data : []
       for (const item of data as Array<{ id?: number; connection?: { id?: number } }>) {
@@ -196,11 +208,12 @@ async function getConnectionIndex(slug: string, token: string): Promise<Map<numb
       }
       if (!body?.meta?.has_more_pages) break
       page++
+      await new Promise(r => setTimeout(r, 250)) // pace pages to avoid 429
     }
   } catch {
-    /* partial index is fine — unresolved ops retry next reconcile */
+    complete = false
   }
-  return index
+  return { index, complete }
 }
 
 async function removeConnection(connectionId: number, token: string): Promise<boolean> {
@@ -284,7 +297,9 @@ export async function reconcileArena(manifest: ManifestImage[], hiddenIds: strin
     // Resolving + replacing legacy entries and removals both need connection
     // ids — one contents walk covers all of it.
     const needIndex = toCheck.length > 0 || toRemove.length > 0
-    const connIndex = needIndex ? await getConnectionIndex(slug, token) : new Map<number, number>()
+    const { index: connIndex, complete: indexComplete } = needIndex
+      ? await getConnectionIndex(slug, token)
+      : { index: new Map<number, number>(), complete: true }
 
     await pooled(toCheck, 3, async (img) => {
       const oldBlock = blockId(map[img.id])
@@ -299,6 +314,11 @@ export async function reconcileArena(manifest: ManifestImage[], hiddenIds: strin
       // Source superseded by a transcoded copy: drop the old block and
       // recreate from the good source.
       const connId = connIndex.get(oldBlock)
+      if (connId === undefined && !indexComplete) {
+        // Couldn't confirm the old block's connection because the index is
+        // partial — defer rather than orphan it. Retries next reconcile.
+        return
+      }
       if (connId !== undefined) await removeConnection(connId, token)
       const id = await addBlock(channelId, token, src, img.name)
       if (id !== null) {
@@ -310,6 +330,12 @@ export async function reconcileArena(manifest: ManifestImage[], hiddenIds: strin
 
     await pooled(toRemove, 3, async (id) => {
       const connId = connIndex.get(blockId(map[id]))
+      if (connId === undefined && !indexComplete) {
+        // Block not found in a partial index — can't tell if it's genuinely
+        // gone or just missing from the truncated walk. Defer to avoid
+        // leaking an orphan; retries next reconcile.
+        return
+      }
       const ok = connId === undefined ? true : await removeConnection(connId, token)
       if (ok) {
         delete map[id]
