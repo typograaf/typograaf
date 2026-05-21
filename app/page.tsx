@@ -593,18 +593,34 @@ function FontPreview({
       cy = y
       if (!raf) raf = requestAnimationFrame(update)
     }
-    const onMouse = (e: MouseEvent) => move(e.clientX, e.clientY)
+    // Once any touch happens, ignore synthetic mouse events — a tap emits a
+    // synthetic mousemove at the tap point that would otherwise jump the
+    // weight to wherever you tapped.
+    let touchSeen = false
+    const onMouse = (e: MouseEvent) => {
+      if (touchSeen) return
+      move(e.clientX, e.clientY)
+    }
 
     // Touch: one finger drives the axes, two fingers pinch to size the
-    // type — the mobile equivalent of wheel-zoom.
+    // type. A single finger only drives the axes once it has moved past a
+    // threshold — so a tap (to focus and type) leaves the weight alone.
     let pinchDist = 0
     let pinchSize = 0
+    let dragStartX = 0
+    let dragStartY = 0
+    let dragging = false
     const twoFingerDist = (t: TouchList) =>
       Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
     const onTouchStart = (e: TouchEvent) => {
+      touchSeen = true
       if (e.touches.length === 2) {
         pinchDist = twoFingerDist(e.touches)
         pinchSize = sizeRef.current
+      } else if (e.touches.length === 1) {
+        dragStartX = e.touches[0].clientX
+        dragStartY = e.touches[0].clientY
+        dragging = false
       }
     }
     const onTouchMove = (e: TouchEvent) => {
@@ -612,7 +628,12 @@ function FontPreview({
         const factor = twoFingerDist(e.touches) / pinchDist
         setSize(Math.min(640, Math.max(24, Math.round(pinchSize * factor))))
       } else if (e.touches.length === 1) {
-        move(e.touches[0].clientX, e.touches[0].clientY)
+        const t = e.touches[0]
+        if (!dragging) {
+          if (Math.hypot(t.clientX - dragStartX, t.clientY - dragStartY) < 8) return
+          dragging = true
+        }
+        move(t.clientX, t.clientY)
       }
     }
     const onTouchEnd = (e: TouchEvent) => {
