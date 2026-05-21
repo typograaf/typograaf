@@ -16,7 +16,7 @@ import {
   formatEur,
 } from '../../lib/quote'
 import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING, DEFAULT_PREVIEW_SIZE } from '../../lib/tiles'
-import { type Axis, parseVariationAxes, deaccent } from '../../lib/fontmeta'
+import { type Axis, parseVariationAxes, parseCharSet, glyphSafeText } from '../../lib/fontmeta'
 
 type Tab = 'work' | 'about' | 'images' | 'quotes' | 'sentences'
 
@@ -641,6 +641,7 @@ function FontAxisRow({
 }) {
   const family = useMemo(() => 'adm-' + font.id.replace(/[^a-zA-Z0-9]/g, '-'), [font.id])
   const [parsed, setParsed] = useState<Axis[]>([])
+  const [charset, setCharset] = useState<Set<number> | null>(null)
   const [sentenceIdx, setSentenceIdx] = useState(() =>
     Math.floor(Math.random() * Math.max(1, sentences.length)),
   )
@@ -657,6 +658,7 @@ function FontAxisRow({
           if (cancelled) return
           document.fonts.add(loaded)
           setParsed(parseVariationAxes(buf))
+          setCharset(parseCharSet(buf))
         })
       })
       .catch(() => {})
@@ -671,7 +673,9 @@ function FontAxisRow({
   const size = axes.size ?? DEFAULT_PREVIEW_SIZE
   const settings = `"wght" ${weight}` + (wdth ? `, "wdth" ${width}` : '')
 
-  const pool = sentences.length ? sentences.map(deaccent) : [font.name]
+  const pool = sentences.length
+    ? sentences.map((s) => glyphSafeText(s, charset))
+    : [font.name]
   const sentence = pool[sentenceIdx % pool.length]
 
   return (

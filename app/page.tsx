@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, useDeferredValue } from 'react'
 import type { Tile, ImageTile, FontTile, FontFile } from '../lib/tiles'
 import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING, DEFAULT_PREVIEW_SIZE } from '../lib/tiles'
-import { type Axis, parseVariationAxes, ensureFontFace, fontFamilyFor, deaccent } from '../lib/fontmeta'
+import { type Axis, parseVariationAxes, parseCharSet, ensureFontFace, fontFamilyFor, glyphSafeText, loadCharSet } from '../lib/fontmeta'
 
 const BUFFER_ROWS = 3
 
@@ -386,16 +386,21 @@ function FontItem({
   const family = fontFamilyFor(tile.id)
   const pad = Math.round(size * 0.12)
   const [display, setDisplay] = useState('')
+  const [charset, setCharset] = useState<Set<number> | null>(null)
 
   useEffect(() => {
-    ensureFontFace(family, representativeStyle(tile).url)
+    const url = representativeStyle(tile).url
+    ensureFontFace(family, url)
+    let cancelled = false
+    loadCharSet(url).then(cs => { if (!cancelled) setCharset(cs) })
+    return () => { cancelled = true }
   }, [family, tile])
 
   // Typewriter loop: type a sentence, hold, backspace it, type the next.
   useEffect(() => {
-    const pool = sentences.map(deaccent).filter(Boolean)
+    const pool = sentences.map(s => glyphSafeText(s, charset)).filter(Boolean)
     if (pool.length === 0) {
-      setDisplay(deaccent(SPECIMEN))
+      setDisplay(glyphSafeText(SPECIMEN, charset))
       return
     }
     let cancelled = false
@@ -418,7 +423,7 @@ function FontItem({
     }
     type(pool[idx], 0)
     return () => { cancelled = true; clearTimeout(timer) }
-  }, [sentences])
+  }, [sentences, charset])
 
   return (
     <div
@@ -466,9 +471,10 @@ function FontPreview({
   axes?: Record<string, number>
   onClose: () => void
 }) {
+  const [charset, setCharset] = useState<Set<number> | null>(null)
   const pool = useMemo(
-    () => (sentences.length ? sentences.map(deaccent) : ['Type something']),
-    [sentences],
+    () => (sentences.length ? sentences.map(s => glyphSafeText(s, charset)) : ['Type something']),
+    [sentences, charset],
   )
 
   const initialIndex = useMemo(() => {
@@ -506,6 +512,7 @@ function FontPreview({
 
     const apply = (buf: ArrayBuffer) => {
       if (cancelled) return
+      setCharset(parseCharSet(buf))
       const parsed = parseVariationAxes(buf)
       axesRef.current = parsed
       // Open at the CMS default axes (weight falls back to 700), each
@@ -542,6 +549,13 @@ function FontPreview({
 
     return () => { cancelled = true }
   }, [tile, styleIndex])
+
+  // Once the font's glyph coverage is known, re-process the shown sentence
+  // through it (the initial render used a de-accented best guess).
+  useEffect(() => {
+    setText(pool[sentenceIndex] ?? '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [charset])
 
   // Cursor drives the variable axes and the custom cursor label. Horizontal
   // position sets the weight (light -> heavy), vertical sets the width. The
