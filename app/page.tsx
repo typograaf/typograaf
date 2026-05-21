@@ -411,7 +411,7 @@ function VirtualItem({
   )
 }
 
-// A typeface tile — renders an alphabet specimen set in the font.
+// A typeface tile — renders a sample sentence set in the font.
 function FontItem({
   tile,
   sentence,
@@ -446,8 +446,8 @@ function FontItem({
           // Variable fonts render the specimen bold; static fonts ignore it.
           fontVariationSettings: '"wght" 700',
           fontWeight: 700,
-          fontSize: Math.round(size * 0.12),
-          padding: Math.round(size * 0.1),
+          fontSize: Math.round(size * 0.085),
+          padding: Math.round(size * 0.12),
         }}
       >
         {sentence}
@@ -463,10 +463,11 @@ function previewFontSize(): number {
   return Math.round(Math.min(200, Math.max(64, window.innerWidth / 6)))
 }
 
-// Interactive type tester. The cursor is the control surface: vertical
-// position sets the weight, horizontal position sets the width (when the
-// font has those axes). Sample sentences come from the CMS; clicking blank
-// space cycles to the next one. The text stays editable for typing your own.
+// Interactive type tester. The cursor is the control surface: horizontal
+// position sets the weight (light at the left edge, heavy at the right),
+// vertical position sets the width. The real cursor is hidden and replaced
+// by a label — clicking the left half of the screen shows the previous CMS
+// sentence, the right half shows the next.
 function FontPreview({
   tile,
   sentences,
@@ -496,6 +497,7 @@ function FontPreview({
   const axesRef = useRef<Axis[]>([])
   const bufCache = useRef<Map<string, ArrayBuffer>>(new Map())
   const taRef = useRef<HTMLTextAreaElement>(null)
+  const cursorRef = useRef<HTMLDivElement>(null)
 
   // Load the selected style: fetch the bytes, register a FontFace keyed by
   // the file id, and parse any variable-font axes from the same buffer.
@@ -535,28 +537,36 @@ function FontPreview({
     return () => { cancelled = true }
   }, [tile, styleIndex])
 
-  // Cursor drives the variable axes — vertical sets the weight, horizontal
-  // sets the width. The type size stays fixed. rAF-coalesced to one update
-  // per frame.
+  // Cursor drives the variable axes and the custom cursor label. Horizontal
+  // position sets the weight (light -> heavy), vertical sets the width. The
+  // type size stays fixed. rAF-coalesced to one update per frame.
   useEffect(() => {
     let raf = 0
-    let nx = 0.5
-    let ny = 0.5
+    let cx = window.innerWidth / 2
+    let cy = window.innerHeight / 2
     const update = () => {
       raf = 0
+      const nx = Math.min(1, Math.max(0, cx / window.innerWidth))
+      const ny = Math.min(1, Math.max(0, cy / window.innerHeight))
       const wght = axesRef.current.find(a => a.tag === 'wght')
       const wdth = axesRef.current.find(a => a.tag === 'wdth')
-      if (!wght && !wdth) return
-      setAxisValues(v => {
-        const next = { ...v }
-        if (wght) next.wght = wght.min + (wght.max - wght.min) * ny
-        if (wdth) next.wdth = wdth.min + (wdth.max - wdth.min) * nx
-        return next
-      })
+      if (wght || wdth) {
+        setAxisValues(v => {
+          const next = { ...v }
+          if (wght) next.wght = wght.min + (wght.max - wght.min) * nx
+          if (wdth) next.wdth = wdth.min + (wdth.max - wdth.min) * ny
+          return next
+        })
+      }
+      const cursor = cursorRef.current
+      if (cursor) {
+        cursor.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`
+        cursor.textContent = nx < 0.5 ? 'previous string' : 'next string'
+      }
     }
-    const move = (cx: number, cy: number) => {
-      nx = Math.min(1, Math.max(0, cx / window.innerWidth))
-      ny = Math.min(1, Math.max(0, cy / window.innerHeight))
+    const move = (x: number, y: number) => {
+      cx = x
+      cy = y
       if (!raf) raf = requestAnimationFrame(update)
     }
     const onMouse = (e: MouseEvent) => move(e.clientX, e.clientY)
@@ -567,6 +577,7 @@ function FontPreview({
     window.addEventListener('mousemove', onMouse)
     window.addEventListener('touchmove', onTouch, { passive: true })
     window.addEventListener('resize', onResize)
+    update() // seed the cursor label before the first move
     return () => {
       window.removeEventListener('mousemove', onMouse)
       window.removeEventListener('touchmove', onTouch)
@@ -587,22 +598,18 @@ function FontPreview({
     ta.style.height = ta.scrollHeight + 'px'
   }, [text, size, family, variationSettings])
 
-  const nextSentence = () => {
-    const n = (sentenceIndex + 1) % pool.length
+  const cycle = (dir: number) => {
+    const n = (sentenceIndex + dir + pool.length) % pool.length
     setSentenceIndex(n)
     setText(pool[n])
   }
 
-  // Clicking blank space advances the sentence; clicking the text or the
-  // controls does not.
+  // The left half of the screen goes to the previous sentence, the right
+  // half to the next. The close button and style controls are excluded.
   const handleClick = (e: React.MouseEvent) => {
     const t = e.target as HTMLElement
-    if (
-      t.closest('.font-preview-text') ||
-      t.closest('.font-preview-controls') ||
-      t.closest('.font-preview-close')
-    ) return
-    nextSentence()
+    if (t.closest('.font-preview-controls') || t.closest('.font-preview-close')) return
+    cycle(e.clientX < window.innerWidth / 2 ? -1 : 1)
   }
 
   return (
@@ -647,6 +654,15 @@ function FontPreview({
           </div>
         </div>
       )}
+
+      {/* Text content is set imperatively in the cursor effect so a
+          re-render can't reset the previous/next label. */}
+      <div
+        ref={cursorRef}
+        className="font-cursor"
+        aria-hidden="true"
+        style={{ transform: 'translate(50vw, 50vh) translate(-50%, -50%)' }}
+      />
     </div>
   )
 }

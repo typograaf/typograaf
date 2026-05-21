@@ -274,8 +274,11 @@ body {
 .font-sentence {
   position: absolute;
   inset: 0;
-  text-align: left;
-  line-height: 1.08;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.12;
   color: #000;
   overflow: hidden;
   font-synthesis: none;
@@ -291,6 +294,26 @@ body {
   flex-direction: column;
   overflow: auto;
   overscroll-behavior: none;
+  cursor: none;
+}
+
+/* The real cursor is replaced by the .font-cursor label. */
+.font-preview * {
+  cursor: none;
+}
+
+/* Custom cursor — a label that follows the pointer and reads
+   previous / next string depending on the screen half. */
+.font-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1005;
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 510;
+  color: #000;
 }
 
 .font-preview-stage {
@@ -318,35 +341,31 @@ body {
   user-select: text;
 }
 
+/* Close button — the white pill used for crosses on the calendar page. */
 .font-preview-close {
   position: fixed;
   top: 24px;
   right: 28px;
-  z-index: 2;
-  width: 40px;
-  height: 40px;
+  z-index: 1010;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
+  background: #fff;
   border: 0;
-  border-radius: 20px;
-  font-size: 28px;
+  border-radius: 12px;
+  font-size: 18px;
   line-height: 1;
   color: #000;
-  cursor: pointer;
-  transition: background 0.12s;
-}
-
-.font-preview-close:hover {
-  background: rgba(0, 0, 0, 0.06);
+  padding: 0;
 }
 
 .font-preview-controls {
   position: fixed;
   left: 28px;
   bottom: 24px;
-  z-index: 2;
+  z-index: 1010;
 }
 
 .font-preview-styles {
