@@ -7,6 +7,15 @@ const BUFFER_ROWS = 3
 
 const SPECIMEN = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz'
 
+// A per-load random offset so the grid shows a different sample sentence
+// each visit, while staying stable for a given cell as you scroll.
+const sentenceSeed = Math.floor(Math.random() * 100000)
+
+function pickSentence(sentences: string[], index: number): string {
+  if (sentences.length === 0) return SPECIMEN
+  return sentences[(index + sentenceSeed) % sentences.length]
+}
+
 // ---------------------------------------------------------------------------
 // Font helpers
 // ---------------------------------------------------------------------------
@@ -310,6 +319,7 @@ export default function Home() {
                 <FontItem
                   key={`${tile.id}-${index}`}
                   tile={tile}
+                  sentence={pickSentence(sentences, index)}
                   top={top}
                   left={left}
                   size={size}
@@ -404,12 +414,14 @@ function VirtualItem({
 // A typeface tile — renders an alphabet specimen set in the font.
 function FontItem({
   tile,
+  sentence,
   top,
   left,
   size,
   onClick,
 }: {
   tile: FontTile
+  sentence: string
   top: number
   left: number
   size: number
@@ -428,26 +440,33 @@ function FontItem({
       style={{ position: 'absolute', top, left, width: size, height: size }}
     >
       <div
-        className="font-specimen"
+        className="font-sentence"
         style={{
           fontFamily: `'${family}', sans-serif`,
-          fontSize: Math.round(size * 0.135),
-          padding: Math.round(size * 0.085),
+          // Variable fonts render the specimen bold; static fonts ignore it.
+          fontVariationSettings: '"wght" 700',
+          fontWeight: 700,
+          fontSize: Math.round(size * 0.12),
+          padding: Math.round(size * 0.1),
         }}
       >
-        {SPECIMEN}
+        {sentence}
       </div>
     </div>
   )
 }
 
-const PREVIEW_MIN_SIZE = 28
-const PREVIEW_MAX_SIZE = 360
+// A comfortable, viewport-relative preview size. The type size is fixed —
+// the cursor only changes weight and width.
+function previewFontSize(): number {
+  if (typeof window === 'undefined') return 160
+  return Math.round(Math.min(200, Math.max(64, window.innerWidth / 6)))
+}
 
-// Interactive type tester. The cursor is the control surface: horizontal
-// position scales the type, vertical position drives the first variable
-// axis. Sample sentences come from the CMS; clicking blank space cycles
-// to the next one. The text stays editable for typing your own.
+// Interactive type tester. The cursor is the control surface: vertical
+// position sets the weight, horizontal position sets the width (when the
+// font has those axes). Sample sentences come from the CMS; clicking blank
+// space cycles to the next one. The text stays editable for typing your own.
 function FontPreview({
   tile,
   sentences,
@@ -471,7 +490,7 @@ function FontPreview({
   const [styleIndex, setStyleIndex] = useState(initialIndex)
   const [sentenceIndex, setSentenceIndex] = useState(startSentenceRef.current)
   const [text, setText] = useState(pool[startSentenceRef.current] ?? 'Type something')
-  const [size, setSize] = useState(180)
+  const [size, setSize] = useState(previewFontSize)
   const [axisValues, setAxisValues] = useState<Record<string, number>>({})
   const [family, setFamily] = useState('')
   const axesRef = useRef<Axis[]>([])
@@ -516,19 +535,24 @@ function FontPreview({
     return () => { cancelled = true }
   }, [tile, styleIndex])
 
-  // Cursor drives the type — X scales the size, Y drives the first axis.
-  // rAF-coalesced so we re-render at most once per frame.
+  // Cursor drives the variable axes — vertical sets the weight, horizontal
+  // sets the width. The type size stays fixed. rAF-coalesced to one update
+  // per frame.
   useEffect(() => {
     let raf = 0
     let nx = 0.5
     let ny = 0.5
     const update = () => {
       raf = 0
-      setSize(Math.round(PREVIEW_MIN_SIZE + (PREVIEW_MAX_SIZE - PREVIEW_MIN_SIZE) * nx))
-      const axis = axesRef.current[0]
-      if (axis) {
-        setAxisValues(v => ({ ...v, [axis.tag]: axis.min + (axis.max - axis.min) * ny }))
-      }
+      const wght = axesRef.current.find(a => a.tag === 'wght')
+      const wdth = axesRef.current.find(a => a.tag === 'wdth')
+      if (!wght && !wdth) return
+      setAxisValues(v => {
+        const next = { ...v }
+        if (wght) next.wght = wght.min + (wght.max - wght.min) * ny
+        if (wdth) next.wdth = wdth.min + (wdth.max - wdth.min) * nx
+        return next
+      })
     }
     const move = (cx: number, cy: number) => {
       nx = Math.min(1, Math.max(0, cx / window.innerWidth))
@@ -539,11 +563,14 @@ function FontPreview({
     const onTouch = (e: TouchEvent) => {
       if (e.touches[0]) move(e.touches[0].clientX, e.touches[0].clientY)
     }
+    const onResize = () => setSize(previewFontSize())
     window.addEventListener('mousemove', onMouse)
     window.addEventListener('touchmove', onTouch, { passive: true })
+    window.addEventListener('resize', onResize)
     return () => {
       window.removeEventListener('mousemove', onMouse)
       window.removeEventListener('touchmove', onTouch)
+      window.removeEventListener('resize', onResize)
       if (raf) cancelAnimationFrame(raf)
     }
   }, [])
@@ -620,10 +647,6 @@ function FontPreview({
           </div>
         </div>
       )}
-
-      <p className="font-preview-hint">
-        Move the cursor to size and weight the type · click for another line · esc to close
-      </p>
     </div>
   )
 }
