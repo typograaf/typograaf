@@ -15,7 +15,7 @@ import {
   annualYearly,
   formatEur,
 } from '../../lib/quote'
-import { DEFAULT_PREVIEW_WEIGHT } from '../../lib/tiles'
+import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING } from '../../lib/tiles'
 import { type Axis, parseVariationAxes } from '../../lib/fontmeta'
 
 type Tab = 'work' | 'about' | 'images' | 'quotes' | 'sentences'
@@ -368,6 +368,7 @@ export default function Admin() {
                       key={f.id}
                       font={f}
                       axes={previewAxes[f.id] || {}}
+                      sentences={sentences}
                       onChange={(next) =>
                         setPreviewAxes((m) => ({ ...m, [f.id]: next }))
                       }
@@ -624,19 +625,27 @@ export default function Admin() {
   )
 }
 
-// One typeface in the Type tab: a live tile preview plus a weight slider
-// (and a width slider when the font has a width axis).
+// One typeface in the Type tab: a live tile preview (scroll to resize the
+// type, click for another sample string) plus weight, width and leading
+// controls. Everything here is per font.
 function FontAxisRow({
   font,
   axes,
+  sentences,
   onChange,
 }: {
   font: { id: string; name: string; url: string }
   axes: Record<string, number>
+  sentences: string[]
   onChange: (next: Record<string, number>) => void
 }) {
   const family = useMemo(() => 'adm-' + font.id.replace(/[^a-zA-Z0-9]/g, '-'), [font.id])
   const [parsed, setParsed] = useState<Axis[]>([])
+  const [fontSize, setFontSize] = useState(24)
+  const [sentenceIdx, setSentenceIdx] = useState(() =>
+    Math.floor(Math.random() * Math.max(1, sentences.length)),
+  )
+  const tileRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -656,23 +665,48 @@ function FontAxisRow({
     return () => { cancelled = true }
   }, [font.url, family])
 
+  // Scroll over the tile to resize the type — per font.
+  useEffect(() => {
+    const el = tileRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      setFontSize((s) => Math.min(220, Math.max(8, Math.round(s * Math.pow(0.998, e.deltaY)))))
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
   const wght = parsed.find((a) => a.tag === 'wght')
   const wdth = parsed.find((a) => a.tag === 'wdth')
   const weight = axes.wght ?? DEFAULT_PREVIEW_WEIGHT
   const width = axes.wdth ?? wdth?.default ?? 100
+  const leading = axes.leading ?? DEFAULT_PREVIEW_LEADING
   const settings = `"wght" ${weight}` + (wdth ? `, "wdth" ${width}` : '')
+
+  const pool = sentences.length ? sentences : [font.name]
+  const sentence = pool[sentenceIdx % pool.length]
 
   return (
     <div className="admin-typeface">
       <div
+        ref={tileRef}
         className="admin-typeface-tile"
-        style={{
-          fontFamily: `'${family}', sans-serif`,
-          fontVariationSettings: settings,
-          fontWeight: weight,
-        }}
+        onClick={() => setSentenceIdx((i) => i + 1)}
+        title="Scroll to resize · click for another string"
       >
-        {font.name}
+        <div
+          className="admin-typeface-text"
+          style={{
+            fontFamily: `'${family}', sans-serif`,
+            fontVariationSettings: settings,
+            fontWeight: weight,
+            fontSize,
+            lineHeight: leading,
+          }}
+        >
+          {sentence}
+        </div>
       </div>
       <div className="admin-typeface-controls">
         <span className="admin-typeface-name">{font.name}</span>
@@ -702,6 +736,18 @@ function FontAxisRow({
             <span className="admin-axis-value">{Math.round(width)}</span>
           </label>
         )}
+        <label className="admin-axis">
+          <span className="admin-axis-label">Leading</span>
+          <input
+            type="range"
+            min={0.8}
+            max={2.4}
+            step={0.01}
+            value={leading}
+            onChange={(e) => onChange({ ...axes, leading: Number(e.target.value) })}
+          />
+          <span className="admin-axis-value">{leading.toFixed(2)}</span>
+        </label>
       </div>
     </div>
   )
@@ -744,7 +790,8 @@ function AdminStyles() {
 .admin-type-h { font-size: 14px; font-weight: 510; margin: 0; }
 .admin-typefaces { display: flex; flex-direction: column; gap: 20px; }
 .admin-typeface { display: flex; gap: 20px; align-items: center; }
-.admin-typeface-tile { flex: 0 0 auto; width: 132px; height: 132px; border-radius: 12px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 14px; font-size: 22px; line-height: 1.12; color: #000; overflow: hidden; font-synthesis: none; }
+.admin-typeface-tile { flex: 0 0 auto; width: 160px; height: 160px; border-radius: 12px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; }
+.admin-typeface-text { max-width: 100%; padding: 14px; text-align: center; color: #000; font-synthesis: none; }
 .admin-typeface-controls { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; max-width: 460px; }
 .admin-typeface-name { font-size: 14px; font-weight: 510; }
 .admin-axis { display: flex; align-items: center; gap: 12px; }

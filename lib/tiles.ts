@@ -11,9 +11,10 @@ export interface ManifestImage {
 
 export const FONT_EXTENSIONS = ['.ttf', '.otf', '.woff', '.woff2'] as const
 
-// Weight a typeface defaults to (tile specimen + type-tester opening) when
-// nothing is set for it in the CMS.
+// Weight and leading (line-height) a typeface defaults to — tile specimen
+// and type-tester — when nothing is set for it in the CMS.
 export const DEFAULT_PREVIEW_WEIGHT = 700
+export const DEFAULT_PREVIEW_LEADING = 1.12
 
 export function isFontFile(name: string): boolean {
   const lower = name.toLowerCase()

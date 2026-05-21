@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, useDeferredValue } from 'react'
 import type { Tile, ImageTile, FontTile, FontFile } from '../lib/tiles'
-import { DEFAULT_PREVIEW_WEIGHT } from '../lib/tiles'
+import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING } from '../lib/tiles'
 import { type Axis, parseVariationAxes, ensureFontFace, fontFamilyFor } from '../lib/fontmeta'
 
 const BUFFER_ROWS = 3
@@ -38,8 +38,17 @@ function defaultAxisValues(axes?: Record<string, number>): Record<string, number
   return { wght: DEFAULT_PREVIEW_WEIGHT, ...(axes || {}) }
 }
 
+// `leading` rides along in the per-font map but is a CSS line-height, not a
+// variation axis — kept out of font-variation-settings.
 function variationSettings(values: Record<string, number>): string {
-  return Object.entries(values).map(([t, v]) => `"${t}" ${v}`).join(', ')
+  return Object.entries(values)
+    .filter(([tag]) => tag !== 'leading')
+    .map(([t, v]) => `"${t}" ${v}`)
+    .join(', ')
+}
+
+function leadingOf(axes?: Record<string, number>): number {
+  return axes?.leading ?? DEFAULT_PREVIEW_LEADING
 }
 
 // ---------------------------------------------------------------------------
@@ -431,6 +440,7 @@ function FontItem({
             // CMS default axes; variable fonts vary, static fonts ignore it.
             fontVariationSettings: variationSettings(values),
             fontWeight: values.wght,
+            lineHeight: leadingOf(axes),
           }}
         >
           {sentence}
@@ -680,6 +690,7 @@ function FontPreview({
             fontFamily: family ? `'${family}', sans-serif` : 'sans-serif',
             fontSize: size,
             fontVariationSettings: variationSettings,
+            lineHeight: leadingOf(axes),
           }}
         />
       </div>

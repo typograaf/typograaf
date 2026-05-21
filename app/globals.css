@@ -284,7 +284,6 @@ body {
 .font-sentence-text {
   max-width: 100%;
   text-align: center;
-  line-height: 1.12;
   color: #000;
   font-synthesis: none;
 }
@@ -362,7 +361,6 @@ body {
   outline: none;
   resize: none;
   text-align: center;
-  line-height: 1.05;
   color: #000;
   overflow: hidden;
   font-synthesis: none;
