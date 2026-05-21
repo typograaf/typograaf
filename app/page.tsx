@@ -508,6 +508,7 @@ function FontPreview({
   const bufCache = useRef<Map<string, ArrayBuffer>>(new Map())
   const taRef = useRef<HTMLTextAreaElement>(null)
   const cursorRef = useRef<HTMLDivElement>(null)
+  const previewRef = useRef<HTMLDivElement>(null)
 
   // Load the selected style: fetch the bytes, register a FontFace keyed by
   // the file id, and parse any variable-font axes from the same buffer.
@@ -600,6 +601,19 @@ function FontPreview({
     }
   }, [])
 
+  // Scroll/trackpad sizes the type up and down, like wheel-zoom in the
+  // image lightbox. Non-passive so the preview itself doesn't scroll.
+  useEffect(() => {
+    const el = previewRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      setSize(s => Math.min(640, Math.max(24, Math.round(s * Math.pow(0.998, e.deltaY)))))
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
   const variationSettings = axesRef.current.length
     ? axesRef.current.map(a => `"${a.tag}" ${axisValues[a.tag] ?? a.default}`).join(', ')
     : undefined
@@ -630,7 +644,7 @@ function FontPreview({
   }
 
   return (
-    <div className={`font-preview zone-${zone}`} onClick={handleClick}>
+    <div ref={previewRef} className={`font-preview zone-${zone}`} onClick={handleClick}>
       <button
         type="button"
         className="font-preview-close"
