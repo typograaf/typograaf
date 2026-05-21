@@ -779,7 +779,7 @@ function AdminStyles() {
 .admin-arrow { background: transparent; border: 0; padding: 4px 8px; font: inherit; color: #000; cursor: pointer; border-radius: 8px; transition: background 0.12s, opacity 0.12s; }
 .admin-arrow:hover:not(:disabled) { background: rgba(0,0,0,0.04); }
 .admin-arrow:disabled { opacity: 0.2; cursor: not-allowed; }
-.admin-textarea { width: 100%; max-width: 640px; background: #fff; border: 0; border-radius: 12px; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif; font-size: 14px; font-weight: 510; color: #000; outline: none; resize: vertical; min-height: 360px; line-height: 1.45; -webkit-user-select: text; user-select: text; }
+.admin-textarea { width: 100%; max-width: 640px; background: #fff; border: 0; border-radius: 12px; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif; font-size: 14px; font-weight: 500; color: #000; outline: none; resize: vertical; min-height: 360px; line-height: 1.45; -webkit-user-select: text; user-select: text; }
 .admin-textarea:focus { box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
 .admin-filter-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .admin-select { background: #fff; border: 0; border-radius: 12px; padding: 12px; font: inherit; color: #000; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; padding-right: 32px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='black' d='M0 0l5 6 5-6z'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; }
@@ -791,21 +791,21 @@ function AdminStyles() {
 .admin-tile-font { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #f0f0f0; font-size: 40px; font-weight: 600; color: #999; }
 .admin-type { display: flex; flex-direction: column; gap: 32px; }
 .admin-type-section { display: flex; flex-direction: column; gap: 12px; }
-.admin-type-h { font-size: 14px; font-weight: 510; margin: 0; }
+.admin-type-h { font-size: 14px; font-weight: 500; margin: 0; }
 .admin-typefaces { display: flex; flex-direction: column; gap: 20px; }
 .admin-typeface { display: flex; gap: 20px; align-items: center; }
 .admin-typeface-tile { flex: 0 0 auto; width: 160px; height: 160px; border-radius: 12px; background: #f0f0f0; padding: 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; }
 .admin-typeface-text { width: 100%; min-width: 0; text-align: center; overflow-wrap: anywhere; color: #000; font-synthesis: none; }
 .admin-typeface-controls { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; max-width: 460px; }
-.admin-typeface-name { font-size: 14px; font-weight: 510; }
+.admin-typeface-name { font-size: 14px; font-weight: 500; }
 .admin-axis { display: flex; align-items: center; gap: 12px; }
 .admin-axis-label { width: 52px; font-size: 13px; opacity: 0.6; }
 .admin-axis input[type='range'] { flex: 1 1 auto; accent-color: #000; cursor: pointer; }
 .admin-axis-value { width: 40px; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; opacity: 0.6; }
 .admin-tile-meta { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; background: linear-gradient(to top, rgba(0,0,0,0.55), transparent); color: #fff; font-size: 11px; line-height: 1.3; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
 .admin-tile:hover .admin-tile-meta, .admin-tile.is-hidden .admin-tile-meta { opacity: 1; }
-.admin-tile-tag { display: inline-block; align-self: flex-start; background: rgba(255,255,255,0.18); padding: 1px 6px; border-radius: 4px; font-weight: 510; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
-.admin-tile-project { font-weight: 510; }
+.admin-tile-tag { display: inline-block; align-self: flex-start; background: rgba(255,255,255,0.18); padding: 1px 6px; border-radius: 4px; font-weight: 500; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+.admin-tile-project { font-weight: 500; }
 .admin-tile-name { opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-tile-btn { position: absolute; top: 6px; width: 24px; height: 24px; border-radius: 12px; border: 0; background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center; padding: 0; opacity: 0; transition: opacity 0.15s, background 0.12s; }
 .admin-hide { right: 36px; }

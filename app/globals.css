@@ -41,7 +41,7 @@ body {
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif;
   font-size: 14px;
-  font-weight: 510;
+  font-weight: 500;
   font-variation-settings: 'wdth' 100;
   line-height: normal;
   color: #000;
@@ -136,7 +136,7 @@ body {
   overflow-y: auto;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif;
   font-size: 14px;
-  font-weight: 510;
+  font-weight: 500;
   line-height: normal;
   color: #000;
   -webkit-font-smoothing: antialiased;
@@ -180,7 +180,7 @@ body {
   gap: 12px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif;
   font-size: 14px;
-  font-weight: 510;
+  font-weight: 500;
   line-height: normal;
   color: #000;
   -webkit-font-smoothing: antialiased;
@@ -327,7 +327,7 @@ body {
   pointer-events: none;
   white-space: nowrap;
   font-size: 13px;
-  font-weight: 510;
+  font-weight: 500;
   color: #000;
   transition: opacity 0.08s;
 }
@@ -507,7 +507,7 @@ body {
   --disabled: 0.1;
   --pill-radius: 12px;
   --pill-pad: 12px;
-  --weight: 510;
+  --weight: 500;
 }
 
 /* Vertical trim (Safari 18.2+/Chrome 133+; older browsers ignore). */
@@ -530,7 +530,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 96px;
-  font-weight: 510;
+  font-weight: 500;
 }
 
 /* Generic pill — base for every interactive control */
@@ -555,7 +555,7 @@ body {
 
 /* Header */
 .intro { display: flex; flex-direction: column; gap: 24px; }
-.intro h1 { font-size: 14px; font-weight: 510; margin: 0; }
+.intro h1 { font-size: 14px; font-weight: 500; margin: 0; }
 .intro .rate { display: flex; justify-content: space-between; }
 .intro .rate p { margin: 0; }
 
@@ -621,7 +621,7 @@ body {
 
 /* Form */
 .form { display: flex; flex-direction: column; gap: 12px; }
-.form > h2 { font-size: 14px; font-weight: 510; margin: 0; }
+.form > h2 { font-size: 14px; font-weight: 500; margin: 0; }
 
 #bookingForm { display: flex; flex-direction: column; gap: 12px; width: 100%; }
 
@@ -648,7 +648,7 @@ body {
   padding: 8px 12px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif;
   font-size: 16px;
-  font-weight: 510;
+  font-weight: 500;
   color: #000;
   outline: none;
   -webkit-appearance: none;
@@ -660,13 +660,13 @@ body {
 
 /* Where */
 .where { display: flex; flex-direction: column; gap: 12px; }
-.where > h2 { font-size: 14px; font-weight: 510; margin: 0; }
+.where > h2 { font-size: 14px; font-weight: 500; margin: 0; }
 .where-options { display: flex; gap: 12px; }
 .where-option { flex: 1 0 0; min-width: 0; text-align: center; }
 
 /* Project scope */
 .scope { display: flex; flex-direction: column; gap: 12px; }
-.scope > h2 { font-size: 14px; font-weight: 510; margin: 0; }
+.scope > h2 { font-size: 14px; font-weight: 500; margin: 0; }
 .scope textarea {
   width: 100%;
   background: #fff;
@@ -677,7 +677,7 @@ body {
   padding: 12px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif;
   font-size: 16px;
-  font-weight: 510;
+  font-weight: 500;
   color: #000;
   outline: none;
   resize: vertical;
@@ -702,15 +702,15 @@ body {
 
 /* Confirm / error */
 .confirm, .error { display: flex; flex-direction: column; gap: 12px; }
-.confirm h2, .error h2 { font-size: 14px; font-weight: 510; margin: 0; }
+.confirm h2, .error h2 { font-size: 14px; font-weight: 500; margin: 0; }
 .error h2 { color: #ff3b30; }
 .confirm p, .error p { margin: 0; }
 
 /* Terms */
 .legal { gap: 36px; }
-.legal h1 { font-size: 14px; font-weight: 510; margin: 0; }
+.legal h1 { font-size: 14px; font-weight: 500; margin: 0; }
 .legal section { display: flex; flex-direction: column; gap: 12px; }
-.legal h2 { font-size: 14px; font-weight: 510; margin: 0; }
+.legal h2 { font-size: 14px; font-weight: 500; margin: 0; }
 .legal p { margin: 0; line-height: 1.45; }
 .legal .updated { opacity: 0.4; }
 .legal .back { display: inline-block; }
