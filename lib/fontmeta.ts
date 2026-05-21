@@ -63,6 +63,20 @@ export function parseVariationAxes(buf: ArrayBuffer): Axis[] {
   }
 }
 
+// Binary-search the largest font-size (px) at which `textEl` still fits
+// inside a box of the given dimensions. Mutates textEl.style.fontSize.
+export function fitFontSize(textEl: HTMLElement, boxW: number, boxH: number): number {
+  let lo = 4
+  let hi = Math.max(8, boxH)
+  for (let i = 0; i < 10; i++) {
+    const mid = (lo + hi) / 2
+    textEl.style.fontSize = mid + 'px'
+    if (textEl.scrollWidth <= boxW && textEl.scrollHeight <= boxH) lo = mid
+    else hi = mid
+  }
+  return lo
+}
+
 // A CSS-safe @font-face family name derived from a stable id.
 export function fontFamilyFor(id: string): string {
   return 'tf-' + id.replace(/[^a-zA-Z0-9]/g, '-')

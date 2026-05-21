@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   type Quote,
   type QuoteOption,
@@ -15,8 +15,8 @@ import {
   annualYearly,
   formatEur,
 } from '../../lib/quote'
-import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING } from '../../lib/tiles'
-import { type Axis, parseVariationAxes } from '../../lib/fontmeta'
+import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING, DEFAULT_PREVIEW_SIZE } from '../../lib/tiles'
+import { type Axis, parseVariationAxes, fitFontSize } from '../../lib/fontmeta'
 
 type Tab = 'work' | 'about' | 'images' | 'quotes' | 'sentences'
 
@@ -616,7 +616,7 @@ export default function Admin() {
         <p className="admin-muted admin-hint">
           {tab === 'work' && 'Drag rows to reorder, or use the arrows. New projects from Dropbox auto-prepend until you save a new order.'}
           {tab === 'about' && 'One paragraph per line. Empty lines are ignored.'}
-          {tab === 'sentences' && 'Drag the weight (and width) slider to set what each typeface opens at in the type-tester and renders at on its tile — the preview updates live. Sentences are the sample texts, one per line. Changes go live on Save.'}
+          {tab === 'sentences' && 'Size dials each typeface within its tile; weight, width and leading set how it renders on the tile and in the type-tester. Weight and width show only for fonts that have those axes. The preview updates live — click it for another sample string. Sentences are the sample texts, one per line. Changes go live on Save.'}
           {tab === 'images' && 'Click ◎ to hide an image from the public site (file stays in Dropbox). Click × to delete it from Dropbox — your Mac will sync the deletion within seconds. Deletion cannot be undone.'}
           {tab === 'quotes' && 'You enter the design price per asset. Perpetual = one-time design + 50%. Annual = first year at the design price, then 1/6 of design per year. Footnotes are fixed and shown automatically on the quote. Changes go live on Save.'}
         </p>
@@ -625,9 +625,9 @@ export default function Admin() {
   )
 }
 
-// One typeface in the Type tab: a live tile preview (scroll to resize the
-// type, click for another sample string) plus weight, width and leading
-// controls. Everything here is per font.
+// One typeface in the Type tab: a live tile preview (click for another
+// sample string) plus size, weight, width and leading controls. Weight and
+// width only appear when the font actually has that axis. All per font.
 function FontAxisRow({
   font,
   axes,
@@ -641,11 +641,11 @@ function FontAxisRow({
 }) {
   const family = useMemo(() => 'adm-' + font.id.replace(/[^a-zA-Z0-9]/g, '-'), [font.id])
   const [parsed, setParsed] = useState<Axis[]>([])
-  const [fontSize, setFontSize] = useState(24)
   const [sentenceIdx, setSentenceIdx] = useState(() =>
     Math.floor(Math.random() * Math.max(1, sentences.length)),
   )
-  const tileRef = useRef<HTMLDivElement>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
+  const textRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -665,63 +665,86 @@ function FontAxisRow({
     return () => { cancelled = true }
   }, [font.url, family])
 
-  // Scroll over the tile to resize the type — per font.
-  useEffect(() => {
-    const el = tileRef.current
-    if (!el) return
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      setFontSize((s) => Math.min(220, Math.max(8, Math.round(s * Math.pow(0.998, e.deltaY)))))
-    }
-    el.addEventListener('wheel', onWheel, { passive: false })
-    return () => el.removeEventListener('wheel', onWheel)
-  }, [])
-
   const wght = parsed.find((a) => a.tag === 'wght')
   const wdth = parsed.find((a) => a.tag === 'wdth')
   const weight = axes.wght ?? DEFAULT_PREVIEW_WEIGHT
   const width = axes.wdth ?? wdth?.default ?? 100
   const leading = axes.leading ?? DEFAULT_PREVIEW_LEADING
+  const sizeMul = axes.size ?? DEFAULT_PREVIEW_SIZE
   const settings = `"wght" ${weight}` + (wdth ? `, "wdth" ${width}` : '')
 
   const pool = sentences.length ? sentences : [font.name]
   const sentence = pool[sentenceIdx % pool.length]
 
+  // Fit the sample to the tile, then scale by the size multiplier — the
+  // same maths the live tile uses.
+  useLayoutEffect(() => {
+    const box = boxRef.current
+    const textEl = textRef.current
+    if (!box || !textEl) return
+    const fit = () => {
+      const bw = box.clientWidth
+      const bh = box.clientHeight
+      if (bw <= 0 || bh <= 0) return
+      const max = fitFontSize(textEl, bw, bh)
+      textEl.style.fontSize = Math.floor(max * sizeMul) + 'px'
+    }
+    fit()
+    let cancelled = false
+    document.fonts.ready.then(() => { if (!cancelled) fit() })
+    return () => { cancelled = true }
+  }, [sentence, family, sizeMul, weight, width, leading, parsed])
+
   return (
     <div className="admin-typeface">
       <div
-        ref={tileRef}
         className="admin-typeface-tile"
         onClick={() => setSentenceIdx((i) => i + 1)}
-        title="Scroll to resize · click for another string"
+        title="Click for another sample string"
       >
-        <div
-          className="admin-typeface-text"
-          style={{
-            fontFamily: `'${family}', sans-serif`,
-            fontVariationSettings: settings,
-            fontWeight: weight,
-            fontSize,
-            lineHeight: leading,
-          }}
-        >
-          {sentence}
+        <div ref={boxRef} className="admin-typeface-box">
+          <div
+            ref={textRef}
+            className="admin-typeface-text"
+            style={{
+              fontFamily: `'${family}', sans-serif`,
+              fontVariationSettings: settings,
+              fontWeight: weight,
+              lineHeight: leading,
+            }}
+          >
+            {sentence}
+          </div>
         </div>
       </div>
       <div className="admin-typeface-controls">
         <span className="admin-typeface-name">{font.name}</span>
         <label className="admin-axis">
-          <span className="admin-axis-label">Weight</span>
+          <span className="admin-axis-label">Size</span>
           <input
             type="range"
-            min={wght ? Math.round(wght.min) : 1}
-            max={wght ? Math.round(wght.max) : 1000}
+            min={10}
+            max={100}
             step={1}
-            value={weight}
-            onChange={(e) => onChange({ ...axes, wght: Number(e.target.value) })}
+            value={Math.round(sizeMul * 100)}
+            onChange={(e) => onChange({ ...axes, size: Number(e.target.value) / 100 })}
           />
-          <span className="admin-axis-value">{Math.round(weight)}</span>
+          <span className="admin-axis-value">{Math.round(sizeMul * 100)}%</span>
         </label>
+        {wght && (
+          <label className="admin-axis">
+            <span className="admin-axis-label">Weight</span>
+            <input
+              type="range"
+              min={Math.round(wght.min)}
+              max={Math.round(wght.max)}
+              step={1}
+              value={weight}
+              onChange={(e) => onChange({ ...axes, wght: Number(e.target.value) })}
+            />
+            <span className="admin-axis-value">{Math.round(weight)}</span>
+          </label>
+        )}
         {wdth && (
           <label className="admin-axis">
             <span className="admin-axis-label">Width</span>
@@ -790,8 +813,9 @@ function AdminStyles() {
 .admin-type-h { font-size: 14px; font-weight: 510; margin: 0; }
 .admin-typefaces { display: flex; flex-direction: column; gap: 20px; }
 .admin-typeface { display: flex; gap: 20px; align-items: center; }
-.admin-typeface-tile { flex: 0 0 auto; width: 160px; height: 160px; border-radius: 12px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; }
-.admin-typeface-text { max-width: 100%; padding: 14px; text-align: center; color: #000; font-synthesis: none; }
+.admin-typeface-tile { flex: 0 0 auto; width: 160px; height: 160px; border-radius: 12px; background: #f0f0f0; position: relative; overflow: hidden; cursor: pointer; }
+.admin-typeface-box { position: absolute; inset: 16px; display: flex; align-items: center; justify-content: center; }
+.admin-typeface-text { max-width: 100%; text-align: center; color: #000; font-synthesis: none; }
 .admin-typeface-controls { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; max-width: 460px; }
 .admin-typeface-name { font-size: 14px; font-weight: 510; }
 .admin-axis { display: flex; align-items: center; gap: 12px; }

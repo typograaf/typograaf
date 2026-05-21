@@ -2,8 +2,8 @@
 
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, useDeferredValue } from 'react'
 import type { Tile, ImageTile, FontTile, FontFile } from '../lib/tiles'
-import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING } from '../lib/tiles'
-import { type Axis, parseVariationAxes, ensureFontFace, fontFamilyFor } from '../lib/fontmeta'
+import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING, DEFAULT_PREVIEW_SIZE } from '../lib/tiles'
+import { type Axis, parseVariationAxes, ensureFontFace, fontFamilyFor, fitFontSize } from '../lib/fontmeta'
 
 const BUFFER_ROWS = 3
 
@@ -38,17 +38,23 @@ function defaultAxisValues(axes?: Record<string, number>): Record<string, number
   return { wght: DEFAULT_PREVIEW_WEIGHT, ...(axes || {}) }
 }
 
-// `leading` rides along in the per-font map but is a CSS line-height, not a
-// variation axis — kept out of font-variation-settings.
+// `leading` and `size` ride along in the per-font map but aren't variation
+// axes (CSS line-height and a fit multiplier) — kept out of the settings.
+const RESERVED_KEYS = new Set(['leading', 'size'])
+
 function variationSettings(values: Record<string, number>): string {
   return Object.entries(values)
-    .filter(([tag]) => tag !== 'leading')
+    .filter(([tag]) => !RESERVED_KEYS.has(tag))
     .map(([t, v]) => `"${t}" ${v}`)
     .join(', ')
 }
 
 function leadingOf(axes?: Record<string, number>): number {
   return axes?.leading ?? DEFAULT_PREVIEW_LEADING
+}
+
+function sizeOf(axes?: Record<string, number>): number {
+  return axes?.size ?? DEFAULT_PREVIEW_SIZE
 }
 
 // ---------------------------------------------------------------------------
@@ -394,8 +400,8 @@ function FontItem({
     ensureFontFace(family, representativeStyle(tile).url)
   }, [family, tile])
 
-  // Fit the sentence to the tile so every typeface specimen fills its
-  // square to the same degree, regardless of how long the sentence is.
+  // Fit the sentence to the tile, then scale by the CMS size multiplier so
+  // each typeface can be dialled to a consistent optical size.
   useLayoutEffect(() => {
     const box = boxRef.current
     const textEl = textRef.current
@@ -404,15 +410,8 @@ function FontItem({
       const bw = box.clientWidth
       const bh = box.clientHeight
       if (bw <= 0 || bh <= 0) return
-      let lo = 4
-      let hi = bh
-      for (let i = 0; i < 10; i++) {
-        const mid = (lo + hi) / 2
-        textEl.style.fontSize = mid + 'px'
-        if (textEl.scrollWidth <= bw && textEl.scrollHeight <= bh) lo = mid
-        else hi = mid
-      }
-      textEl.style.fontSize = Math.floor(lo) + 'px'
+      const max = fitFontSize(textEl, bw, bh)
+      textEl.style.fontSize = Math.floor(max * sizeOf(axes)) + 'px'
     }
     fit()
     // Re-fit once the webfont loads — its metrics differ from the fallback.
