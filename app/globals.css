@@ -314,6 +314,18 @@ body {
   font-size: 13px;
   font-weight: 510;
   color: #000;
+  transition: opacity 0.08s;
+}
+
+/* Over the close button the real cursor returns and the label hides. */
+.font-preview-close:hover ~ .font-cursor {
+  opacity: 0;
+}
+
+/* Touch devices have no pointer to label — tap the left/right side to
+   change sentence, drag to set weight/width. */
+@media (hover: none) {
+  .font-cursor { display: none; }
 }
 
 .font-preview-stage {
@@ -359,6 +371,7 @@ body {
   line-height: 1;
   color: #000;
   padding: 0;
+  cursor: pointer;
 }
 
 .font-preview-controls {

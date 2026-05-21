@@ -119,6 +119,11 @@ export default function Home() {
   const [scrollTop, setScrollTop] = useState(0)
   const [columns, setColumns] = useState(8)
   const [windowHeight, setWindowHeight] = useState(800)
+  // Window width is state (not read live during render) so the server and
+  // the client's first render agree — otherwise the layout maths produce
+  // different tile sizes and React reports a hydration mismatch. The real
+  // width is applied in the layout effect, before paint.
+  const [windowWidth, setWindowWidth] = useState(1200)
   // Initialize and update layout (useLayoutEffect to prevent flash)
   useLayoutEffect(() => {
     const updateLayout = () => {
@@ -130,6 +135,7 @@ export default function Home() {
       else if (width <= 1400) setColumns(6)
       else if (width <= 1600) setColumns(7)
       else setColumns(8)
+      setWindowWidth(width)
       setWindowHeight(window.innerHeight)
     }
     updateLayout()
@@ -237,18 +243,18 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleEsc)
   }, [closeLightbox])
 
-  // Layout calculations
+  // Layout calculations — derived from windowWidth state, never window
+  // directly, so server and client first render agree.
   const layout = useMemo(() => {
-    const gap = typeof window !== 'undefined' && window.innerWidth <= 700 ? 16 : 24
-    const padding = typeof window !== 'undefined'
-      ? (window.innerWidth <= 500 ? 24 : window.innerWidth <= 700 ? 32 : window.innerWidth <= 900 ? 48 : 96)
-      : 96
-    const containerWidth = typeof window !== 'undefined' ? window.innerWidth - padding * 2 : 1200
+    const w = windowWidth
+    const gap = w <= 700 ? 16 : 24
+    const padding = w <= 500 ? 24 : w <= 700 ? 32 : w <= 900 ? 48 : 96
+    const containerWidth = w - padding * 2
     const itemSize = (containerWidth - gap * (columns - 1)) / columns
     const rowHeight = itemSize + gap
     const totalHeight = padding + 10000 * rowHeight
     return { gap, padding, itemSize, rowHeight, totalHeight }
-  }, [columns])
+  }, [columns, windowWidth])
 
   // Skeleton items for loading state
   const skeletonItems = useMemo(() => {
