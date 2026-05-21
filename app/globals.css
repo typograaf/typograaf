@@ -297,13 +297,22 @@ body {
   cursor: none;
 }
 
-/* The real cursor is replaced by the .font-cursor label. */
+/* In the left/right thirds the real cursor is replaced by the
+   .font-cursor label; the middle third is a neutral editing zone with a
+   normal text caret. */
 .font-preview * {
   cursor: none;
 }
+.font-preview.zone-mid,
+.font-preview.zone-mid * {
+  cursor: text;
+}
+.font-preview.zone-mid .font-cursor {
+  display: none;
+}
 
 /* Custom cursor — a label that follows the pointer and reads
-   previous / next string depending on the screen half. */
+   previous / next string depending on the screen third. */
 .font-cursor {
   position: fixed;
   left: 0;

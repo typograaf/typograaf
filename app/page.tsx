@@ -500,6 +500,10 @@ function FontPreview({
   const [size, setSize] = useState(previewFontSize)
   const [axisValues, setAxisValues] = useState<Record<string, number>>({})
   const [family, setFamily] = useState('')
+  // Which screen third the cursor is in: left/right cycle sentences, the
+  // middle is a neutral editing zone.
+  const [zone, setZone] = useState<'left' | 'mid' | 'right'>('mid')
+  const zoneRef = useRef<'left' | 'mid' | 'right'>('mid')
   const axesRef = useRef<Axis[]>([])
   const bufCache = useRef<Map<string, ArrayBuffer>>(new Map())
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -564,10 +568,14 @@ function FontPreview({
           return next
         })
       }
+      const z = nx < 1 / 3 ? 'left' : nx > 2 / 3 ? 'right' : 'mid'
+      if (z !== zoneRef.current) {
+        zoneRef.current = z
+        setZone(z)
+      }
       const cursor = cursorRef.current
       if (cursor) {
         cursor.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`
-        cursor.textContent = nx < 0.5 ? 'previous string' : 'next string'
       }
     }
     const move = (x: number, y: number) => {
@@ -610,16 +618,19 @@ function FontPreview({
     setText(pool[n])
   }
 
-  // The left half of the screen goes to the previous sentence, the right
-  // half to the next. The close button and style controls are excluded.
+  // The left third of the screen goes to the previous sentence, the right
+  // third to the next. The middle third is a neutral editing zone — clicks
+  // there fall through to the text. Close button and controls are excluded.
   const handleClick = (e: React.MouseEvent) => {
     const t = e.target as HTMLElement
     if (t.closest('.font-preview-controls') || t.closest('.font-preview-close')) return
-    cycle(e.clientX < window.innerWidth / 2 ? -1 : 1)
+    const third = window.innerWidth / 3
+    if (e.clientX < third) cycle(-1)
+    else if (e.clientX > third * 2) cycle(1)
   }
 
   return (
-    <div className="font-preview" onClick={handleClick}>
+    <div className={`font-preview zone-${zone}`} onClick={handleClick}>
       <button
         type="button"
         className="font-preview-close"
@@ -661,14 +672,14 @@ function FontPreview({
         </div>
       )}
 
-      {/* Text content is set imperatively in the cursor effect so a
-          re-render can't reset the previous/next label. */}
+      {/* The label follows the pointer (positioned imperatively); its text
+          is zone-based and CSS hides it in the middle third. */}
       <div
         ref={cursorRef}
         className="font-cursor"
         aria-hidden="true"
         style={{ transform: 'translate(50vw, 50vh) translate(-50%, -50%)' }}
-      />
+      >{zone === 'left' ? 'previous string' : 'next string'}</div>
     </div>
   )
 }
