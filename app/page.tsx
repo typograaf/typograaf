@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, useDeferredValue } from 'react'
 import type { Tile, ImageTile, FontTile, FontFile } from '../lib/tiles'
 import { DEFAULT_PREVIEW_WEIGHT } from '../lib/tiles'
+import { type Axis, parseVariationAxes, ensureFontFace, fontFamilyFor } from '../lib/fontmeta'
 
 const BUFFER_ROWS = 3
 
@@ -31,82 +32,14 @@ function representativeStyle(tile: FontTile): FontFile {
   )
 }
 
-// A CSS-safe @font-face family name derived from a stable id.
-function fontFamilyFor(id: string): string {
-  return 'tf-' + id.replace(/[^a-zA-Z0-9]/g, '-')
+// The variation settings a typeface displays at by default: the CMS-saved
+// axes, with weight falling back to DEFAULT_PREVIEW_WEIGHT.
+function defaultAxisValues(axes?: Record<string, number>): Record<string, number> {
+  return { wght: DEFAULT_PREVIEW_WEIGHT, ...(axes || {}) }
 }
 
-// Inject an @font-face once per family so virtualised tiles can render a
-// specimen without each mount re-declaring the face.
-const injectedFonts = new Set<string>()
-function ensureFontFace(family: string, url: string) {
-  if (typeof document === 'undefined' || injectedFonts.has(family)) return
-  injectedFonts.add(family)
-  const el = document.createElement('style')
-  el.textContent = `@font-face{font-family:'${family}';src:url('${url}');font-display:swap}`
-  document.head.appendChild(el)
-}
-
-interface Axis {
-  tag: string
-  name: string
-  min: number
-  default: number
-  max: number
-}
-
-const AXIS_NAMES: Record<string, string> = {
-  wght: 'Weight',
-  wdth: 'Width',
-  slnt: 'Slant',
-  ital: 'Italic',
-  opsz: 'Optical Size',
-  GRAD: 'Grade',
-}
-
-// Read the variable-font axes straight from the binary's `fvar` table. Only
-// raw sfnt fonts (.ttf / .otf) can be parsed this way — .woff/.woff2 wrap
-// the tables in compression, so those gracefully report no axes.
-function parseVariationAxes(buf: ArrayBuffer): Axis[] {
-  try {
-    const dv = new DataView(buf)
-    const sfnt = dv.getUint32(0)
-    // 0x00010000 TrueType, 'OTTO' CFF, 'true'/'typ1' legacy TrueType.
-    const known = [0x00010000, 0x4f54544f, 0x74727565, 0x74797031]
-    if (!known.includes(sfnt)) return []
-
-    const numTables = dv.getUint16(4)
-    let fvarOffset = -1
-    for (let i = 0; i < numTables; i++) {
-      const rec = 12 + i * 16
-      if (dv.getUint32(rec) === 0x66766172 /* 'fvar' */) {
-        fvarOffset = dv.getUint32(rec + 8)
-        break
-      }
-    }
-    if (fvarOffset < 0) return []
-
-    const axesArrayOffset = dv.getUint16(fvarOffset + 4)
-    const axisCount = dv.getUint16(fvarOffset + 8)
-    const axisSize = dv.getUint16(fvarOffset + 10)
-    const axes: Axis[] = []
-    for (let i = 0; i < axisCount; i++) {
-      const o = fvarOffset + axesArrayOffset + i * axisSize
-      const tag = String.fromCharCode(
-        dv.getUint8(o), dv.getUint8(o + 1), dv.getUint8(o + 2), dv.getUint8(o + 3),
-      )
-      axes.push({
-        tag,
-        name: AXIS_NAMES[tag] || tag,
-        min: dv.getInt32(o + 4) / 65536,
-        default: dv.getInt32(o + 8) / 65536,
-        max: dv.getInt32(o + 12) / 65536,
-      })
-    }
-    return axes
-  } catch {
-    return []
-  }
+function variationSettings(values: Record<string, number>): string {
+  return Object.entries(values).map(([t, v]) => `"${t}" ${v}`).join(', ')
 }
 
 // ---------------------------------------------------------------------------
@@ -114,7 +47,7 @@ function parseVariationAxes(buf: ArrayBuffer): Axis[] {
 export default function Home() {
   const [tiles, setTiles] = useState<Tile[]>([])
   const [sentences, setSentences] = useState<string[]>([])
-  const [previewWeights, setPreviewWeights] = useState<Record<string, number>>({})
+  const [previewAxes, setPreviewAxes] = useState<Record<string, Record<string, number>>>({})
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState<ImageTile | null>(null)
   const [selectedFont, setSelectedFont] = useState<FontTile | null>(null)
@@ -178,8 +111,8 @@ export default function Home() {
         if (data.tiles && data.tiles.length > 0) {
           setTiles(data.tiles)
           if (Array.isArray(data.sentences)) setSentences(data.sentences)
-          if (data.previewWeights && typeof data.previewWeights === 'object') {
-            setPreviewWeights(data.previewWeights)
+          if (data.previewAxes && typeof data.previewAxes === 'object') {
+            setPreviewAxes(data.previewAxes)
           }
           setLoading(false)
         } else if (retryCount < 3) {
@@ -331,7 +264,7 @@ export default function Home() {
                   key={`${tile.id}-${index}`}
                   tile={tile}
                   sentence={pickSentence(sentences, index)}
-                  weight={previewWeights[tile.id] ?? DEFAULT_PREVIEW_WEIGHT}
+                  axes={previewAxes[tile.id]}
                   top={top}
                   left={left}
                   size={size}
@@ -361,7 +294,7 @@ export default function Home() {
         <FontPreview
           tile={selectedFont}
           sentences={sentences}
-          weight={previewWeights[selectedFont.id] ?? DEFAULT_PREVIEW_WEIGHT}
+          axes={previewAxes[selectedFont.id]}
           onClose={closeLightbox}
         />
       )}
@@ -428,7 +361,7 @@ function VirtualItem({
 function FontItem({
   tile,
   sentence,
-  weight,
+  axes,
   top,
   left,
   size,
@@ -436,17 +369,48 @@ function FontItem({
 }: {
   tile: FontTile
   sentence: string
-  weight: number
+  axes?: Record<string, number>
   top: number
   left: number
   size: number
   onClick: () => void
 }) {
+  const values = defaultAxisValues(axes)
   const family = fontFamilyFor(tile.id)
+  const boxRef = useRef<HTMLDivElement>(null)
+  const textRef = useRef<HTMLDivElement>(null)
+  const pad = Math.round(size * 0.12)
 
   useEffect(() => {
     ensureFontFace(family, representativeStyle(tile).url)
   }, [family, tile])
+
+  // Fit the sentence to the tile so every typeface specimen fills its
+  // square to the same degree, regardless of how long the sentence is.
+  useLayoutEffect(() => {
+    const box = boxRef.current
+    const textEl = textRef.current
+    if (!box || !textEl) return
+    const fit = () => {
+      const bw = box.clientWidth
+      const bh = box.clientHeight
+      if (bw <= 0 || bh <= 0) return
+      let lo = 4
+      let hi = bh
+      for (let i = 0; i < 10; i++) {
+        const mid = (lo + hi) / 2
+        textEl.style.fontSize = mid + 'px'
+        if (textEl.scrollWidth <= bw && textEl.scrollHeight <= bh) lo = mid
+        else hi = mid
+      }
+      textEl.style.fontSize = Math.floor(lo) + 'px'
+    }
+    fit()
+    // Re-fit once the webfont loads — its metrics differ from the fallback.
+    let cancelled = false
+    document.fonts.ready.then(() => { if (!cancelled) fit() })
+    return () => { cancelled = true }
+  }, [sentence, size, family, axes])
 
   return (
     <div
@@ -455,17 +419,22 @@ function FontItem({
       style={{ position: 'absolute', top, left, width: size, height: size }}
     >
       <div
+        ref={boxRef}
         className="font-sentence"
-        style={{
-          fontFamily: `'${family}', sans-serif`,
-          // The CMS default weight; variable fonts vary, static fonts ignore it.
-          fontVariationSettings: `"wght" ${weight}`,
-          fontWeight: weight,
-          fontSize: Math.round(size * 0.085),
-          padding: Math.round(size * 0.12),
-        }}
+        style={{ top: pad, left: pad, right: pad, bottom: pad }}
       >
-        {sentence}
+        <div
+          ref={textRef}
+          className="font-sentence-text"
+          style={{
+            fontFamily: `'${family}', sans-serif`,
+            // CMS default axes; variable fonts vary, static fonts ignore it.
+            fontVariationSettings: variationSettings(values),
+            fontWeight: values.wght,
+          }}
+        >
+          {sentence}
+        </div>
       </div>
     </div>
   )
@@ -486,12 +455,12 @@ function previewFontSize(): number {
 function FontPreview({
   tile,
   sentences,
-  weight,
+  axes,
   onClose,
 }: {
   tile: FontTile
   sentences: string[]
-  weight: number
+  axes?: Record<string, number>
   onClose: () => void
 }) {
   const pool = useMemo(
@@ -536,10 +505,15 @@ function FontPreview({
       if (cancelled) return
       const parsed = parseVariationAxes(buf)
       axesRef.current = parsed
+      // Open at the CMS default axes (weight falls back to 700), each
+      // clamped to the font's own range.
       const initial = Object.fromEntries(parsed.map(a => [a.tag, a.default]))
-      // Open at the CMS default weight, clamped to the font's range.
-      const wght = parsed.find(a => a.tag === 'wght')
-      if (wght) initial.wght = Math.min(wght.max, Math.max(wght.min, weight))
+      const desired = defaultAxisValues(axes)
+      for (const a of parsed) {
+        if (desired[a.tag] !== undefined) {
+          initial[a.tag] = Math.min(a.max, Math.max(a.min, desired[a.tag]))
+        }
+      }
       setAxisValues(initial)
       setFamily(fam)
     }

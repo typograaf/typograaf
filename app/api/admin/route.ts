@@ -11,8 +11,8 @@ import {
   saveQuotes,
   getSentences,
   saveSentences,
-  getPreviewWeights,
-  savePreviewWeights,
+  getPreviewAxes,
+  savePreviewAxes,
 } from '../../../lib/cms'
 import { getProjectOrder, getManifest, deleteImage, orderedVisible } from '../../../lib/sync'
 import { reconcileArena } from '../../../lib/arena'
@@ -32,14 +32,14 @@ export async function GET() {
   }
   const folderPath = (process.env.DROPBOX_FOLDER_PATH || '').toLowerCase()
   const baseDepth = folderPath.split('/').length
-  const [order, about, manifest, hiddenIds, quotes, sentences, previewWeights] = await Promise.all([
+  const [order, about, manifest, hiddenIds, quotes, sentences, previewAxes] = await Promise.all([
     getProjectOrder(),
     getAboutText(),
     getManifest(),
     getHiddenImageIds(),
     getQuotes(),
     getSentences(),
-    getPreviewWeights(),
+    getPreviewAxes(),
   ])
   const hidden = new Set(hiddenIds)
   const images = manifest.map(img => {
@@ -54,12 +54,12 @@ export async function GET() {
       isFont: isFontFile(img.name),
     }
   })
-  // Typefaces (grouped font tiles) so the admin can set a default weight
-  // per font.
+  // Typefaces (grouped font tiles) so the admin can set default axes per
+  // font; url lets the admin load the font to preview it and read its axes.
   const fonts = buildTiles(orderedVisible(manifest, order, []))
-    .filter(t => t.kind === 'font')
-    .map(t => ({ id: t.id, name: t.name }))
-  return NextResponse.json({ order, about, images, quotes, sentences, fonts, previewWeights })
+    .filter((t): t is Extract<typeof t, { kind: 'font' }> => t.kind === 'font')
+    .map(t => ({ id: t.id, name: t.name, url: t.styles[0]?.url || '' }))
+  return NextResponse.json({ order, about, images, quotes, sentences, fonts, previewAxes })
 }
 
 export async function POST(request: NextRequest) {
@@ -83,8 +83,8 @@ export async function POST(request: NextRequest) {
       body.sentences.filter((s: unknown): s is string => typeof s === 'string'),
     )
   }
-  if (body.previewWeights && typeof body.previewWeights === 'object') {
-    await savePreviewWeights(body.previewWeights as Record<string, number>)
+  if (body.previewAxes && typeof body.previewAxes === 'object') {
+    await savePreviewAxes(body.previewAxes as Record<string, Record<string, number>>)
   }
   if (Array.isArray(body.quotes)) {
     const prev = await getQuotes()

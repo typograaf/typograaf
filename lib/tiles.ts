@@ -68,16 +68,45 @@ function titleCase(s: string): string {
     .replace(/\b\w/g, c => c.toUpperCase())
 }
 
-// Derive a human style label from a font filename, stripping the typeface
-// folder name prefix when present (e.g. "Mirror-Bold.woff2" -> "Bold").
-export function styleLabel(fileName: string, folderName: string): string {
-  let base = fileName.replace(/\.[^.]+$/, '')
-  if (folderName && base.toLowerCase().startsWith(folderName.toLowerCase())) {
-    base = base.slice(folderName.length)
+// Tokens that mark a weight, slope or variable suffix in a font filename.
+const STYLE_WORDS = new Set([
+  ...WEIGHT_ORDER,
+  'italic', 'oblique', 'roman', 'upright', 'variable', 'vf', 'var',
+])
+
+function isStyleToken(token: string): boolean {
+  const t = token.toLowerCase()
+  return STYLE_WORDS.has(t) || /^[1-9]0{2}$/.test(t)
+}
+
+export interface ParsedFontName {
+  familyKey: string
+  familyName: string
+  style: string
+}
+
+// Split a font filename into its typeface family and its style: trailing
+// weight/slope/variable tokens are the style, the rest is the family
+// ("Mirror-Bold.woff2" -> family "Mirror", style "Bold"). A filename with
+// no separators is treated as one family with a Regular style.
+export function parseFontName(fileName: string): ParsedFontName {
+  const base = fileName.replace(/\.[^.]+$/, '')
+  const tokens = base.split(/[-_\s]+/).filter(Boolean)
+  if (tokens.length <= 1) {
+    return { familyKey: base.toLowerCase(), familyName: base, style: 'Regular' }
   }
-  base = base.replace(/^[-_\s]+/, '')
-  const label = titleCase(base)
-  return label || 'Regular'
+  let i = tokens.length - 1
+  const styleTokens: string[] = []
+  while (i >= 1 && isStyleToken(tokens[i])) {
+    styleTokens.unshift(tokens[i])
+    i--
+  }
+  const familyTokens = tokens.slice(0, i + 1)
+  return {
+    familyKey: familyTokens.join(' ').toLowerCase(),
+    familyName: familyTokens.join(' '),
+    style: styleTokens.length ? titleCase(styleTokens.join(' ')) : 'Regular',
+  }
 }
 
 // Convert an R2 blob URL into a same-origin font proxy URL. Serving fonts
@@ -93,47 +122,65 @@ function fontProxyUrl(blobUrl: string): string {
   return `/api/font?key=${encodeURIComponent(key)}`
 }
 
+function folderOf(path: string): string {
+  const slash = path.lastIndexOf('/')
+  return slash === -1 ? '' : path.slice(0, slash)
+}
+
 /**
  * Collapse an ordered manifest into display tiles. Image entries map 1:1 to
- * image tiles; font entries are grouped by their containing folder into a
- * single typeface tile, placed at the position of the group's first file so
- * the project ordering is preserved.
+ * image tiles. Font entries are grouped into typeface tiles by folder — but
+ * a folder holding more than one typeface family is split into one tile per
+ * family. Each tile sits at the position of its first font file so the
+ * project ordering is preserved.
  */
 export function buildTiles(ordered: ManifestImage[]): Tile[] {
-  const out: Tile[] = []
-  const byFolder = new Map<string, FontTile>()
+  // Pass 1: how many distinct families does each folder hold?
+  const familiesByFolder = new Map<string, Set<string>>()
+  for (const entry of ordered) {
+    if (!isFontFile(entry.name)) continue
+    const folder = folderOf(entry.path)
+    let set = familiesByFolder.get(folder)
+    if (!set) familiesByFolder.set(folder, (set = new Set()))
+    set.add(parseFontName(entry.name).familyKey)
+  }
 
+  // Pass 2: build the tiles. A multi-family folder splits per family.
+  const out: Tile[] = []
+  const tilesByKey = new Map<string, FontTile>()
   for (const entry of ordered) {
     if (!isFontFile(entry.name)) {
       out.push({ kind: 'image', id: entry.id, url: entry.blobUrl, path: entry.path })
       continue
     }
 
-    const slash = entry.path.lastIndexOf('/')
-    const folderPath = slash === -1 ? '' : entry.path.slice(0, slash)
-    const folderName = folderPath.slice(folderPath.lastIndexOf('/') + 1)
+    const folder = folderOf(entry.path)
+    const folderName = folder.slice(folder.lastIndexOf('/') + 1)
+    const { familyKey, familyName, style } = parseFontName(entry.name)
+    const multi = (familiesByFolder.get(folder)?.size ?? 1) > 1
+    const groupKey = multi ? `${folder}::${familyKey}` : folder
 
-    let tile = byFolder.get(folderPath)
+    let tile = tilesByKey.get(groupKey)
     if (!tile) {
       tile = {
         kind: 'font',
-        id: `font:${folderPath}`,
+        id: multi ? `font:${folder}::${familyKey}` : `font:${folder}`,
         path: entry.path,
-        name: titleCase(folderName),
+        name: titleCase(multi ? familyName : folderName),
         styles: [],
       }
-      byFolder.set(folderPath, tile)
+      tilesByKey.set(groupKey, tile)
       out.push(tile)
     }
     tile.styles.push({
       id: entry.id,
       name: entry.name,
-      style: styleLabel(entry.name, folderName),
+      style,
       url: fontProxyUrl(entry.blobUrl),
     })
   }
 
-  for (const tile of byFolder.values()) {
+  for (const tile of tilesByKey.values()) {
     tile.styles.sort(
       (a, b) => styleRank(a.style) - styleRank(b.style) || a.style.localeCompare(b.style),
     )

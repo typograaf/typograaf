@@ -9,7 +9,7 @@ const ABOUT_KEY = 'cms/about.json'
 const HIDDEN_KEY = 'cms/hidden-images.json'
 const QUOTES_KEY = 'cms/quotes.json'
 const SENTENCES_KEY = 'cms/sentences.json'
-const WEIGHTS_KEY = 'cms/preview-weights.json'
+const AXES_KEY = 'cms/preview-axes.json'
 
 function getS3() {
   return new S3Client({
@@ -214,16 +214,24 @@ export async function saveSentences(sentences: string[]): Promise<void> {
   }))
 }
 
-// Per-typeface default weight, keyed by font tile id (font:<folder>).
-export async function getPreviewWeights(): Promise<Record<string, number>> {
+type AxisMap = Record<string, Record<string, number>>
+
+// Per-typeface default variable-axis values (e.g. { wght, wdth }), keyed by
+// font tile id (font:<folder>).
+export async function getPreviewAxes(): Promise<AxisMap> {
   try {
-    const res = await fetch(`${PUBLIC_URL}/${WEIGHTS_KEY}?t=${Date.now()}`, { cache: 'no-store' })
+    const res = await fetch(`${PUBLIC_URL}/${AXES_KEY}?t=${Date.now()}`, { cache: 'no-store' })
     if (!res.ok) return {}
     const data = await res.json()
     if (!data || typeof data !== 'object' || Array.isArray(data)) return {}
-    const out: Record<string, number> = {}
-    for (const [id, w] of Object.entries(data)) {
-      if (typeof w === 'number' && Number.isFinite(w)) out[id] = w
+    const out: AxisMap = {}
+    for (const [id, axes] of Object.entries(data)) {
+      if (!axes || typeof axes !== 'object' || Array.isArray(axes)) continue
+      const clean: Record<string, number> = {}
+      for (const [tag, v] of Object.entries(axes as Record<string, unknown>)) {
+        if (typeof v === 'number' && Number.isFinite(v)) clean[tag] = v
+      }
+      if (Object.keys(clean).length) out[id] = clean
     }
     return out
   } catch {
@@ -231,16 +239,21 @@ export async function getPreviewWeights(): Promise<Record<string, number>> {
   }
 }
 
-export async function savePreviewWeights(weights: Record<string, number>): Promise<void> {
-  const clean: Record<string, number> = {}
-  for (const [id, w] of Object.entries(weights || {})) {
-    const n = Number(w)
-    if (Number.isFinite(n)) clean[id] = Math.min(1000, Math.max(1, Math.round(n)))
+export async function savePreviewAxes(axesById: AxisMap): Promise<void> {
+  const clean: AxisMap = {}
+  for (const [id, axes] of Object.entries(axesById || {})) {
+    if (!axes || typeof axes !== 'object') continue
+    const a: Record<string, number> = {}
+    for (const [tag, v] of Object.entries(axes)) {
+      const n = Number(v)
+      if (Number.isFinite(n)) a[tag] = Math.round(n * 100) / 100
+    }
+    if (Object.keys(a).length) clean[id] = a
   }
   const client = getS3()
   await client.send(new PutObjectCommand({
     Bucket: BUCKET,
-    Key: WEIGHTS_KEY,
+    Key: AXES_KEY,
     Body: JSON.stringify(clean),
     ContentType: 'application/json',
   }))
