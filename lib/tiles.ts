@@ -12,11 +12,10 @@ export interface ManifestImage {
 export const FONT_EXTENSIONS = ['.ttf', '.otf', '.woff', '.woff2'] as const
 
 // Per-typeface defaults used by the tile specimen and type-tester when
-// nothing is set in the CMS. `size` is a multiplier on the fit-to-box
-// size — 1 fills the tile, lower shrinks the type within it.
+// nothing is set in the CMS. `size` is the type size on the tile, in px.
 export const DEFAULT_PREVIEW_WEIGHT = 700
 export const DEFAULT_PREVIEW_LEADING = 1.12
-export const DEFAULT_PREVIEW_SIZE = 1
+export const DEFAULT_PREVIEW_SIZE = 40
 
 export function isFontFile(name: string): boolean {
   const lower = name.toLowerCase()

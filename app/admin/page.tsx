@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   type Quote,
   type QuoteOption,
@@ -16,7 +16,7 @@ import {
   formatEur,
 } from '../../lib/quote'
 import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING, DEFAULT_PREVIEW_SIZE } from '../../lib/tiles'
-import { type Axis, parseVariationAxes, fitFontSize } from '../../lib/fontmeta'
+import { type Axis, parseVariationAxes } from '../../lib/fontmeta'
 
 type Tab = 'work' | 'about' | 'images' | 'quotes' | 'sentences'
 
@@ -616,7 +616,7 @@ export default function Admin() {
         <p className="admin-muted admin-hint">
           {tab === 'work' && 'Drag rows to reorder, or use the arrows. New projects from Dropbox auto-prepend until you save a new order.'}
           {tab === 'about' && 'One paragraph per line. Empty lines are ignored.'}
-          {tab === 'sentences' && 'Size dials each typeface within its tile; weight, width and leading set how it renders on the tile and in the type-tester. Weight and width show only for fonts that have those axes. The preview updates live — click it for another sample string. Sentences are the sample texts, one per line. Changes go live on Save.'}
+          {tab === 'sentences' && 'Size sets the type size on each typeface tile; weight, width and leading set how it renders. Weight and width show only for fonts that have those axes. The preview updates live — click it for another sample string. Sentences are the sample texts, one per line. Changes go live on Save.'}
           {tab === 'images' && 'Click ◎ to hide an image from the public site (file stays in Dropbox). Click × to delete it from Dropbox — your Mac will sync the deletion within seconds. Deletion cannot be undone.'}
           {tab === 'quotes' && 'You enter the design price per asset. Perpetual = one-time design + 50%. Annual = first year at the design price, then 1/6 of design per year. Footnotes are fixed and shown automatically on the quote. Changes go live on Save.'}
         </p>
@@ -644,8 +644,6 @@ function FontAxisRow({
   const [sentenceIdx, setSentenceIdx] = useState(() =>
     Math.floor(Math.random() * Math.max(1, sentences.length)),
   )
-  const boxRef = useRef<HTMLDivElement>(null)
-  const textRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -670,30 +668,11 @@ function FontAxisRow({
   const weight = axes.wght ?? DEFAULT_PREVIEW_WEIGHT
   const width = axes.wdth ?? wdth?.default ?? 100
   const leading = axes.leading ?? DEFAULT_PREVIEW_LEADING
-  const sizeMul = axes.size ?? DEFAULT_PREVIEW_SIZE
+  const size = axes.size ?? DEFAULT_PREVIEW_SIZE
   const settings = `"wght" ${weight}` + (wdth ? `, "wdth" ${width}` : '')
 
   const pool = sentences.length ? sentences : [font.name]
   const sentence = pool[sentenceIdx % pool.length]
-
-  // Fit the sample to the tile, then scale by the size multiplier — the
-  // same maths the live tile uses.
-  useLayoutEffect(() => {
-    const box = boxRef.current
-    const textEl = textRef.current
-    if (!box || !textEl) return
-    const fit = () => {
-      const bw = box.clientWidth
-      const bh = box.clientHeight
-      if (bw <= 0 || bh <= 0) return
-      const max = fitFontSize(textEl, bw, bh)
-      textEl.style.fontSize = Math.floor(max * sizeMul) + 'px'
-    }
-    fit()
-    let cancelled = false
-    document.fonts.ready.then(() => { if (!cancelled) fit() })
-    return () => { cancelled = true }
-  }, [sentence, family, sizeMul, weight, width, leading, parsed])
 
   return (
     <div className="admin-typeface">
@@ -702,15 +681,15 @@ function FontAxisRow({
         onClick={() => setSentenceIdx((i) => i + 1)}
         title="Click for another sample string"
       >
-        <div ref={boxRef} className="admin-typeface-box">
+        <div className="admin-typeface-box">
           <div
-            ref={textRef}
             className="admin-typeface-text"
             style={{
               fontFamily: `'${family}', sans-serif`,
               fontVariationSettings: settings,
               fontWeight: weight,
               lineHeight: leading,
+              fontSize: size,
             }}
           >
             {sentence}
@@ -723,13 +702,13 @@ function FontAxisRow({
           <span className="admin-axis-label">Size</span>
           <input
             type="range"
-            min={10}
-            max={100}
+            min={8}
+            max={140}
             step={1}
-            value={Math.round(sizeMul * 100)}
-            onChange={(e) => onChange({ ...axes, size: Number(e.target.value) / 100 })}
+            value={size}
+            onChange={(e) => onChange({ ...axes, size: Number(e.target.value) })}
           />
-          <span className="admin-axis-value">{Math.round(sizeMul * 100)}%</span>
+          <span className="admin-axis-value">{Math.round(size)}</span>
         </label>
         {wght && (
           <label className="admin-axis">

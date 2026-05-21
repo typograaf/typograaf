@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, useDeferredValue } from 'react'
 import type { Tile, ImageTile, FontTile, FontFile } from '../lib/tiles'
 import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING, DEFAULT_PREVIEW_SIZE } from '../lib/tiles'
-import { type Axis, parseVariationAxes, ensureFontFace, fontFamilyFor, fitFontSize } from '../lib/fontmeta'
+import { type Axis, parseVariationAxes, ensureFontFace, fontFamilyFor } from '../lib/fontmeta'
 
 const BUFFER_ROWS = 3
 
@@ -392,33 +392,11 @@ function FontItem({
 }) {
   const values = defaultAxisValues(axes)
   const family = fontFamilyFor(tile.id)
-  const boxRef = useRef<HTMLDivElement>(null)
-  const textRef = useRef<HTMLDivElement>(null)
   const pad = Math.round(size * 0.12)
 
   useEffect(() => {
     ensureFontFace(family, representativeStyle(tile).url)
   }, [family, tile])
-
-  // Fit the sentence to the tile, then scale by the CMS size multiplier so
-  // each typeface can be dialled to a consistent optical size.
-  useLayoutEffect(() => {
-    const box = boxRef.current
-    const textEl = textRef.current
-    if (!box || !textEl) return
-    const fit = () => {
-      const bw = box.clientWidth
-      const bh = box.clientHeight
-      if (bw <= 0 || bh <= 0) return
-      const max = fitFontSize(textEl, bw, bh)
-      textEl.style.fontSize = Math.floor(max * sizeOf(axes)) + 'px'
-    }
-    fit()
-    // Re-fit once the webfont loads — its metrics differ from the fallback.
-    let cancelled = false
-    document.fonts.ready.then(() => { if (!cancelled) fit() })
-    return () => { cancelled = true }
-  }, [sentence, size, family, axes])
 
   return (
     <div
@@ -427,12 +405,10 @@ function FontItem({
       style={{ position: 'absolute', top, left, width: size, height: size }}
     >
       <div
-        ref={boxRef}
         className="font-sentence"
         style={{ top: pad, left: pad, right: pad, bottom: pad }}
       >
         <div
-          ref={textRef}
           className="font-sentence-text"
           style={{
             fontFamily: `'${family}', sans-serif`,
@@ -440,6 +416,7 @@ function FontItem({
             fontVariationSettings: variationSettings(values),
             fontWeight: values.wght,
             lineHeight: leadingOf(axes),
+            fontSize: sizeOf(axes),
           }}
         >
           {sentence}
