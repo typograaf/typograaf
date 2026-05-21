@@ -15,6 +15,7 @@ import {
   annualYearly,
   formatEur,
 } from '../../lib/quote'
+import { DEFAULT_PREVIEW_WEIGHT } from '../../lib/tiles'
 
 type Tab = 'work' | 'about' | 'images' | 'quotes' | 'sentences'
 
@@ -41,6 +42,8 @@ export default function Admin() {
   const [about, setAbout] = useState('')
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [sentences, setSentences] = useState<string[]>([])
+  const [fonts, setFonts] = useState<{ id: string; name: string }[]>([])
+  const [previewWeights, setPreviewWeights] = useState<Record<string, number>>({})
   const [images, setImages] = useState<AdminImage[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -65,6 +68,8 @@ export default function Admin() {
     setAbout(data.about || '')
     setQuotes(Array.isArray(data.quotes) ? data.quotes : [])
     setSentences(Array.isArray(data.sentences) ? data.sentences : [])
+    setFonts(Array.isArray(data.fonts) ? data.fonts : [])
+    setPreviewWeights(data.previewWeights && typeof data.previewWeights === 'object' ? data.previewWeights : {})
     setImages(data.images || [])
     setAuthed(true)
     setLoading(false)
@@ -104,7 +109,7 @@ export default function Admin() {
     await fetch('/api/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order, about, quotes, sentences }),
+      body: JSON.stringify({ order, about, quotes, sentences, previewWeights }),
     })
     // Re-read what actually persisted so dropped/invalid quotes surface
     // instead of looking saved only in local state.
@@ -281,7 +286,7 @@ export default function Admin() {
               className={`admin-tab${tab === 'sentences' ? ' is-active' : ''}`}
               onClick={() => setTab('sentences')}
               type="button"
-            >Sentences</button>
+            >Type</button>
           </div>
           {tab !== 'images' && (
             <div className="admin-save-row">
@@ -350,13 +355,43 @@ export default function Admin() {
         )}
 
         {tab === 'sentences' && (
-          <textarea
-            className="admin-textarea"
-            value={sentences.join('\n')}
-            onChange={(e) => setSentences(e.target.value.split('\n'))}
-            spellCheck={false}
-            rows={20}
-          />
+          <div className="admin-type">
+            <section className="admin-type-section">
+              <h2 className="admin-type-h">Default weight</h2>
+              {fonts.length === 0 ? (
+                <p className="admin-muted">No typefaces synced yet.</p>
+              ) : (
+                <div className="admin-weights">
+                  {fonts.map((f) => (
+                    <label key={f.id} className="admin-weight-row">
+                      <span className="admin-weight-name">{f.name}</span>
+                      <input
+                        className="admin-input admin-weight-input"
+                        type="number"
+                        min={1}
+                        max={1000}
+                        step={1}
+                        value={previewWeights[f.id] ?? DEFAULT_PREVIEW_WEIGHT}
+                        onChange={(e) =>
+                          setPreviewWeights((w) => ({ ...w, [f.id]: Number(e.target.value) }))
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+            </section>
+            <section className="admin-type-section">
+              <h2 className="admin-type-h">Sentences</h2>
+              <textarea
+                className="admin-textarea"
+                value={sentences.join('\n')}
+                onChange={(e) => setSentences(e.target.value.split('\n'))}
+                spellCheck={false}
+                rows={20}
+              />
+            </section>
+          </div>
         )}
 
         {tab === 'quotes' && (
@@ -585,7 +620,7 @@ export default function Admin() {
         <p className="admin-muted admin-hint">
           {tab === 'work' && 'Drag rows to reorder, or use the arrows. New projects from Dropbox auto-prepend until you save a new order.'}
           {tab === 'about' && 'One paragraph per line. Empty lines are ignored.'}
-          {tab === 'sentences' && 'One sentence per line — these are the sample texts in the typeface type-tester. Empty lines are ignored. Changes go live on Save.'}
+          {tab === 'sentences' && 'Default weight is what each typeface opens at in the type-tester and renders at on its tile. Sentences are the sample texts — one per line, empty lines ignored. Changes go live on Save.'}
           {tab === 'images' && 'Click ◎ to hide an image from the public site (file stays in Dropbox). Click × to delete it from Dropbox — your Mac will sync the deletion within seconds. Deletion cannot be undone.'}
           {tab === 'quotes' && 'You enter the design price per asset. Perpetual = one-time design + 50%. Annual = first year at the design price, then 1/6 of design per year. Footnotes are fixed and shown automatically on the quote. Changes go live on Save.'}
         </p>
@@ -626,6 +661,13 @@ function AdminStyles() {
 .admin-tile.is-hidden img { opacity: 0.25; filter: grayscale(0.6); }
 .admin-tile img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity 0.12s, filter 0.12s; }
 .admin-tile-font { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #f0f0f0; font-size: 40px; font-weight: 600; color: #999; }
+.admin-type { display: flex; flex-direction: column; gap: 32px; }
+.admin-type-section { display: flex; flex-direction: column; gap: 12px; }
+.admin-type-h { font-size: 14px; font-weight: 510; margin: 0; }
+.admin-weights { display: flex; flex-direction: column; gap: 8px; max-width: 400px; }
+.admin-weight-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.admin-weight-name { font-size: 14px; }
+.admin-weight-input { width: 96px; flex: 0 0 auto; }
 .admin-tile-meta { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; background: linear-gradient(to top, rgba(0,0,0,0.55), transparent); color: #fff; font-size: 11px; line-height: 1.3; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
 .admin-tile:hover .admin-tile-meta, .admin-tile.is-hidden .admin-tile-meta { opacity: 1; }
 .admin-tile-tag { display: inline-block; align-self: flex-start; background: rgba(255,255,255,0.18); padding: 1px 6px; border-radius: 4px; font-weight: 510; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }

@@ -11,10 +11,12 @@ import {
   saveQuotes,
   getSentences,
   saveSentences,
+  getPreviewWeights,
+  savePreviewWeights,
 } from '../../../lib/cms'
 import { getProjectOrder, getManifest, deleteImage, orderedVisible } from '../../../lib/sync'
 import { reconcileArena } from '../../../lib/arena'
-import { isFontFile } from '../../../lib/tiles'
+import { isFontFile, buildTiles } from '../../../lib/tiles'
 import type { Quote } from '../../../lib/quote'
 
 export const dynamic = 'force-dynamic'
@@ -30,13 +32,14 @@ export async function GET() {
   }
   const folderPath = (process.env.DROPBOX_FOLDER_PATH || '').toLowerCase()
   const baseDepth = folderPath.split('/').length
-  const [order, about, manifest, hiddenIds, quotes, sentences] = await Promise.all([
+  const [order, about, manifest, hiddenIds, quotes, sentences, previewWeights] = await Promise.all([
     getProjectOrder(),
     getAboutText(),
     getManifest(),
     getHiddenImageIds(),
     getQuotes(),
     getSentences(),
+    getPreviewWeights(),
   ])
   const hidden = new Set(hiddenIds)
   const images = manifest.map(img => {
@@ -51,7 +54,12 @@ export async function GET() {
       isFont: isFontFile(img.name),
     }
   })
-  return NextResponse.json({ order, about, images, quotes, sentences })
+  // Typefaces (grouped font tiles) so the admin can set a default weight
+  // per font.
+  const fonts = buildTiles(orderedVisible(manifest, order, []))
+    .filter(t => t.kind === 'font')
+    .map(t => ({ id: t.id, name: t.name }))
+  return NextResponse.json({ order, about, images, quotes, sentences, fonts, previewWeights })
 }
 
 export async function POST(request: NextRequest) {
@@ -74,6 +82,9 @@ export async function POST(request: NextRequest) {
     await saveSentences(
       body.sentences.filter((s: unknown): s is string => typeof s === 'string'),
     )
+  }
+  if (body.previewWeights && typeof body.previewWeights === 'object') {
+    await savePreviewWeights(body.previewWeights as Record<string, number>)
   }
   if (Array.isArray(body.quotes)) {
     const prev = await getQuotes()

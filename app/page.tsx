@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, useDeferredValue } from 'react'
 import type { Tile, ImageTile, FontTile, FontFile } from '../lib/tiles'
+import { DEFAULT_PREVIEW_WEIGHT } from '../lib/tiles'
 
 const BUFFER_ROWS = 3
 
@@ -113,6 +114,7 @@ function parseVariationAxes(buf: ArrayBuffer): Axis[] {
 export default function Home() {
   const [tiles, setTiles] = useState<Tile[]>([])
   const [sentences, setSentences] = useState<string[]>([])
+  const [previewWeights, setPreviewWeights] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState<ImageTile | null>(null)
   const [selectedFont, setSelectedFont] = useState<FontTile | null>(null)
@@ -176,6 +178,9 @@ export default function Home() {
         if (data.tiles && data.tiles.length > 0) {
           setTiles(data.tiles)
           if (Array.isArray(data.sentences)) setSentences(data.sentences)
+          if (data.previewWeights && typeof data.previewWeights === 'object') {
+            setPreviewWeights(data.previewWeights)
+          }
           setLoading(false)
         } else if (retryCount < 3) {
           setTimeout(() => loadImages(retryCount + 1), 1000)
@@ -326,6 +331,7 @@ export default function Home() {
                   key={`${tile.id}-${index}`}
                   tile={tile}
                   sentence={pickSentence(sentences, index)}
+                  weight={previewWeights[tile.id] ?? DEFAULT_PREVIEW_WEIGHT}
                   top={top}
                   left={left}
                   size={size}
@@ -355,6 +361,7 @@ export default function Home() {
         <FontPreview
           tile={selectedFont}
           sentences={sentences}
+          weight={previewWeights[selectedFont.id] ?? DEFAULT_PREVIEW_WEIGHT}
           onClose={closeLightbox}
         />
       )}
@@ -421,6 +428,7 @@ function VirtualItem({
 function FontItem({
   tile,
   sentence,
+  weight,
   top,
   left,
   size,
@@ -428,6 +436,7 @@ function FontItem({
 }: {
   tile: FontTile
   sentence: string
+  weight: number
   top: number
   left: number
   size: number
@@ -449,9 +458,9 @@ function FontItem({
         className="font-sentence"
         style={{
           fontFamily: `'${family}', sans-serif`,
-          // Variable fonts render the specimen bold; static fonts ignore it.
-          fontVariationSettings: '"wght" 700',
-          fontWeight: 700,
+          // The CMS default weight; variable fonts vary, static fonts ignore it.
+          fontVariationSettings: `"wght" ${weight}`,
+          fontWeight: weight,
           fontSize: Math.round(size * 0.085),
           padding: Math.round(size * 0.12),
         }}
@@ -477,10 +486,12 @@ function previewFontSize(): number {
 function FontPreview({
   tile,
   sentences,
+  weight,
   onClose,
 }: {
   tile: FontTile
   sentences: string[]
+  weight: number
   onClose: () => void
 }) {
   const pool = useMemo(
@@ -525,7 +536,11 @@ function FontPreview({
       if (cancelled) return
       const parsed = parseVariationAxes(buf)
       axesRef.current = parsed
-      setAxisValues(Object.fromEntries(parsed.map(a => [a.tag, a.default])))
+      const initial = Object.fromEntries(parsed.map(a => [a.tag, a.default]))
+      // Open at the CMS default weight, clamped to the font's range.
+      const wght = parsed.find(a => a.tag === 'wght')
+      if (wght) initial.wght = Math.min(wght.max, Math.max(wght.min, weight))
+      setAxisValues(initial)
       setFamily(fam)
     }
 

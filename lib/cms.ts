@@ -9,6 +9,7 @@ const ABOUT_KEY = 'cms/about.json'
 const HIDDEN_KEY = 'cms/hidden-images.json'
 const QUOTES_KEY = 'cms/quotes.json'
 const SENTENCES_KEY = 'cms/sentences.json'
+const WEIGHTS_KEY = 'cms/preview-weights.json'
 
 function getS3() {
   return new S3Client({
@@ -209,6 +210,38 @@ export async function saveSentences(sentences: string[]): Promise<void> {
     Bucket: BUCKET,
     Key: SENTENCES_KEY,
     Body: JSON.stringify(cleaned),
+    ContentType: 'application/json',
+  }))
+}
+
+// Per-typeface default weight, keyed by font tile id (font:<folder>).
+export async function getPreviewWeights(): Promise<Record<string, number>> {
+  try {
+    const res = await fetch(`${PUBLIC_URL}/${WEIGHTS_KEY}?t=${Date.now()}`, { cache: 'no-store' })
+    if (!res.ok) return {}
+    const data = await res.json()
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return {}
+    const out: Record<string, number> = {}
+    for (const [id, w] of Object.entries(data)) {
+      if (typeof w === 'number' && Number.isFinite(w)) out[id] = w
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+export async function savePreviewWeights(weights: Record<string, number>): Promise<void> {
+  const clean: Record<string, number> = {}
+  for (const [id, w] of Object.entries(weights || {})) {
+    const n = Number(w)
+    if (Number.isFinite(n)) clean[id] = Math.min(1000, Math.max(1, Math.round(n)))
+  }
+  const client = getS3()
+  await client.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: WEIGHTS_KEY,
+    Body: JSON.stringify(clean),
     ContentType: 'application/json',
   }))
 }
