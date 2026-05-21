@@ -103,6 +103,7 @@ function parseVariationAxes(buf: ArrayBuffer): Axis[] {
 
 export default function Home() {
   const [tiles, setTiles] = useState<Tile[]>([])
+  const [sentences, setSentences] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState<ImageTile | null>(null)
   const [selectedFont, setSelectedFont] = useState<FontTile | null>(null)
@@ -159,6 +160,7 @@ export default function Home() {
       .then(data => {
         if (data.tiles && data.tiles.length > 0) {
           setTiles(data.tiles)
+          if (Array.isArray(data.sentences)) setSentences(data.sentences)
           setLoading(false)
         } else if (retryCount < 3) {
           setTimeout(() => loadImages(retryCount + 1), 1000)
@@ -336,6 +338,7 @@ export default function Home() {
       {selectedFont && (
         <FontPreview
           tile={selectedFont}
+          sentences={sentences}
           onClose={closeLightbox}
         />
       )}
@@ -438,20 +441,40 @@ function FontItem({
   )
 }
 
-// Interactive type tester — type anything, resize it, switch weight/style,
-// and (for variable fonts) drag the axis sliders.
-function FontPreview({ tile, onClose }: { tile: FontTile; onClose: () => void }) {
+const PREVIEW_MIN_SIZE = 28
+const PREVIEW_MAX_SIZE = 360
+
+// Interactive type tester. The cursor is the control surface: horizontal
+// position scales the type, vertical position drives the first variable
+// axis. Sample sentences come from the CMS; clicking blank space cycles
+// to the next one. The text stays editable for typing your own.
+function FontPreview({
+  tile,
+  sentences,
+  onClose,
+}: {
+  tile: FontTile
+  sentences: string[]
+  onClose: () => void
+}) {
+  const pool = useMemo(
+    () => (sentences.length ? sentences : ['Type something']),
+    [sentences],
+  )
+
   const initialIndex = useMemo(() => {
     const i = tile.styles.findIndex(s => /regular|book|normal|text/i.test(s.style))
     return i === -1 ? 0 : i
   }, [tile])
 
+  const startSentenceRef = useRef(Math.floor(Math.random() * pool.length))
   const [styleIndex, setStyleIndex] = useState(initialIndex)
-  const [text, setText] = useState('Typography')
-  const [size, setSize] = useState(140)
-  const [axes, setAxes] = useState<Axis[]>([])
+  const [sentenceIndex, setSentenceIndex] = useState(startSentenceRef.current)
+  const [text, setText] = useState(pool[startSentenceRef.current] ?? 'Type something')
+  const [size, setSize] = useState(180)
   const [axisValues, setAxisValues] = useState<Record<string, number>>({})
   const [family, setFamily] = useState('')
+  const axesRef = useRef<Axis[]>([])
   const bufCache = useRef<Map<string, ArrayBuffer>>(new Map())
   const taRef = useRef<HTMLTextAreaElement>(null)
 
@@ -466,7 +489,7 @@ function FontPreview({ tile, onClose }: { tile: FontTile; onClose: () => void })
     const apply = (buf: ArrayBuffer) => {
       if (cancelled) return
       const parsed = parseVariationAxes(buf)
-      setAxes(parsed)
+      axesRef.current = parsed
       setAxisValues(Object.fromEntries(parsed.map(a => [a.tag, a.default])))
       setFamily(fam)
     }
@@ -493,8 +516,40 @@ function FontPreview({ tile, onClose }: { tile: FontTile; onClose: () => void })
     return () => { cancelled = true }
   }, [tile, styleIndex])
 
-  const variationSettings = axes.length
-    ? axes.map(a => `"${a.tag}" ${axisValues[a.tag] ?? a.default}`).join(', ')
+  // Cursor drives the type — X scales the size, Y drives the first axis.
+  // rAF-coalesced so we re-render at most once per frame.
+  useEffect(() => {
+    let raf = 0
+    let nx = 0.5
+    let ny = 0.5
+    const update = () => {
+      raf = 0
+      setSize(Math.round(PREVIEW_MIN_SIZE + (PREVIEW_MAX_SIZE - PREVIEW_MIN_SIZE) * nx))
+      const axis = axesRef.current[0]
+      if (axis) {
+        setAxisValues(v => ({ ...v, [axis.tag]: axis.min + (axis.max - axis.min) * ny }))
+      }
+    }
+    const move = (cx: number, cy: number) => {
+      nx = Math.min(1, Math.max(0, cx / window.innerWidth))
+      ny = Math.min(1, Math.max(0, cy / window.innerHeight))
+      if (!raf) raf = requestAnimationFrame(update)
+    }
+    const onMouse = (e: MouseEvent) => move(e.clientX, e.clientY)
+    const onTouch = (e: TouchEvent) => {
+      if (e.touches[0]) move(e.touches[0].clientX, e.touches[0].clientY)
+    }
+    window.addEventListener('mousemove', onMouse)
+    window.addEventListener('touchmove', onTouch, { passive: true })
+    return () => {
+      window.removeEventListener('mousemove', onMouse)
+      window.removeEventListener('touchmove', onTouch)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [])
+
+  const variationSettings = axesRef.current.length
+    ? axesRef.current.map(a => `"${a.tag}" ${axisValues[a.tag] ?? a.default}`).join(', ')
     : undefined
 
   // Grow the textarea to fit its content as text / size / axes change.
@@ -505,14 +560,33 @@ function FontPreview({ tile, onClose }: { tile: FontTile; onClose: () => void })
     ta.style.height = ta.scrollHeight + 'px'
   }, [text, size, family, variationSettings])
 
-  const handleBackdrop = (e: React.MouseEvent) => {
+  const nextSentence = () => {
+    const n = (sentenceIndex + 1) % pool.length
+    setSentenceIndex(n)
+    setText(pool[n])
+  }
+
+  // Clicking blank space advances the sentence; clicking the text or the
+  // controls does not.
+  const handleClick = (e: React.MouseEvent) => {
     const t = e.target as HTMLElement
-    if (t.closest('.font-preview-text') || t.closest('.font-preview-controls')) return
-    onClose()
+    if (
+      t.closest('.font-preview-text') ||
+      t.closest('.font-preview-controls') ||
+      t.closest('.font-preview-close')
+    ) return
+    nextSentence()
   }
 
   return (
-    <div className="font-preview" onMouseDown={handleBackdrop}>
+    <div className="font-preview" onClick={handleClick}>
+      <button
+        type="button"
+        className="font-preview-close"
+        onClick={onClose}
+        aria-label="Close"
+      >×</button>
+
       <div className="font-preview-stage">
         <textarea
           ref={taRef}
@@ -530,8 +604,8 @@ function FontPreview({ tile, onClose }: { tile: FontTile; onClose: () => void })
         />
       </div>
 
-      <div className="font-preview-controls">
-        {tile.styles.length > 1 && (
+      {tile.styles.length > 1 && (
+        <div className="font-preview-controls">
           <div className="font-preview-styles">
             {tile.styles.map((s, i) => (
               <button
@@ -544,40 +618,12 @@ function FontPreview({ tile, onClose }: { tile: FontTile; onClose: () => void })
               </button>
             ))}
           </div>
-        )}
+        </div>
+      )}
 
-        <label className="font-preview-slider">
-          <span>Size</span>
-          <input
-            type="range"
-            min={24}
-            max={420}
-            step={1}
-            value={size}
-            onChange={e => setSize(Number(e.target.value))}
-          />
-          <span className="font-preview-value">{size}</span>
-        </label>
-
-        {axes.map(axis => (
-          <label key={axis.tag} className="font-preview-slider">
-            <span>{axis.name}</span>
-            <input
-              type="range"
-              min={axis.min}
-              max={axis.max}
-              step="any"
-              value={axisValues[axis.tag] ?? axis.default}
-              onChange={e =>
-                setAxisValues(v => ({ ...v, [axis.tag]: Number(e.target.value) }))
-              }
-            />
-            <span className="font-preview-value">
-              {Math.round(axisValues[axis.tag] ?? axis.default)}
-            </span>
-          </label>
-        ))}
-      </div>
+      <p className="font-preview-hint">
+        Move the cursor to size and weight the type · click for another line · esc to close
+      </p>
     </div>
   )
 }

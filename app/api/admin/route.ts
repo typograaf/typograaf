@@ -9,6 +9,8 @@ import {
   saveHiddenImageIds,
   getQuotes,
   saveQuotes,
+  getSentences,
+  saveSentences,
 } from '../../../lib/cms'
 import { getProjectOrder, getManifest, deleteImage, orderedVisible } from '../../../lib/sync'
 import { reconcileArena } from '../../../lib/arena'
@@ -28,12 +30,13 @@ export async function GET() {
   }
   const folderPath = (process.env.DROPBOX_FOLDER_PATH || '').toLowerCase()
   const baseDepth = folderPath.split('/').length
-  const [order, about, manifest, hiddenIds, quotes] = await Promise.all([
+  const [order, about, manifest, hiddenIds, quotes, sentences] = await Promise.all([
     getProjectOrder(),
     getAboutText(),
     getManifest(),
     getHiddenImageIds(),
     getQuotes(),
+    getSentences(),
   ])
   const hidden = new Set(hiddenIds)
   const images = manifest.map(img => {
@@ -48,7 +51,7 @@ export async function GET() {
       isFont: isFontFile(img.name),
     }
   })
-  return NextResponse.json({ order, about, images, quotes })
+  return NextResponse.json({ order, about, images, quotes, sentences })
 }
 
 export async function POST(request: NextRequest) {
@@ -66,6 +69,11 @@ export async function POST(request: NextRequest) {
   }
   if (typeof body.about === 'string') {
     await saveAboutText(body.about)
+  }
+  if (Array.isArray(body.sentences)) {
+    await saveSentences(
+      body.sentences.filter((s: unknown): s is string => typeof s === 'string'),
+    )
   }
   if (Array.isArray(body.quotes)) {
     const prev = await getQuotes()

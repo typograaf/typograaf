@@ -8,6 +8,7 @@ const ORDER_KEY = 'cms/project-order.json'
 const ABOUT_KEY = 'cms/about.json'
 const HIDDEN_KEY = 'cms/hidden-images.json'
 const QUOTES_KEY = 'cms/quotes.json'
+const SENTENCES_KEY = 'cms/sentences.json'
 
 function getS3() {
   return new S3Client({
@@ -130,4 +131,86 @@ export async function saveQuotes(quotes: Quote[]): Promise<void> {
   }))
 }
 
-export { bundledProjectOrder as DEFAULT_PROJECT_ORDER }
+// Sample sentences shown in the typeface type-tester. Editable via the
+// admin Sentences tab; this list is the seed used until something is saved.
+const DEFAULT_SENTENCES = [
+  'Ideas are like fish',
+  'Life is very very complicated',
+  'Read read read read read',
+  'I think in pictures',
+  'The work is mysterious and important',
+  'Please enjoy each fact equally',
+  'Bing bop boom boom boom bop bam',
+  'Sometimes I get emotional over fonts',
+  'Yesyesyesyes',
+  'I don’t give a flying FUCK about Fonts',
+  'I don’t remember it being this far',
+  'Better never than late',
+  'The reward for good work is more work',
+  'The darkest cowboy in town',
+  'Almost good enough',
+  'Don’t talk about my moms yo',
+  'Meet you at the AFAS Dome',
+  'Winter miles summer smiles',
+  'The spice must flow',
+  'I FEEL KINDA FREEEE',
+  'They don’t understand the things I say on Twitter',
+  'I’m the sausage man',
+  'when you’re a ant and you wake up in an awesome mood about to drive your son to school only to discover that you left the lights on in the car last night so your battery is drained',
+  'What’s your day rate',
+  'Run',
+  'Try linkedIn Premium for free',
+  'Was this answer helpful',
+  'Teamleader is the enemy',
+  'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz',
+  'I won’t read your strategy',
+  'Pay me Bolo',
+  'TIME TO BOIL THE OCEAN',
+  'IDK I’m no dentist',
+  'Crop of the century',
+  'Always be Committing',
+  'One right here one right here',
+  'Er zijn ook geen dino’s meer en die waren super sterk',
+  'Gas chamber for the blue raspberry chicken',
+  'What if I do a freelance piece in your bedroom',
+  'Belastingsaangifte',
+  'Extremely profitable',
+  'J’ai perdu le contrôle',
+  'Slow motion sunscreen application',
+  'French mechanics',
+  'Plets plets plets',
+  'I had potential',
+  'The ceiling has asbestos!',
+  'Words of encouragement',
+  'Cocodrillo Turbo',
+  'High risk no reward',
+]
+
+export async function getSentences(): Promise<string[]> {
+  try {
+    const res = await fetch(`${PUBLIC_URL}/${SENTENCES_KEY}?t=${Date.now()}`, { cache: 'no-store' })
+    if (!res.ok) return DEFAULT_SENTENCES
+    const data = await res.json()
+    if (!Array.isArray(data)) return DEFAULT_SENTENCES
+    const cleaned = data.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+    return cleaned.length > 0 ? cleaned : DEFAULT_SENTENCES
+  } catch {
+    return DEFAULT_SENTENCES
+  }
+}
+
+export async function saveSentences(sentences: string[]): Promise<void> {
+  const cleaned = sentences
+    .filter((s): s is string => typeof s === 'string')
+    .map(s => s.trim())
+    .filter(Boolean)
+  const client = getS3()
+  await client.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: SENTENCES_KEY,
+    Body: JSON.stringify(cleaned),
+    ContentType: 'application/json',
+  }))
+}
+
+export { bundledProjectOrder as DEFAULT_PROJECT_ORDER, DEFAULT_SENTENCES }

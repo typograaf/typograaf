@@ -16,7 +16,7 @@ import {
   formatEur,
 } from '../../lib/quote'
 
-type Tab = 'work' | 'about' | 'images' | 'quotes'
+type Tab = 'work' | 'about' | 'images' | 'quotes' | 'sentences'
 
 // Keep the textarea's raw text while editing (preserve spaces / blank
 // lines so typing works). Lines are trimmed and emptied out at save
@@ -40,6 +40,7 @@ export default function Admin() {
   const [order, setOrder] = useState<string[]>([])
   const [about, setAbout] = useState('')
   const [quotes, setQuotes] = useState<Quote[]>([])
+  const [sentences, setSentences] = useState<string[]>([])
   const [images, setImages] = useState<AdminImage[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -63,6 +64,7 @@ export default function Admin() {
     setOrder(data.order || [])
     setAbout(data.about || '')
     setQuotes(Array.isArray(data.quotes) ? data.quotes : [])
+    setSentences(Array.isArray(data.sentences) ? data.sentences : [])
     setImages(data.images || [])
     setAuthed(true)
     setLoading(false)
@@ -102,7 +104,7 @@ export default function Admin() {
     await fetch('/api/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order, about, quotes }),
+      body: JSON.stringify({ order, about, quotes, sentences }),
     })
     // Re-read what actually persisted so dropped/invalid quotes surface
     // instead of looking saved only in local state.
@@ -275,6 +277,11 @@ export default function Admin() {
               onClick={() => setTab('quotes')}
               type="button"
             >Quotes</button>
+            <button
+              className={`admin-tab${tab === 'sentences' ? ' is-active' : ''}`}
+              onClick={() => setTab('sentences')}
+              type="button"
+            >Sentences</button>
           </div>
           {tab !== 'images' && (
             <div className="admin-save-row">
@@ -337,6 +344,16 @@ export default function Admin() {
             className="admin-textarea"
             value={about}
             onChange={(e) => setAbout(e.target.value)}
+            spellCheck={false}
+            rows={20}
+          />
+        )}
+
+        {tab === 'sentences' && (
+          <textarea
+            className="admin-textarea"
+            value={sentences.join('\n')}
+            onChange={(e) => setSentences(e.target.value.split('\n'))}
             spellCheck={false}
             rows={20}
           />
@@ -568,6 +585,7 @@ export default function Admin() {
         <p className="admin-muted admin-hint">
           {tab === 'work' && 'Drag rows to reorder, or use the arrows. New projects from Dropbox auto-prepend until you save a new order.'}
           {tab === 'about' && 'One paragraph per line. Empty lines are ignored.'}
+          {tab === 'sentences' && 'One sentence per line — these are the sample texts in the typeface type-tester. Empty lines are ignored. Changes go live on Save.'}
           {tab === 'images' && 'Click ◎ to hide an image from the public site (file stays in Dropbox). Click × to delete it from Dropbox — your Mac will sync the deletion within seconds. Deletion cannot be undone.'}
           {tab === 'quotes' && 'You enter the design price per asset. Perpetual = one-time design + 50%. Annual = first year at the design price, then 1/6 of design per year. Footnotes are fixed and shown automatically on the quote. Changes go live on Save.'}
         </p>
