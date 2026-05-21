@@ -794,7 +794,7 @@ function AdminStyles() {
 .admin-typeface { display: flex; gap: 20px; align-items: center; }
 .admin-typeface-tile { flex: 0 0 auto; width: 160px; height: 160px; border-radius: 12px; background: #f0f0f0; position: relative; overflow: hidden; cursor: pointer; }
 .admin-typeface-box { position: absolute; inset: 16px; display: flex; align-items: center; justify-content: center; }
-.admin-typeface-text { width: 100%; min-width: 0; text-align: center; color: #000; font-synthesis: none; }
+.admin-typeface-text { width: 100%; min-width: 0; text-align: center; overflow-wrap: anywhere; color: #000; font-synthesis: none; }
 .admin-typeface-controls { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; max-width: 460px; }
 .admin-typeface-name { font-size: 14px; font-weight: 510; }
 .admin-axis { display: flex; align-items: center; gap: 12px; }
