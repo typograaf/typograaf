@@ -266,21 +266,16 @@ body {
   display: block;
 }
 
-/* Typeface tile — alphabet specimen set in the uploaded font. */
+/* Typeface tile — centres the specimen. Its padding (set inline) is just a
+   margin: overflowing text spills through it and is clipped at the tile
+   edge by .item's overflow:hidden, not at the margin. */
 .font-item {
   background: #f0f0f0;
-}
-
-/* The padding box of a typeface tile — inset is set inline. */
-.font-sentence {
-  position: absolute;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
 }
 
-/* The sample sentence — font-size is fitted to the box in JS. */
 .font-sentence-text {
   /* width:100% + min-width:0 keeps the block at the box width; overflow-wrap
      breaks an over-long word so it stays inside, text-align centres it. */
@@ -367,6 +362,9 @@ body {
   text-align: center;
   color: #000;
   overflow: hidden;
+  /* Em-relative room so ascenders/descenders aren't clipped by the
+     auto-grown textarea when leading is tight. */
+  padding: 0.5em 0;
   font-synthesis: none;
   -webkit-user-select: text;
   user-select: text;

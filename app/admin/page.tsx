@@ -16,7 +16,7 @@ import {
   formatEur,
 } from '../../lib/quote'
 import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING, DEFAULT_PREVIEW_SIZE } from '../../lib/tiles'
-import { type Axis, parseVariationAxes } from '../../lib/fontmeta'
+import { type Axis, parseVariationAxes, deaccent } from '../../lib/fontmeta'
 
 type Tab = 'work' | 'about' | 'images' | 'quotes' | 'sentences'
 
@@ -671,7 +671,7 @@ function FontAxisRow({
   const size = axes.size ?? DEFAULT_PREVIEW_SIZE
   const settings = `"wght" ${weight}` + (wdth ? `, "wdth" ${width}` : '')
 
-  const pool = sentences.length ? sentences : [font.name]
+  const pool = sentences.length ? sentences.map(deaccent) : [font.name]
   const sentence = pool[sentenceIdx % pool.length]
 
   return (
@@ -681,7 +681,6 @@ function FontAxisRow({
         onClick={() => setSentenceIdx((i) => i + 1)}
         title="Click for another sample string"
       >
-        <div className="admin-typeface-box">
           <div
             className="admin-typeface-text"
             style={{
@@ -694,7 +693,6 @@ function FontAxisRow({
           >
             {sentence}
           </div>
-        </div>
       </div>
       <div className="admin-typeface-controls">
         <span className="admin-typeface-name">{font.name}</span>
@@ -792,8 +790,7 @@ function AdminStyles() {
 .admin-type-h { font-size: 14px; font-weight: 510; margin: 0; }
 .admin-typefaces { display: flex; flex-direction: column; gap: 20px; }
 .admin-typeface { display: flex; gap: 20px; align-items: center; }
-.admin-typeface-tile { flex: 0 0 auto; width: 160px; height: 160px; border-radius: 12px; background: #f0f0f0; position: relative; overflow: hidden; cursor: pointer; }
-.admin-typeface-box { position: absolute; inset: 16px; display: flex; align-items: center; justify-content: center; }
+.admin-typeface-tile { flex: 0 0 auto; width: 160px; height: 160px; border-radius: 12px; background: #f0f0f0; padding: 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; }
 .admin-typeface-text { width: 100%; min-width: 0; text-align: center; overflow-wrap: anywhere; color: #000; font-synthesis: none; }
 .admin-typeface-controls { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; max-width: 460px; }
 .admin-typeface-name { font-size: 14px; font-weight: 510; }

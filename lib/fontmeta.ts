@@ -63,6 +63,12 @@ export function parseVariationAxes(buf: ArrayBuffer): Axis[] {
   }
 }
 
+// Replace accented letters with their unaccented base, so a typeface that
+// lacks the accent doesn't fall back to a system font for that one glyph.
+export function deaccent(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '')
+}
+
 // A CSS-safe @font-face family name derived from a stable id.
 export function fontFamilyFor(id: string): string {
   return 'tf-' + id.replace(/[^a-zA-Z0-9]/g, '-')

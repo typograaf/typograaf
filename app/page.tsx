@@ -3,20 +3,11 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, useDeferredValue } from 'react'
 import type { Tile, ImageTile, FontTile, FontFile } from '../lib/tiles'
 import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING, DEFAULT_PREVIEW_SIZE } from '../lib/tiles'
-import { type Axis, parseVariationAxes, ensureFontFace, fontFamilyFor } from '../lib/fontmeta'
+import { type Axis, parseVariationAxes, ensureFontFace, fontFamilyFor, deaccent } from '../lib/fontmeta'
 
 const BUFFER_ROWS = 3
 
 const SPECIMEN = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz'
-
-// A per-load random offset so the grid shows a different sample sentence
-// each visit, while staying stable for a given cell as you scroll.
-const sentenceSeed = Math.floor(Math.random() * 100000)
-
-function pickSentence(sentences: string[], index: number): string {
-  if (sentences.length === 0) return SPECIMEN
-  return sentences[(index + sentenceSeed) % sentences.length]
-}
 
 // ---------------------------------------------------------------------------
 // Font helpers
@@ -278,7 +269,7 @@ export default function Home() {
                 <FontItem
                   key={`${tile.id}-${index}`}
                   tile={tile}
-                  sentence={pickSentence(sentences, index)}
+                  sentences={sentences}
                   axes={previewAxes[tile.id]}
                   top={top}
                   left={left}
@@ -372,10 +363,11 @@ function VirtualItem({
   )
 }
 
-// A typeface tile — renders a sample sentence set in the font.
+// A typeface tile — types a sample sentence in the font, backspaces it
+// after a beat, then types the next one.
 function FontItem({
   tile,
-  sentence,
+  sentences,
   axes,
   top,
   left,
@@ -383,7 +375,7 @@ function FontItem({
   onClick,
 }: {
   tile: FontTile
-  sentence: string
+  sentences: string[]
   axes?: Record<string, number>
   top: number
   left: number
@@ -393,34 +385,59 @@ function FontItem({
   const values = defaultAxisValues(axes)
   const family = fontFamilyFor(tile.id)
   const pad = Math.round(size * 0.12)
+  const [display, setDisplay] = useState('')
 
   useEffect(() => {
     ensureFontFace(family, representativeStyle(tile).url)
   }, [family, tile])
 
+  // Typewriter loop: type a sentence, hold, backspace it, type the next.
+  useEffect(() => {
+    const pool = sentences.map(deaccent).filter(Boolean)
+    if (pool.length === 0) {
+      setDisplay(deaccent(SPECIMEN))
+      return
+    }
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout>
+    let idx = Math.floor(Math.random() * pool.length)
+    const type = (target: string, i: number) => {
+      if (cancelled) return
+      setDisplay(target.slice(0, i))
+      if (i < target.length) timer = setTimeout(() => type(target, i + 1), 55)
+      else timer = setTimeout(() => erase(target, target.length), 2600)
+    }
+    const erase = (current: string, i: number) => {
+      if (cancelled) return
+      setDisplay(current.slice(0, i))
+      if (i > 0) timer = setTimeout(() => erase(current, i - 1), 28)
+      else {
+        idx = (idx + 1) % pool.length
+        timer = setTimeout(() => type(pool[idx], 0), 350)
+      }
+    }
+    type(pool[idx], 0)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [sentences])
+
   return (
     <div
       className="item font-item"
       onClick={onClick}
-      style={{ position: 'absolute', top, left, width: size, height: size }}
+      style={{ position: 'absolute', top, left, width: size, height: size, padding: pad }}
     >
       <div
-        className="font-sentence"
-        style={{ top: pad, left: pad, right: pad, bottom: pad }}
+        className="font-sentence-text"
+        style={{
+          fontFamily: `'${family}', sans-serif`,
+          // CMS default axes; variable fonts vary, static fonts ignore it.
+          fontVariationSettings: variationSettings(values),
+          fontWeight: values.wght,
+          lineHeight: leadingOf(axes),
+          fontSize: sizeOf(axes),
+        }}
       >
-        <div
-          className="font-sentence-text"
-          style={{
-            fontFamily: `'${family}', sans-serif`,
-            // CMS default axes; variable fonts vary, static fonts ignore it.
-            fontVariationSettings: variationSettings(values),
-            fontWeight: values.wght,
-            lineHeight: leadingOf(axes),
-            fontSize: sizeOf(axes),
-          }}
-        >
-          {sentence}
-        </div>
+        {display}
       </div>
     </div>
   )
@@ -450,7 +467,7 @@ function FontPreview({
   onClose: () => void
 }) {
   const pool = useMemo(
-    () => (sentences.length ? sentences : ['Type something']),
+    () => (sentences.length ? sentences.map(deaccent) : ['Type something']),
     [sentences],
   )
 
