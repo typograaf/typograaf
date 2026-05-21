@@ -509,6 +509,9 @@ function FontPreview({
   const taRef = useRef<HTMLTextAreaElement>(null)
   const cursorRef = useRef<HTMLDivElement>(null)
   const previewRef = useRef<HTMLDivElement>(null)
+  // Mirrors `size` so the pinch handler can read it without re-binding.
+  const sizeRef = useRef(size)
+  sizeRef.current = size
 
   // Load the selected style: fetch the bytes, register a FontFace keyed by
   // the file id, and parse any variable-font axes from the same buffer.
@@ -585,18 +588,41 @@ function FontPreview({
       if (!raf) raf = requestAnimationFrame(update)
     }
     const onMouse = (e: MouseEvent) => move(e.clientX, e.clientY)
-    const onTouch = (e: TouchEvent) => {
-      if (e.touches[0]) move(e.touches[0].clientX, e.touches[0].clientY)
+
+    // Touch: one finger drives the axes, two fingers pinch to size the
+    // type — the mobile equivalent of wheel-zoom.
+    let pinchDist = 0
+    let pinchSize = 0
+    const twoFingerDist = (t: TouchList) =>
+      Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        pinchDist = twoFingerDist(e.touches)
+        pinchSize = sizeRef.current
+      }
     }
-    const onResize = () => setSize(previewFontSize())
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length >= 2 && pinchDist > 0) {
+        const factor = twoFingerDist(e.touches) / pinchDist
+        setSize(Math.min(640, Math.max(24, Math.round(pinchSize * factor))))
+      } else if (e.touches.length === 1) {
+        move(e.touches[0].clientX, e.touches[0].clientY)
+      }
+    }
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinchDist = 0
+    }
+
     window.addEventListener('mousemove', onMouse)
-    window.addEventListener('touchmove', onTouch, { passive: true })
-    window.addEventListener('resize', onResize)
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: true })
+    window.addEventListener('touchend', onTouchEnd, { passive: true })
     update() // seed the cursor label before the first move
     return () => {
       window.removeEventListener('mousemove', onMouse)
-      window.removeEventListener('touchmove', onTouch)
-      window.removeEventListener('resize', onResize)
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onTouchEnd)
       if (raf) cancelAnimationFrame(raf)
     }
   }, [])

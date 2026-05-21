@@ -295,6 +295,9 @@ body {
   overflow: auto;
   overscroll-behavior: none;
   cursor: none;
+  /* Gestures are handled in JS (drag = axes, pinch = size) — keep the
+     browser from hijacking them for native pan/zoom. */
+  touch-action: none;
 }
 
 /* In the left/right thirds the real cursor is replaced by the
