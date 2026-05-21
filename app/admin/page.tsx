@@ -29,6 +29,7 @@ interface AdminImage {
   url: string
   project: string
   hidden: boolean
+  isFont: boolean
 }
 
 export default function Admin() {
@@ -533,7 +534,9 @@ export default function Admin() {
                 const toggling = togglingIds.has(img.id)
                 return (
                   <div key={img.id} className={`admin-tile${deleting ? ' is-deleting' : ''}${img.hidden ? ' is-hidden' : ''}`}>
-                    <img src={img.url} alt={img.name} loading="lazy" />
+                    {img.isFont
+                      ? <div className="admin-tile-font">Aa</div>
+                      : <img src={img.url} alt={img.name} loading="lazy" />}
                     <button
                       type="button"
                       className="admin-tile-btn admin-hide"
@@ -604,6 +607,7 @@ function AdminStyles() {
 .admin-tile.is-deleting { opacity: 0.4; pointer-events: none; }
 .admin-tile.is-hidden img { opacity: 0.25; filter: grayscale(0.6); }
 .admin-tile img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity 0.12s, filter 0.12s; }
+.admin-tile-font { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #f0f0f0; font-size: 40px; font-weight: 600; color: #999; }
 .admin-tile-meta { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; background: linear-gradient(to top, rgba(0,0,0,0.55), transparent); color: #fff; font-size: 11px; line-height: 1.3; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
 .admin-tile:hover .admin-tile-meta, .admin-tile.is-hidden .admin-tile-meta { opacity: 1; }
 .admin-tile-tag { display: inline-block; align-self: flex-start; background: rgba(255,255,255,0.18); padding: 1px 6px; border-radius: 4px; font-weight: 510; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }

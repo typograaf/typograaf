@@ -12,6 +12,7 @@ import {
 } from '../../../lib/cms'
 import { getProjectOrder, getManifest, deleteImage, orderedVisible } from '../../../lib/sync'
 import { reconcileArena } from '../../../lib/arena'
+import { isFontFile } from '../../../lib/tiles'
 import type { Quote } from '../../../lib/quote'
 
 export const dynamic = 'force-dynamic'
@@ -44,6 +45,7 @@ export async function GET() {
       url: img.blobUrl,
       project,
       hidden: hidden.has(img.id),
+      isFont: isFontFile(img.name),
     }
   })
   return NextResponse.json({ order, about, images, quotes })
@@ -102,8 +104,11 @@ export async function PATCH(request: NextRequest) {
   await saveHiddenImageIds(nextHidden)
 
   // Keep Are.na in step: hiding removes the block, unhiding re-adds it.
+  // Fonts are never mirrored to Are.na.
   const [manifest, projectOrder] = await Promise.all([getManifest(), getProjectOrder()])
-  await reconcileArena(orderedVisible(manifest, projectOrder, nextHidden))
+  await reconcileArena(
+    orderedVisible(manifest, projectOrder, nextHidden).filter(e => !isFontFile(e.name)),
+  )
 
   revalidatePath('/')
   revalidatePath('/work')

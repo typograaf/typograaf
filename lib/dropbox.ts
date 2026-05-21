@@ -1,4 +1,5 @@
 import { Dropbox, files } from 'dropbox'
+import { FONT_EXTENSIONS } from './tiles'
 
 export interface DropboxFile {
   id: string
@@ -7,6 +8,9 @@ export interface DropboxFile {
 }
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
+// Images and font files are both synced into the portfolio. Fonts become
+// grouped typeface tiles; see lib/tiles.ts.
+const ASSET_EXTENSIONS = [...IMAGE_EXTENSIONS, ...FONT_EXTENSIONS]
 
 export async function getAccessToken(): Promise<string> {
   const refreshToken = process.env.DROPBOX_REFRESH_TOKEN
@@ -51,7 +55,7 @@ export async function getDropboxImageFiles(): Promise<DropboxFile[]> {
     .filter(
       (entry): entry is files.FileMetadataReference =>
         entry['.tag'] === 'file' &&
-        IMAGE_EXTENSIONS.some(ext => entry.name.toLowerCase().endsWith(ext))
+        ASSET_EXTENSIONS.some(ext => entry.name.toLowerCase().endsWith(ext))
     )
     .map(entry => ({ id: entry.id, name: entry.name, path: entry.path_lower! }))
 }

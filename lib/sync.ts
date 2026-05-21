@@ -3,12 +3,23 @@ import { getDropboxImageFiles, getDropboxTempLink, deleteDropboxFile } from './d
 import bundledProjectOrder from '../project-order.json'
 import { getProjectOrderOverride, getHiddenImageIds } from './cms'
 import { reconcileArena } from './arena'
+import { type ManifestImage, isFontFile } from './tiles'
 
-export interface ManifestImage {
-  id: string
-  name: string
-  path: string
-  blobUrl: string
+export type { ManifestImage }
+
+// Are.na can't render font files, so the mirror only ever sees images.
+function imagesOnly(entries: ManifestImage[]): ManifestImage[] {
+  return entries.filter(e => !isFontFile(e.name))
+}
+
+// R2 stores fonts with a correct content type so they're still valid if
+// ever fetched directly (the site goes through /api/font, which sets its
+// own headers).
+const FONT_MIME: Record<string, string> = {
+  woff2: 'font/woff2',
+  woff: 'font/woff',
+  ttf: 'font/ttf',
+  otf: 'font/otf',
 }
 
 function getS3Client() {
@@ -169,14 +180,14 @@ export async function syncWithDropbox(): Promise<{ added: number; deleted: numbe
           const tempUrl = await getDropboxTempLink(file.path)
           const imageRes = await fetch(tempUrl)
           const imageBuffer = await imageRes.arrayBuffer()
-          const ext = file.name.split('.').pop() || 'jpg'
+          const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
           const safeId = file.id.replace(':', '_')
           const key = `images/${safeId}.${ext}`
           await client.send(new PutObjectCommand({
             Bucket: BUCKET,
             Key: key,
             Body: Buffer.from(imageBuffer),
-            ContentType: imageRes.headers.get('content-type') || 'image/jpeg',
+            ContentType: FONT_MIME[ext] || imageRes.headers.get('content-type') || 'image/jpeg',
           }))
           return { id: file.id, name: file.name, path: file.path, blobUrl: `${PUBLIC_URL}/${key}` }
         } catch {
@@ -199,7 +210,7 @@ export async function syncWithDropbox(): Promise<{ added: number; deleted: numbe
   // desired set is the canonical ordered, visible portfolio so the board is
   // an exact mirror of the site.
   const [projectOrder, hidden] = await Promise.all([getProjectOrder(), getHiddenImageIds()])
-  const arena = await reconcileArena(orderedVisible(newManifest, projectOrder, hidden))
+  const arena = await reconcileArena(imagesOnly(orderedVisible(newManifest, projectOrder, hidden)))
 
   return { added: added.length, deleted: toDelete.length, arena }
 }
@@ -223,7 +234,7 @@ export async function deleteImage(id: string): Promise<{ deleted: boolean }> {
 
   // Drop the matching Are.na block so the board mirrors the deletion.
   const [projectOrder, hidden] = await Promise.all([getProjectOrder(), getHiddenImageIds()])
-  await reconcileArena(orderedVisible(newManifest, projectOrder, hidden))
+  await reconcileArena(imagesOnly(orderedVisible(newManifest, projectOrder, hidden)))
 
   return { deleted: true }
 }

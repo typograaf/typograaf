@@ -1,21 +1,111 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, useDeferredValue } from 'react'
+import type { Tile, ImageTile, FontTile, FontFile } from '../lib/tiles'
 
-interface ImageData {
-  id: string
-  url: string
-  path: string
-}
-
-const SKELETON_COUNT = 40
 const BUFFER_ROWS = 3
 
+const SPECIMEN = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz'
+
+// ---------------------------------------------------------------------------
+// Font helpers
+// ---------------------------------------------------------------------------
+
+// Pick the file that best represents a typeface at a glance (a regular-ish
+// weight rather than a Thin or Black extreme).
+function representativeStyle(tile: FontTile): FontFile {
+  return (
+    tile.styles.find(s => /regular|book|normal|text/i.test(s.style)) ||
+    tile.styles[Math.floor(tile.styles.length / 2)] ||
+    tile.styles[0]
+  )
+}
+
+// A CSS-safe @font-face family name derived from a stable id.
+function fontFamilyFor(id: string): string {
+  return 'tf-' + id.replace(/[^a-zA-Z0-9]/g, '-')
+}
+
+// Inject an @font-face once per family so virtualised tiles can render a
+// specimen without each mount re-declaring the face.
+const injectedFonts = new Set<string>()
+function ensureFontFace(family: string, url: string) {
+  if (typeof document === 'undefined' || injectedFonts.has(family)) return
+  injectedFonts.add(family)
+  const el = document.createElement('style')
+  el.textContent = `@font-face{font-family:'${family}';src:url('${url}');font-display:swap}`
+  document.head.appendChild(el)
+}
+
+interface Axis {
+  tag: string
+  name: string
+  min: number
+  default: number
+  max: number
+}
+
+const AXIS_NAMES: Record<string, string> = {
+  wght: 'Weight',
+  wdth: 'Width',
+  slnt: 'Slant',
+  ital: 'Italic',
+  opsz: 'Optical Size',
+  GRAD: 'Grade',
+}
+
+// Read the variable-font axes straight from the binary's `fvar` table. Only
+// raw sfnt fonts (.ttf / .otf) can be parsed this way — .woff/.woff2 wrap
+// the tables in compression, so those gracefully report no axes.
+function parseVariationAxes(buf: ArrayBuffer): Axis[] {
+  try {
+    const dv = new DataView(buf)
+    const sfnt = dv.getUint32(0)
+    // 0x00010000 TrueType, 'OTTO' CFF, 'true'/'typ1' legacy TrueType.
+    const known = [0x00010000, 0x4f54544f, 0x74727565, 0x74797031]
+    if (!known.includes(sfnt)) return []
+
+    const numTables = dv.getUint16(4)
+    let fvarOffset = -1
+    for (let i = 0; i < numTables; i++) {
+      const rec = 12 + i * 16
+      if (dv.getUint32(rec) === 0x66766172 /* 'fvar' */) {
+        fvarOffset = dv.getUint32(rec + 8)
+        break
+      }
+    }
+    if (fvarOffset < 0) return []
+
+    const axesArrayOffset = dv.getUint16(fvarOffset + 4)
+    const axisCount = dv.getUint16(fvarOffset + 8)
+    const axisSize = dv.getUint16(fvarOffset + 10)
+    const axes: Axis[] = []
+    for (let i = 0; i < axisCount; i++) {
+      const o = fvarOffset + axesArrayOffset + i * axisSize
+      const tag = String.fromCharCode(
+        dv.getUint8(o), dv.getUint8(o + 1), dv.getUint8(o + 2), dv.getUint8(o + 3),
+      )
+      axes.push({
+        tag,
+        name: AXIS_NAMES[tag] || tag,
+        min: dv.getInt32(o + 4) / 65536,
+        default: dv.getInt32(o + 8) / 65536,
+        max: dv.getInt32(o + 12) / 65536,
+      })
+    }
+    return axes
+  } catch {
+    return []
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 export default function Home() {
-  const [images, setImages] = useState<ImageData[]>([])
+  const [tiles, setTiles] = useState<Tile[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedImage, setSelectedImage] = useState<ImageData | null>(null)
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const [selectedImage, setSelectedImage] = useState<ImageTile | null>(null)
+  const [selectedFont, setSelectedFont] = useState<FontTile | null>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [columns, setColumns] = useState(8)
   const [windowHeight, setWindowHeight] = useState(800)
@@ -44,7 +134,7 @@ export default function Home() {
     window.scrollTo(0, 0)
   }, [])
 
-  // Track scroll position (but not when lightbox is open). rAF-coalesce
+  // Track scroll position (but not when a modal is open). rAF-coalesce
   // so we set state at most once per frame even on high-DPI trackpads.
   const lightboxOpenRef = useRef(false)
   useEffect(() => {
@@ -67,8 +157,8 @@ export default function Home() {
     fetch('/api/images')
       .then(res => res.json())
       .then(data => {
-        if (data.images && data.images.length > 0) {
-          setImages(data.images)
+        if (data.tiles && data.tiles.length > 0) {
+          setTiles(data.tiles)
           setLoading(false)
         } else if (retryCount < 3) {
           setTimeout(() => loadImages(retryCount + 1), 1000)
@@ -91,13 +181,15 @@ export default function Home() {
 
   const scrollYRef = useRef(0)
 
-  const openLightbox = (image: ImageData) => {
+  // Lock the page and push a history entry so a single back gesture closes
+  // whichever modal (image lightbox or type tester) the tile opened.
+  const openTile = (tile: Tile) => {
     scrollYRef.current = window.scrollY
     lightboxOpenRef.current = true
     document.body.style.top = `-${scrollYRef.current}px`
     document.documentElement.classList.add('lightbox-open')
-    setSelectedImage(image)
-    setLightboxUrl(image.url)
+    if (tile.kind === 'font') setSelectedFont(tile)
+    else setSelectedImage(tile)
     history.pushState({ lightbox: true }, '')
   }
 
@@ -106,6 +198,7 @@ export default function Home() {
     document.documentElement.classList.remove('lightbox-open')
     document.body.style.top = ''
     setSelectedImage(null)
+    setSelectedFont(null)
     requestAnimationFrame(() => {
       window.scrollTo(0, scrollYRef.current)
     })
@@ -167,21 +260,21 @@ export default function Home() {
   // skip stale recomputes when the user is actively scrolling fast.
   const deferredScrollTop = useDeferredValue(scrollTop)
   const virtualData = useMemo(() => {
-    if (images.length === 0) return { items: [], totalHeight: layout.totalHeight }
+    if (tiles.length === 0) return { items: [], totalHeight: layout.totalHeight }
 
     const { padding, itemSize, rowHeight, gap, totalHeight } = layout
     const startRow = Math.max(0, Math.floor((deferredScrollTop - padding) / rowHeight) - BUFFER_ROWS)
     const visibleRows = Math.ceil(windowHeight / rowHeight) + BUFFER_ROWS * 2
     const endRow = startRow + visibleRows
 
-    const items: { image: ImageData; index: number; top: number; left: number; size: number }[] = []
+    const items: { tile: Tile; index: number; top: number; left: number; size: number }[] = []
 
     for (let row = startRow; row < endRow; row++) {
       for (let col = 0; col < columns; col++) {
         const index = row * columns + col
-        const image = images[index % images.length]
+        const tile = tiles[index % tiles.length]
         items.push({
-          image,
+          tile,
           index,
           top: padding + row * rowHeight,
           left: padding + col * (itemSize + gap),
@@ -191,7 +284,7 @@ export default function Home() {
     }
 
     return { items, totalHeight }
-  }, [images, deferredScrollTop, columns, windowHeight, layout])
+  }, [tiles, deferredScrollTop, columns, windowHeight, layout])
 
   return (
     <>
@@ -210,21 +303,39 @@ export default function Home() {
                 }}
               />
             ))
-          : virtualData.items.map(({ image, index, top, left, size }) => (
-              <VirtualItem
-                key={`${image.id}-${index}`}
-                image={image}
-                top={top}
-                left={left}
-                size={size}
-                onClick={() => openLightbox(image)}
-              />
-            ))}
+          : virtualData.items.map(({ tile, index, top, left, size }) =>
+              tile.kind === 'font' ? (
+                <FontItem
+                  key={`${tile.id}-${index}`}
+                  tile={tile}
+                  top={top}
+                  left={left}
+                  size={size}
+                  onClick={() => openTile(tile)}
+                />
+              ) : (
+                <VirtualItem
+                  key={`${tile.id}-${index}`}
+                  image={tile}
+                  top={top}
+                  left={left}
+                  size={size}
+                  onClick={() => openTile(tile)}
+                />
+              ),
+            )}
       </div>
 
       {selectedImage && (
         <Lightbox
-          url={lightboxUrl}
+          url={selectedImage.url}
+          onClose={closeLightbox}
+        />
+      )}
+
+      {selectedFont && (
+        <FontPreview
+          tile={selectedFont}
           onClose={closeLightbox}
         />
       )}
@@ -239,7 +350,7 @@ function VirtualItem({
   size,
   onClick
 }: {
-  image: ImageData
+  image: ImageTile
   top: number
   left: number
   size: number
@@ -283,6 +394,190 @@ function VirtualItem({
         onLoad={() => setLoaded(true)}
         onError={handleError}
       />
+    </div>
+  )
+}
+
+// A typeface tile — renders an alphabet specimen set in the font.
+function FontItem({
+  tile,
+  top,
+  left,
+  size,
+  onClick,
+}: {
+  tile: FontTile
+  top: number
+  left: number
+  size: number
+  onClick: () => void
+}) {
+  const family = fontFamilyFor(tile.id)
+
+  useEffect(() => {
+    ensureFontFace(family, representativeStyle(tile).url)
+  }, [family, tile])
+
+  return (
+    <div
+      className="item font-item"
+      onClick={onClick}
+      style={{ position: 'absolute', top, left, width: size, height: size }}
+    >
+      <div
+        className="font-specimen"
+        style={{
+          fontFamily: `'${family}', sans-serif`,
+          fontSize: Math.round(size * 0.135),
+          padding: Math.round(size * 0.085),
+        }}
+      >
+        {SPECIMEN}
+      </div>
+    </div>
+  )
+}
+
+// Interactive type tester — type anything, resize it, switch weight/style,
+// and (for variable fonts) drag the axis sliders.
+function FontPreview({ tile, onClose }: { tile: FontTile; onClose: () => void }) {
+  const initialIndex = useMemo(() => {
+    const i = tile.styles.findIndex(s => /regular|book|normal|text/i.test(s.style))
+    return i === -1 ? 0 : i
+  }, [tile])
+
+  const [styleIndex, setStyleIndex] = useState(initialIndex)
+  const [text, setText] = useState('Typography')
+  const [size, setSize] = useState(140)
+  const [axes, setAxes] = useState<Axis[]>([])
+  const [axisValues, setAxisValues] = useState<Record<string, number>>({})
+  const [family, setFamily] = useState('')
+  const bufCache = useRef<Map<string, ArrayBuffer>>(new Map())
+  const taRef = useRef<HTMLTextAreaElement>(null)
+
+  // Load the selected style: fetch the bytes, register a FontFace keyed by
+  // the file id, and parse any variable-font axes from the same buffer.
+  useEffect(() => {
+    let cancelled = false
+    const file = tile.styles[styleIndex]
+    if (!file) return
+    const fam = 'tp-' + file.id.replace(/[^a-zA-Z0-9]/g, '-')
+
+    const apply = (buf: ArrayBuffer) => {
+      if (cancelled) return
+      const parsed = parseVariationAxes(buf)
+      setAxes(parsed)
+      setAxisValues(Object.fromEntries(parsed.map(a => [a.tag, a.default])))
+      setFamily(fam)
+    }
+
+    const cached = bufCache.current.get(file.id)
+    if (cached) {
+      apply(cached)
+      return () => { cancelled = true }
+    }
+
+    fetch(file.url)
+      .then(r => r.arrayBuffer())
+      .then(buf => {
+        bufCache.current.set(file.id, buf)
+        const ff = new FontFace(fam, buf)
+        return ff.load().then(loaded => {
+          if (cancelled) return
+          document.fonts.add(loaded)
+          apply(buf)
+        })
+      })
+      .catch(() => { if (!cancelled) setFamily(fam) })
+
+    return () => { cancelled = true }
+  }, [tile, styleIndex])
+
+  const variationSettings = axes.length
+    ? axes.map(a => `"${a.tag}" ${axisValues[a.tag] ?? a.default}`).join(', ')
+    : undefined
+
+  // Grow the textarea to fit its content as text / size / axes change.
+  useLayoutEffect(() => {
+    const ta = taRef.current
+    if (!ta) return
+    ta.style.height = 'auto'
+    ta.style.height = ta.scrollHeight + 'px'
+  }, [text, size, family, variationSettings])
+
+  const handleBackdrop = (e: React.MouseEvent) => {
+    const t = e.target as HTMLElement
+    if (t.closest('.font-preview-text') || t.closest('.font-preview-controls')) return
+    onClose()
+  }
+
+  return (
+    <div className="font-preview" onMouseDown={handleBackdrop}>
+      <div className="font-preview-stage">
+        <textarea
+          ref={taRef}
+          className="font-preview-text"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          spellCheck={false}
+          autoFocus
+          rows={1}
+          style={{
+            fontFamily: family ? `'${family}', sans-serif` : 'sans-serif',
+            fontSize: size,
+            fontVariationSettings: variationSettings,
+          }}
+        />
+      </div>
+
+      <div className="font-preview-controls">
+        {tile.styles.length > 1 && (
+          <div className="font-preview-styles">
+            {tile.styles.map((s, i) => (
+              <button
+                key={s.id}
+                type="button"
+                className={`font-preview-style${i === styleIndex ? ' is-active' : ''}`}
+                onClick={() => setStyleIndex(i)}
+              >
+                {s.style}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <label className="font-preview-slider">
+          <span>Size</span>
+          <input
+            type="range"
+            min={24}
+            max={420}
+            step={1}
+            value={size}
+            onChange={e => setSize(Number(e.target.value))}
+          />
+          <span className="font-preview-value">{size}</span>
+        </label>
+
+        {axes.map(axis => (
+          <label key={axis.tag} className="font-preview-slider">
+            <span>{axis.name}</span>
+            <input
+              type="range"
+              min={axis.min}
+              max={axis.max}
+              step="any"
+              value={axisValues[axis.tag] ?? axis.default}
+              onChange={e =>
+                setAxisValues(v => ({ ...v, [axis.tag]: Number(e.target.value) }))
+              }
+            />
+            <span className="font-preview-value">
+              {Math.round(axisValues[axis.tag] ?? axis.default)}
+            </span>
+          </label>
+        ))}
+      </div>
     </div>
   )
 }

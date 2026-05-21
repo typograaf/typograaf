@@ -266,6 +266,129 @@ body {
   display: block;
 }
 
+/* Typeface tile — alphabet specimen set in the uploaded font. */
+.font-item {
+  background: #f0f0f0;
+}
+
+.font-specimen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  word-break: break-all;
+  line-height: 1.04;
+  color: #000;
+  overflow: hidden;
+}
+
+/* Type tester — full-screen interactive preview opened from a font tile. */
+.font-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #f8f8f8;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  overscroll-behavior: none;
+}
+
+.font-preview-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 96px 48px 32px;
+  min-height: 0;
+}
+
+.font-preview-text {
+  width: 100%;
+  max-width: 1400px;
+  background: transparent;
+  border: 0;
+  outline: none;
+  resize: none;
+  text-align: center;
+  line-height: 1.05;
+  color: #000;
+  overflow: hidden;
+  font-synthesis: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.font-preview-controls {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+  padding: 20px 48px;
+  background: rgba(248, 248, 248, 0.92);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.font-preview-styles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.font-preview-style {
+  background: #eee;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: inherit;
+  color: #000;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.font-preview-style:hover {
+  background: #e2e2e2;
+}
+
+.font-preview-style.is-active {
+  background: #000;
+  color: #fff;
+}
+
+.font-preview-slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.font-preview-slider > span:first-child {
+  min-width: 56px;
+}
+
+.font-preview-slider input[type='range'] {
+  width: 160px;
+  accent-color: #000;
+  cursor: pointer;
+}
+
+.font-preview-value {
+  min-width: 36px;
+  text-align: right;
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 700px) {
+  .font-preview-stage { padding: 80px 24px 24px; }
+  .font-preview-controls { padding: 16px 24px; gap: 10px 18px; }
+  .font-preview-slider input[type='range'] { width: 120px; }
+}
+
 .loader {
   display: flex;
   justify-content: center;
