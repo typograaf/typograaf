@@ -9,7 +9,6 @@ import {
   assetEffectivePrice,
   perpetualTotal,
   annualFirstYear,
-  itemsTotal,
   itemLineTotal,
   formatEur,
   formatVariable,
@@ -25,16 +24,21 @@ function licenseAmount(model: LicenseModel, d: number): number {
 }
 
 function OptionBlock({ option }: { option: QuoteOption }) {
-  const hasAssets = option.assets.length > 0
-  const items = option.items || []
+  const assets = option.assets.filter(
+    (a) => a.name.trim() || a.variable.trim() || (Number(a.price) || 0) > 0 || a.styles.length > 0,
+  )
+  const hasAssets = assets.length > 0
+  const items = (option.items || []).filter(
+    (it) => it.name.trim() || it.description.trim() || it.unit.trim() || (Number(it.unitPrice) || 0) > 0,
+  )
   const hasItems = items.length > 0
   const [model, setModel] = useState<LicenseModel>('annual')
-  const [italic, setItalic] = useState<boolean[]>(() => option.assets.map(() => false))
+  const [italic, setItalic] = useState<boolean[]>(() => assets.map(() => false))
   const setAssetItalic = (i: number, on: boolean) =>
     setItalic((prev) => prev.map((v, j) => (j === i ? on : v)))
-  const d = hasAssets ? effectiveDesignCost(option, italic) : 0
+  const d = hasAssets ? effectiveDesignCost({ ...option, assets }, italic) : 0
   const licensePortion = hasAssets ? licenseAmount(model, d) : 0
-  const itemsPortion = itemsTotal(option)
+  const itemsPortion = items.reduce((s, it) => s + itemLineTotal(it), 0)
   const combined = licensePortion + itemsPortion
   const amount = formatEur(combined)
   const headlineLabel = hasAssets && model === 'annual' && !hasItems
@@ -76,7 +80,7 @@ function OptionBlock({ option }: { option: QuoteOption }) {
         </div>
       )}
 
-      {option.assets.map((a, i) => (
+      {assets.map((a, i) => (
         <div key={i} className="quote-block">
           <div className="quote-row">
             <div className="quote-col col-asset">

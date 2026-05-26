@@ -203,9 +203,17 @@ export function emptyOption(n: number): QuoteOption {
   return {
     title: `Option ${n}`,
     description: '',
-    assets: [emptyAsset()],
+    assets: [],
     items: [],
   }
+}
+
+function assetIsEmpty(a: QuoteAsset): boolean {
+  return !a.name.trim() && !a.variable.trim() && (Number(a.price) || 0) === 0 && a.styles.length === 0
+}
+
+function itemIsEmpty(it: QuoteItem): boolean {
+  return !it.name.trim() && !it.description.trim() && !it.unit.trim() && (Number(it.unitPrice) || 0) === 0
 }
 
 export function emptyQuote(): Quote {
@@ -262,8 +270,8 @@ export function normalizeQuote(raw: unknown): Quote | null {
     return {
       title: String(oo.title || ''),
       description: String(oo.description || ''),
-      assets,
-      items,
+      assets: assets.filter((a) => !assetIsEmpty(a)),
+      items: items.filter((it) => !itemIsEmpty(it)),
     }
   })
   return {
