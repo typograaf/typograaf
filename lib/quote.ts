@@ -25,10 +25,22 @@ export function assetEffectivePrice(a: QuoteAsset, italic: boolean): number {
   return italic ? base + base * ITALIC_SURCHARGE : base
 }
 
+// Generic line item — for non-typeface deliverables (motionlogo,
+// guidelines, brand identity, …). Flat fee, not subject to the
+// annual/perpetual license multipliers. Line total = quantity * unitPrice.
+export interface QuoteItem {
+  name: string // "Motionlogo"
+  description: string // optional, multi-line
+  unit: string // free-text label, e.g. "per video", "30s loop", "1×"
+  quantity: number // default 1
+  unitPrice: number // EUR
+}
+
 export interface QuoteOption {
   title: string // "Option 1"
   description: string
   assets: QuoteAsset[]
+  items: QuoteItem[]
 }
 
 export interface Quote {
@@ -167,6 +179,18 @@ export function emptyAsset(): QuoteAsset {
   return { name: '', variable: '', price: 0, offersItalic: true, styles: [] }
 }
 
+export function emptyItem(): QuoteItem {
+  return { name: '', description: '', unit: '', quantity: 1, unitPrice: 0 }
+}
+
+export function itemLineTotal(it: QuoteItem): number {
+  return (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)
+}
+
+export function itemsTotal(opt: QuoteOption): number {
+  return (opt.items || []).reduce((s, it) => s + itemLineTotal(it), 0)
+}
+
 // Footnotes are fixed (not editable in the CMS). The public page
 // renders these per the selected license model, with tokens filled in.
 export const DEFAULT_FOOTNOTE_ANNUAL =
@@ -180,6 +204,7 @@ export function emptyOption(n: number): QuoteOption {
     title: `Option ${n}`,
     description: '',
     assets: [emptyAsset()],
+    items: [],
   }
 }
 
@@ -219,10 +244,26 @@ export function normalizeQuote(raw: unknown): Quote | null {
           : [],
       }
     })
+    const itemsRaw = Array.isArray(oo.items) ? oo.items : []
+    const items: QuoteItem[] = itemsRaw.map((it) => {
+      const ii = (it || {}) as Record<string, unknown>
+      const qRaw = ii.quantity
+      const quantity = qRaw === undefined || qRaw === null || qRaw === ''
+        ? 1
+        : Number(qRaw) || 0
+      return {
+        name: String(ii.name || ''),
+        description: String(ii.description || ''),
+        unit: String(ii.unit || ''),
+        quantity,
+        unitPrice: Number(ii.unitPrice) || 0,
+      }
+    })
     return {
       title: String(oo.title || ''),
       description: String(oo.description || ''),
       assets,
+      items,
     }
   })
   return {

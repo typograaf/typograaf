@@ -9,6 +9,8 @@ import {
   assetEffectivePrice,
   perpetualTotal,
   annualFirstYear,
+  itemsTotal,
+  itemLineTotal,
   formatEur,
   formatVariable,
   styleLabel,
@@ -18,23 +20,32 @@ import {
   DEFAULT_FOOTNOTE_PERPETUAL,
 } from '@/lib/quote'
 
-function headline(model: LicenseModel, d: number): string {
-  return model === 'annual'
-    ? `${formatEur(annualFirstYear(d))} first year`
-    : formatEur(perpetualTotal(d))
+function licenseAmount(model: LicenseModel, d: number): number {
+  return model === 'annual' ? annualFirstYear(d) : perpetualTotal(d)
 }
 
 function OptionBlock({ option }: { option: QuoteOption }) {
+  const hasAssets = option.assets.length > 0
+  const items = option.items || []
+  const hasItems = items.length > 0
   const [model, setModel] = useState<LicenseModel>('annual')
   const [italic, setItalic] = useState<boolean[]>(() => option.assets.map(() => false))
   const setAssetItalic = (i: number, on: boolean) =>
     setItalic((prev) => prev.map((v, j) => (j === i ? on : v)))
-  const d = effectiveDesignCost(option, italic)
-  const amount = headline(model, d)
-  const footnote = fillTokens(
-    model === 'annual' ? DEFAULT_FOOTNOTE_ANNUAL : DEFAULT_FOOTNOTE_PERPETUAL,
-    d,
-  )
+  const d = hasAssets ? effectiveDesignCost(option, italic) : 0
+  const licensePortion = hasAssets ? licenseAmount(model, d) : 0
+  const itemsPortion = itemsTotal(option)
+  const combined = licensePortion + itemsPortion
+  const amount = formatEur(combined)
+  const headlineLabel = hasAssets && model === 'annual' && !hasItems
+    ? `${amount} first year`
+    : amount
+  const footnote = hasAssets
+    ? fillTokens(
+        model === 'annual' ? DEFAULT_FOOTNOTE_ANNUAL : DEFAULT_FOOTNOTE_PERPETUAL,
+        d,
+      )
+    : ''
 
   return (
     <section className="quote-option">
@@ -42,26 +53,28 @@ function OptionBlock({ option }: { option: QuoteOption }) {
         <div className="quote-option-title">
           <p>{option.title}</p>
           <p>·</p>
-          <p>{amount}</p>
+          <p>{headlineLabel}</p>
         </div>
         {option.description && <p className="quote-desc">{option.description}</p>}
       </div>
 
-      <div className="quote-block">
-        <p className="quote-label">License Model</p>
-        <div className="quote-toggle">
-          <button
-            type="button"
-            className={`pill${model === 'perpetual' ? ' is-selected' : ''}`}
-            onClick={() => setModel('perpetual')}
-          >Perpetual</button>
-          <button
-            type="button"
-            className={`pill${model === 'annual' ? ' is-selected' : ''}`}
-            onClick={() => setModel('annual')}
-          >Annual</button>
+      {hasAssets && (
+        <div className="quote-block">
+          <p className="quote-label">License Model</p>
+          <div className="quote-toggle">
+            <button
+              type="button"
+              className={`pill${model === 'perpetual' ? ' is-selected' : ''}`}
+              onClick={() => setModel('perpetual')}
+            >Perpetual</button>
+            <button
+              type="button"
+              className={`pill${model === 'annual' ? ' is-selected' : ''}`}
+              onClick={() => setModel('annual')}
+            >Annual</button>
+          </div>
         </div>
-      </div>
+      )}
 
       {option.assets.map((a, i) => (
         <div key={i} className="quote-block">
@@ -108,6 +121,30 @@ function OptionBlock({ option }: { option: QuoteOption }) {
               </div>
             </>
           )}
+        </div>
+      ))}
+
+      {items.map((it, i) => (
+        <div key={`item-${i}`} className="quote-block">
+          <div className="quote-row">
+            <div className="quote-col col-asset">
+              <p className="quote-colhead">Item</p>
+              <div className="quote-cell">{it.name}</div>
+            </div>
+            <div className="quote-col">
+              <p className="quote-colhead">Unit</p>
+              <div className="quote-cell">
+                {it.unit
+                  ? `${it.quantity} × ${it.unit}`
+                  : `${it.quantity} ×`}
+              </div>
+            </div>
+            <div className="quote-col">
+              <p className="quote-colhead">Price</p>
+              <div className="quote-cell">{formatEur(itemLineTotal(it))}</div>
+            </div>
+          </div>
+          {it.description && <p className="quote-desc">{it.description}</p>}
         </div>
       ))}
 

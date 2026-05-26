@@ -5,9 +5,12 @@ import {
   type Quote,
   type QuoteOption,
   type QuoteAsset,
+  type QuoteItem,
   emptyQuote,
   emptyOption,
   emptyAsset,
+  emptyItem,
+  itemsTotal,
   slugify,
   designCost,
   perpetualTotal,
@@ -161,6 +164,23 @@ export default function Admin() {
   const removeAsset = (qi: number, oi: number, ai: number) => setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
     ...q,
     options: q.options.map((o, j) => j !== oi ? o : { ...o, assets: o.assets.filter((_, k) => k !== ai) }),
+  }))
+  const updateItem = (qi: number, oi: number, ii: number, patch: Partial<QuoteItem>) => {
+    setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
+      ...q,
+      options: q.options.map((o, j) => j !== oi ? o : {
+        ...o,
+        items: (o.items || []).map((it, k) => k === ii ? { ...it, ...patch } : it),
+      }),
+    }))
+  }
+  const addItem = (qi: number, oi: number) => setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
+    ...q,
+    options: q.options.map((o, j) => j !== oi ? o : { ...o, items: [...(o.items || []), emptyItem()] }),
+  }))
+  const removeItem = (qi: number, oi: number, ii: number) => setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
+    ...q,
+    options: q.options.map((o, j) => j !== oi ? o : { ...o, items: (o.items || []).filter((_, k) => k !== ii) }),
   }))
 
   const toggleHide = async (img: AdminImage) => {
@@ -497,7 +517,7 @@ export default function Admin() {
                                   className="admin-arrow admin-danger"
                                   type="button"
                                   onClick={() => removeAsset(qi, oi, ai)}
-                                  disabled={o.assets.length === 1}
+                                  disabled={o.assets.length === 1 && (o.items || []).length === 0}
                                   aria-label="Remove asset"
                                 >×</button>
                               </div>
@@ -526,15 +546,78 @@ export default function Admin() {
                               </div>
                             </div>
                           ))}
-                          <button className="admin-arrow" type="button" onClick={() => addAsset(qi, oi)}>+ Add asset</button>
+                          <button className="admin-arrow" type="button" onClick={() => addAsset(qi, oi)}>+ Add asset (typeface)</button>
+                        </div>
+
+                        <div className="admin-assets">
+                          {(o.items || []).map((it, ii) => (
+                            <div key={ii} className="admin-asset">
+                              <div className="admin-asset-row">
+                                <input
+                                  className="admin-input"
+                                  value={it.name}
+                                  placeholder="Motionlogo"
+                                  onChange={(e) => updateItem(qi, oi, ii, { name: e.target.value })}
+                                />
+                                <input
+                                  className="admin-input"
+                                  value={it.unit}
+                                  placeholder="per video"
+                                  onChange={(e) => updateItem(qi, oi, ii, { unit: e.target.value })}
+                                />
+                                <input
+                                  className="admin-input admin-input-num"
+                                  type="number"
+                                  min={1}
+                                  value={it.quantity || ''}
+                                  placeholder="1"
+                                  onChange={(e) => updateItem(qi, oi, ii, { quantity: Number(e.target.value) || 0 })}
+                                />
+                                <input
+                                  className="admin-input admin-input-num"
+                                  type="number"
+                                  value={it.unitPrice || ''}
+                                  placeholder="2500"
+                                  onChange={(e) => updateItem(qi, oi, ii, { unitPrice: Number(e.target.value) || 0 })}
+                                />
+                                <button
+                                  className="admin-arrow admin-danger"
+                                  type="button"
+                                  onClick={() => removeItem(qi, oi, ii)}
+                                  aria-label="Remove item"
+                                >×</button>
+                              </div>
+                              <div className="admin-qfield">
+                                <label>Description (optional)</label>
+                                <textarea
+                                  className="admin-input admin-input-area"
+                                  value={it.description}
+                                  rows={2}
+                                  placeholder="What's included, deliverables, scope notes…"
+                                  onChange={(e) => updateItem(qi, oi, ii, { description: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                          <button className="admin-arrow" type="button" onClick={() => addItem(qi, oi)}>+ Add item (flat fee)</button>
                         </div>
 
                         <div className="admin-price-preview">
-                          <span>Design cost {formatEur(d)}</span>
-                          <span>·</span>
-                          <span>Perpetual {formatEur(perpetualTotal(d))} one-time</span>
-                          <span>·</span>
-                          <span>Annual {formatEur(annualFirstYear(d))} first year, then {formatEur(annualYearly(d))} / yr</span>
+                          {o.assets.length > 0 && (
+                            <>
+                              <span>Design cost {formatEur(d)}</span>
+                              <span>·</span>
+                              <span>Perpetual {formatEur(perpetualTotal(d))} one-time</span>
+                              <span>·</span>
+                              <span>Annual {formatEur(annualFirstYear(d))} first year, then {formatEur(annualYearly(d))} / yr</span>
+                            </>
+                          )}
+                          {(o.items || []).length > 0 && (
+                            <>
+                              {o.assets.length > 0 && <span>·</span>}
+                              <span>Items {formatEur(itemsTotal(o))} flat</span>
+                            </>
+                          )}
                         </div>
 
                         <button
