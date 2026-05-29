@@ -489,10 +489,15 @@ function FontPreview({
   const [size, setSize] = useState(previewFontSize)
   const [axisValues, setAxisValues] = useState<Record<string, number>>({})
   const [family, setFamily] = useState('')
+  const [italicFamily, setItalicFamily] = useState('')
   // Which screen third the cursor is in: left/right cycle sentences, the
   // middle is a neutral editing zone.
   const [zone, setZone] = useState<'left' | 'mid' | 'right'>('mid')
   const zoneRef = useRef<'left' | 'mid' | 'right'>('mid')
+  // Vertical slope when the typeface has an upright + italic/oblique pair:
+  // top half upright, bottom half italic, like a second italic axis.
+  const [slope, setSlope] = useState<'up' | 'it'>('up')
+  const slopeRef = useRef<'up' | 'it'>('up')
   const axesRef = useRef<Axis[]>([])
   const bufCache = useRef<Map<string, ArrayBuffer>>(new Map())
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -502,52 +507,65 @@ function FontPreview({
   const sizeRef = useRef(size)
   sizeRef.current = size
 
-  // Load the selected style: fetch the bytes, register a FontFace keyed by
-  // the file id, and parse any variable-font axes from the same buffer.
+  // Upright vs italic/oblique split. When the typeface has both, the cursor's
+  // vertical position switches between them (top upright, bottom italic) and
+  // the style switcher is hidden; otherwise it's a plain single-track face.
+  const isItalicStyle = (s: FontFile) => /italic|oblique/i.test(s.style)
+  const uprightStyles = tile.styles.filter(s => !isItalicStyle(s))
+  const italicStyles = tile.styles.filter(isItalicStyle)
+  const isDual = uprightStyles.length > 0 && italicStyles.length > 0
+  const pickRegular = (arr: FontFile[]) =>
+    arr.find(s => /regular|book|normal|text|roman/i.test(s.style)) || arr[0]
+  const uprightFile = isDual ? pickRegular(uprightStyles) : tile.styles[styleIndex]
+  const italicFile = isDual ? pickRegular(italicStyles) : undefined
+  const dualRef = useRef(isDual)
+  dualRef.current = isDual
+
+  // Load the upright (primary) face — drives axes + charset — and the italic
+  // companion when the typeface is a pair. FontFaces are keyed by file id.
   useEffect(() => {
     let cancelled = false
-    const file = tile.styles[styleIndex]
-    if (!file) return
-    const fam = 'tp-' + file.id.replace(/[^a-zA-Z0-9]/g, '-')
-
-    const apply = (buf: ArrayBuffer) => {
-      if (cancelled) return
-      setCharset(parseCharSet(buf))
-      const parsed = parseVariationAxes(buf)
-      axesRef.current = parsed
-      // Open at the CMS default axes (weight falls back to 700), each
-      // clamped to the font's own range.
-      const initial = Object.fromEntries(parsed.map(a => [a.tag, a.default]))
-      const desired = defaultAxisValues(axes)
-      for (const a of parsed) {
-        if (desired[a.tag] !== undefined) {
-          initial[a.tag] = Math.min(a.max, Math.max(a.min, desired[a.tag]))
-        }
-      }
-      setAxisValues(initial)
-      setFamily(fam)
-    }
-
-    const cached = bufCache.current.get(file.id)
-    if (cached) {
-      apply(cached)
-      return () => { cancelled = true }
-    }
-
-    fetch(file.url)
-      .then(r => r.arrayBuffer())
-      .then(buf => {
-        bufCache.current.set(file.id, buf)
-        const ff = new FontFace(fam, buf)
-        return ff.load().then(loaded => {
-          if (cancelled) return
-          document.fonts.add(loaded)
-          apply(buf)
+    if (!uprightFile) return
+    const famFor = (f: FontFile) => 'tp-' + f.id.replace(/[^a-zA-Z0-9]/g, '-')
+    const loadFace = (f: FontFile, onBuf: (buf: ArrayBuffer | null, fam: string) => void) => {
+      const fam = famFor(f)
+      const cached = bufCache.current.get(f.id)
+      if (cached) { onBuf(cached, fam); return }
+      fetch(f.url)
+        .then(r => r.arrayBuffer())
+        .then(buf => {
+          bufCache.current.set(f.id, buf)
+          const ff = new FontFace(fam, buf)
+          return ff.load().then(loaded => {
+            if (cancelled) return
+            document.fonts.add(loaded)
+            onBuf(buf, fam)
+          })
         })
-      })
-      .catch(() => { if (!cancelled) setFamily(fam) })
+        .catch(() => { if (!cancelled) onBuf(null, fam) })
+    }
+
+    loadFace(uprightFile, (buf, fam) => {
+      if (cancelled) return
+      if (buf) {
+        setCharset(parseCharSet(buf))
+        const parsed = parseVariationAxes(buf)
+        axesRef.current = parsed
+        const initial = Object.fromEntries(parsed.map(a => [a.tag, a.default]))
+        const desired = defaultAxisValues(axes)
+        for (const a of parsed) {
+          if (desired[a.tag] !== undefined) {
+            initial[a.tag] = Math.min(a.max, Math.max(a.min, desired[a.tag]))
+          }
+        }
+        setAxisValues(initial)
+      }
+      setFamily(fam)
+    })
+    if (italicFile) loadFace(italicFile, (_buf, fam) => { if (!cancelled) setItalicFamily(fam) })
 
     return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tile, styleIndex])
 
   // Once the font's glyph coverage is known, re-process the shown sentence
@@ -570,13 +588,22 @@ function FontPreview({
       const ny = Math.min(1, Math.max(0, cy / window.innerHeight))
       const wght = axesRef.current.find(a => a.tag === 'wght')
       const wdth = axesRef.current.find(a => a.tag === 'wdth')
-      if (wght || wdth) {
+      // Horizontal always drives weight. Vertical drives the upright/italic
+      // switch for a pair, otherwise the width axis.
+      if (wght || (wdth && !dualRef.current)) {
         setAxisValues(v => {
           const next = { ...v }
           if (wght) next.wght = wght.min + (wght.max - wght.min) * nx
-          if (wdth) next.wdth = wdth.min + (wdth.max - wdth.min) * ny
+          if (wdth && !dualRef.current) next.wdth = wdth.min + (wdth.max - wdth.min) * ny
           return next
         })
+      }
+      if (dualRef.current) {
+        const s = ny > 0.5 ? 'it' : 'up'
+        if (s !== slopeRef.current) {
+          slopeRef.current = s
+          setSlope(s)
+        }
       }
       const z = nx < 1 / 3 ? 'left' : nx > 2 / 3 ? 'right' : 'mid'
       if (z !== zoneRef.current) {
@@ -671,13 +698,17 @@ function FontPreview({
     ? axesRef.current.map(a => `"${a.tag}" ${axisValues[a.tag] ?? a.default}`).join(', ')
     : undefined
 
+  // The rendered face: italic companion in the bottom half of a pair,
+  // otherwise the upright/selected face.
+  const activeFamily = isDual && slope === 'it' && italicFamily ? italicFamily : family
+
   // Grow the textarea to fit its content as text / size / axes change.
   useLayoutEffect(() => {
     const ta = taRef.current
     if (!ta) return
     ta.style.height = 'auto'
     ta.style.height = ta.scrollHeight + 'px'
-  }, [text, size, family, variationSettings])
+  }, [text, size, activeFamily, variationSettings])
 
   const cycle = (dir: number) => {
     const n = (sentenceIndex + dir + pool.length) % pool.length
@@ -715,7 +746,7 @@ function FontPreview({
           autoFocus
           rows={1}
           style={{
-            fontFamily: family ? `'${family}', sans-serif` : 'sans-serif',
+            fontFamily: activeFamily ? `'${activeFamily}', sans-serif` : 'sans-serif',
             fontSize: size,
             fontVariationSettings: variationSettings,
             lineHeight: leadingOf(axes),
@@ -723,7 +754,7 @@ function FontPreview({
         />
       </div>
 
-      {tile.styles.length > 1 && (
+      {!isDual && tile.styles.length > 1 && (
         <div className="font-preview-controls">
           <div className="font-preview-styles">
             {tile.styles.map((s, i) => (

@@ -81,6 +81,31 @@ function isStyleToken(token: string): boolean {
   return STYLE_WORDS.has(t) || /^[1-9]0{2}$/.test(t)
 }
 
+// Longest first so e.g. "extrabold" wins over "bold" when suffix-matching.
+const STYLE_WORDS_BY_LEN = [...STYLE_WORDS].sort((a, b) => b.length - a.length)
+
+// Strip trailing style words off a separator-less name ("BrigadaItalic" ->
+// { family: "Brigada", style: "Italic" }) so joined and camelCase names pair
+// the same way separated ones do. Keeps at least 2 chars of family.
+function splitJoinedStyle(name: string): { family: string; style: string } {
+  let family = name
+  const styleParts: string[] = []
+  let changed = true
+  while (changed) {
+    changed = false
+    const lower = family.toLowerCase()
+    for (const w of STYLE_WORDS_BY_LEN) {
+      if (lower.endsWith(w) && family.length - w.length >= 2) {
+        styleParts.unshift(family.slice(family.length - w.length))
+        family = family.slice(0, family.length - w.length)
+        changed = true
+        break
+      }
+    }
+  }
+  return { family, style: styleParts.join(' ') }
+}
+
 export interface ParsedFontName {
   familyKey: string
   familyName: string
@@ -89,13 +114,19 @@ export interface ParsedFontName {
 
 // Split a font filename into its typeface family and its style: trailing
 // weight/slope/variable tokens are the style, the rest is the family
-// ("Mirror-Bold.woff2" -> family "Mirror", style "Bold"). A filename with
-// no separators is treated as one family with a Regular style.
+// ("Mirror-Bold.woff2" -> family "Mirror", style "Bold"). Names with no
+// separator are still split on their trailing style words ("BrigadaItalic"
+// -> family "Brigada", style "Italic") so an upright and its italic pair.
 export function parseFontName(fileName: string): ParsedFontName {
   const base = fileName.replace(/\.[^.]+$/, '')
   const tokens = base.split(/[-_\s]+/).filter(Boolean)
   if (tokens.length <= 1) {
-    return { familyKey: base.toLowerCase(), familyName: base, style: 'Regular' }
+    const { family, style } = splitJoinedStyle(base)
+    return {
+      familyKey: family.toLowerCase(),
+      familyName: family,
+      style: style ? titleCase(style) : 'Regular',
+    }
   }
   let i = tokens.length - 1
   const styleTokens: string[] = []
