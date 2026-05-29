@@ -308,6 +308,19 @@ export default function Home() {
   )
 }
 
+// Thumbnail source via Next's image optimizer (sharp). Sharp resizes in
+// premultiplied alpha, so transparent PNGs no longer get a dark fringe on
+// their edges the way the browser's fast downscaler does — and the small
+// WebP/AVIF decodes instantly, killing the low-quality first paint. The
+// lightbox keeps the full-res original. Widths must be a configured Next
+// image size; we pick the smallest bucket that covers the tile at 2× DPR.
+const NEXT_IMAGE_WIDTHS = [16, 32, 48, 64, 96, 128, 256, 384, 640, 750, 828, 1080, 1200, 1920, 2048, 3840]
+function thumbSrc(url: string, size: number): string {
+  const target = Math.ceil(size * 2)
+  const w = NEXT_IMAGE_WIDTHS.find((x) => x >= target) ?? NEXT_IMAGE_WIDTHS[NEXT_IMAGE_WIDTHS.length - 1]
+  return `/_next/image?url=${encodeURIComponent(url)}&w=${w}&q=75`
+}
+
 function VirtualItem({
   image,
   top,
@@ -344,7 +357,7 @@ function VirtualItem({
     >
       <img
         key={retryCount}
-        src={image.url}
+        src={thumbSrc(image.url, size)}
         alt=""
         loading="lazy"
         decoding="async"
