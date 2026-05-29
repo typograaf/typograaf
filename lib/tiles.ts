@@ -76,13 +76,27 @@ const STYLE_WORDS = new Set([
   'italic', 'oblique', 'roman', 'upright', 'variable', 'vf', 'var',
 ])
 
-function isStyleToken(token: string): boolean {
-  const t = token.toLowerCase()
-  return STYLE_WORDS.has(t) || /^[1-9]0{2}$/.test(t)
-}
-
 // Longest first so e.g. "extrabold" wins over "bold" when suffix-matching.
 const STYLE_WORDS_BY_LEN = [...STYLE_WORDS].sort((a, b) => b.length - a.length)
+
+// True if the token is made entirely of style words, even when joined
+// together ("VariableVF", "VariableObliqueVF") — i.e. a style descriptor,
+// not part of the family name.
+function isAllStyleWords(token: string): boolean {
+  let s = token.toLowerCase()
+  if (!s) return false
+  while (s.length > 0) {
+    const w = STYLE_WORDS_BY_LEN.find(x => s.endsWith(x))
+    if (!w) return false
+    s = s.slice(0, s.length - w.length)
+  }
+  return true
+}
+
+function isStyleToken(token: string): boolean {
+  const t = token.toLowerCase()
+  return STYLE_WORDS.has(t) || /^[1-9]0{2}$/.test(t) || isAllStyleWords(t)
+}
 
 // Strip trailing style words off a separator-less name ("BrigadaItalic" ->
 // { family: "Brigada", style: "Italic" }) so joined and camelCase names pair
