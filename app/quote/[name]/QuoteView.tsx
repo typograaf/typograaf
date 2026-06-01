@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   type Quote,
   type QuoteOption,
@@ -21,15 +21,78 @@ import {
   DEFAULT_FOOTNOTE_PERPETUAL,
 } from '@/lib/quote'
 
+const STACK_ROTATIONS = [-4, 3, -2, 5, -1, 4, -3, 2, -5, 1]
+const STACK_OFFSETS = [
+  { x: 0, y: 0 },
+  { x: 6, y: -4 },
+  { x: -5, y: 5 },
+  { x: 4, y: 6 },
+  { x: -7, y: -3 },
+  { x: 3, y: -6 },
+]
+function stackStyle(i: number): React.CSSProperties {
+  const r = STACK_ROTATIONS[i % STACK_ROTATIONS.length]
+  const o = STACK_OFFSETS[i % STACK_OFFSETS.length]
+  return {
+    transform: `translate(calc(-50% + ${o.x}px), calc(-50% + ${o.y}px)) rotate(${r}deg)`,
+    zIndex: i + 1,
+  }
+}
+
 function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefined; variant: 'hero' | 'option' | 'row' }) {
   const list = (pictures || []).filter((p) => p.src?.trim())
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+
   if (list.length === 0) return null
+  const stacked = list.length > 1
+
   return (
-    <div className={`quote-pictures quote-pictures-${variant}`}>
-      {list.map((p, i) => (
-        <img key={i} src={p.src} alt={p.alt || ''} loading="lazy" decoding="async" />
-      ))}
-    </div>
+    <>
+      <div className={`quote-pictures quote-pictures-${variant}`}>
+        {stacked ? (
+          <button
+            type="button"
+            className="quote-stack"
+            onClick={() => setOpen(true)}
+            aria-label={`View ${list.length} pictures`}
+          >
+            {list.map((p, i) => (
+              <img
+                key={i}
+                src={p.src}
+                alt={p.alt || ''}
+                loading="lazy"
+                decoding="async"
+                style={stackStyle(i)}
+              />
+            ))}
+          </button>
+        ) : (
+          <img src={list[0].src} alt={list[0].alt || ''} loading="lazy" decoding="async" />
+        )}
+      </div>
+      {open && (
+        <div
+          className="quote-pictures-overlay"
+          onClick={() => setOpen(false)}
+          role="dialog"
+          aria-label="Pictures"
+        >
+          <div className="quote-pictures-grid" onClick={(e) => e.stopPropagation()}>
+            {list.map((p, i) => (
+              <img key={i} src={p.src} alt={p.alt || ''} />
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

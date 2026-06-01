@@ -795,11 +795,22 @@ body {
 
 .quote-foot { margin: 0; line-height: 1.4; white-space: pre-line; }
 
-.quote-pictures { display: flex; flex-wrap: wrap; gap: 12px; }
-.quote-pictures img { display: block; border-radius: 8px; max-width: 100%; height: auto; }
-.quote-pictures-hero img { max-height: 360px; object-fit: contain; }
-.quote-pictures-option img { max-height: 240px; object-fit: contain; }
-.quote-pictures-row img { width: 72px; height: 72px; object-fit: cover; }
+.quote-pictures { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; }
+.quote-pictures > img { display: block; border-radius: 8px; max-width: 100%; height: auto; }
+.quote-pictures-hero > img { max-height: 360px; object-fit: contain; }
+.quote-pictures-option > img { max-height: 240px; object-fit: contain; }
+.quote-pictures-row > img { width: 72px; height: 72px; object-fit: cover; }
+.quote-stack { position: relative; display: inline-block; background: transparent; border: 0; padding: 24px; cursor: pointer; }
+.quote-stack > img { position: absolute; left: 50%; top: 50%; display: block; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.12); transform-origin: center center; }
+.quote-pictures-hero .quote-stack { width: 320px; height: 320px; }
+.quote-pictures-hero .quote-stack > img { width: 320px; height: 320px; object-fit: contain; background: #fff; }
+.quote-pictures-option .quote-stack { width: 220px; height: 220px; }
+.quote-pictures-option .quote-stack > img { width: 220px; height: 220px; object-fit: contain; background: #fff; }
+.quote-pictures-row .quote-stack { width: 80px; height: 80px; padding: 12px; }
+.quote-pictures-row .quote-stack > img { width: 72px; height: 72px; object-fit: cover; }
+.quote-pictures-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.96); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 48px; overflow: auto; cursor: pointer; }
+.quote-pictures-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; width: 100%; max-width: 1200px; cursor: default; }
+.quote-pictures-grid img { display: block; width: 100%; height: auto; max-height: 60vh; object-fit: contain; border-radius: 8px; background: #fff; }
 .quote-md-list { margin: 0; padding-left: 20px; line-height: 1.4; }
 .quote-md-list li { margin: 0; }
 .quote-desc p { margin: 0 0 6px 0; }
