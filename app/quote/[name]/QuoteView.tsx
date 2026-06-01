@@ -20,6 +20,7 @@ import {
   DEFAULT_FOOTNOTE_ANNUAL,
   DEFAULT_FOOTNOTE_PERPETUAL,
 } from '@/lib/quote'
+import Lightbox from '@/app/Lightbox'
 
 const STACK_ROTATIONS = [-4, 3, -2, 5, -1, 4, -3, 2, -5, 1]
 const STACK_OFFSETS = [
@@ -42,13 +43,18 @@ function stackStyle(i: number): React.CSSProperties {
 function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefined; variant: 'hero' | 'option' | 'row' }) {
   const list = (pictures || []).filter((p) => p.src?.trim())
   const [open, setOpen] = useState(false)
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
 
   useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    if (!open && lightboxIdx === null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (lightboxIdx !== null) setLightboxIdx(null)
+      else setOpen(false)
+    }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open])
+  }, [open, lightboxIdx])
 
   if (list.length === 0) return null
   const stacked = list.length > 1
@@ -70,7 +76,7 @@ function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefi
                 alt={p.alt || ''}
                 loading="lazy"
                 decoding="async"
-                style={stackStyle(i)}
+                style={{ ...stackStyle(i), animationDelay: `${i * 70}ms` }}
               />
             ))}
           </button>
@@ -87,10 +93,18 @@ function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefi
         >
           <div className="quote-pictures-grid" onClick={(e) => e.stopPropagation()}>
             {list.map((p, i) => (
-              <img key={i} src={p.src} alt={p.alt || ''} />
+              <img
+                key={i}
+                src={p.src}
+                alt={p.alt || ''}
+                onClick={() => setLightboxIdx(i)}
+              />
             ))}
           </div>
         </div>
+      )}
+      {lightboxIdx !== null && (
+        <Lightbox url={list[lightboxIdx].src} onClose={() => setLightboxIdx(null)} />
       )}
     </>
   )
