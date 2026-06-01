@@ -43,11 +43,10 @@ function stackStyle(i: number, mounted: boolean, hidden: boolean): React.CSSProp
     : 'translate(-50%, -50%) rotate(0deg)'
   return {
     transform,
-    opacity: hidden ? 0 : (mounted ? 1 : 0),
-    transition: hidden
-      ? 'none'
-      : 'transform 850ms cubic-bezier(0.22, 1, 0.36, 1), opacity 500ms ease-out',
-    transitionDelay: hidden ? '0ms' : `${i * 70}ms`,
+    opacity: hidden || !mounted ? 0 : 1,
+    transition: mounted && !hidden
+      ? `transform 850ms cubic-bezier(0.22, 1, 0.36, 1) ${i * 70}ms`
+      : 'none',
     zIndex: i + 1,
   }
 }
