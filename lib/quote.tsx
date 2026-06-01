@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 // Quote feature — shared types and pricing logic.
 // Used by the admin editor, the public /quote/[name] page, and the API.
 //
@@ -9,12 +11,18 @@
 
 export type LicenseModel = 'annual' | 'perpetual'
 
+export interface QuotePicture {
+  src: string
+  alt?: string
+}
+
 export interface QuoteAsset {
   name: string // "Display Typeface"
   variable: string // "1 Axis"
   price: number // design-cost component, EUR
   offersItalic: boolean // if true, client can pick Italic (+70% of this asset's price); Oblique is the free default
   styles: string[] // ["400 Regular (+Oblique)", …, "Variable"]
+  pictures: QuotePicture[]
 }
 
 // Italic upgrade adds 35% of the asset's own price. Oblique is free.
@@ -34,6 +42,7 @@ export interface QuoteItem {
   unit: string // free-text label, e.g. "per video", "30s loop", "1×"
   quantity: number // default 1
   unitPrice: number // EUR
+  pictures: QuotePicture[]
 }
 
 export interface QuoteOption {
@@ -41,6 +50,7 @@ export interface QuoteOption {
   description: string
   assets: QuoteAsset[]
   items: QuoteItem[]
+  pictures: QuotePicture[]
 }
 
 export interface Quote {
@@ -49,6 +59,7 @@ export interface Quote {
   date: string // ISO yyyy-mm-dd
   validThrough: string // ISO yyyy-mm-dd
   options: QuoteOption[]
+  pictures: QuotePicture[]
 }
 
 export function slugify(input: string): string {
@@ -176,11 +187,107 @@ export function fillTokens(text: string, d: number): string {
 }
 
 export function emptyAsset(): QuoteAsset {
-  return { name: '', variable: '', price: 0, offersItalic: true, styles: [] }
+  return { name: '', variable: '', price: 0, offersItalic: true, styles: [], pictures: [] }
 }
 
 export function emptyItem(): QuoteItem {
-  return { name: '', description: '', unit: '', quantity: 1, unitPrice: 0 }
+  return { name: '', description: '', unit: '', quantity: 1, unitPrice: 0, pictures: [] }
+}
+
+// Minimal markdown renderer for option/item descriptions. Supports:
+//   **bold**, *italic* / _italic_, [text](url)
+//   - bullets / * bullets, 1. numbered
+//   blank line = new block, single newline inside a paragraph = <br/>
+// Emits React nodes (no dangerouslySetInnerHTML), so authoring is XSS-safe.
+function inlineMarkdown(text: string, keyBase: string): ReactNode[] {
+  const out: ReactNode[] = []
+  let i = 0
+  let k = 0
+  while (i < text.length) {
+    const linkM = /\[([^\]]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+)\)/.exec(text.slice(i))
+    const boldM = /\*\*([^*\n]+)\*\*/.exec(text.slice(i))
+    const italicM = /(^|[\s(])(\*|_)([^*_\n]+)\2(?=[\s).,;:!?]|$)/.exec(text.slice(i))
+    const brM = /\n/.exec(text.slice(i))
+    const candidates = [
+      linkM ? { kind: 'link' as const, m: linkM } : null,
+      boldM ? { kind: 'bold' as const, m: boldM } : null,
+      italicM ? { kind: 'italic' as const, m: italicM } : null,
+      brM ? { kind: 'br' as const, m: brM } : null,
+    ].filter(Boolean) as { kind: 'link' | 'bold' | 'italic' | 'br'; m: RegExpExecArray }[]
+    if (candidates.length === 0) {
+      out.push(text.slice(i))
+      break
+    }
+    candidates.sort((a, b) => a.m.index - b.m.index)
+    const pick = candidates[0]
+    if (pick.m.index > 0) out.push(text.slice(i, i + pick.m.index))
+    const key = `${keyBase}-${k++}`
+    if (pick.kind === 'link') {
+      out.push(<a key={key} href={pick.m[2]} target="_blank" rel="noopener noreferrer">{pick.m[1]}</a>)
+      i += pick.m.index + pick.m[0].length
+    } else if (pick.kind === 'bold') {
+      out.push(<strong key={key}>{pick.m[1]}</strong>)
+      i += pick.m.index + pick.m[0].length
+    } else if (pick.kind === 'italic') {
+      const lead = pick.m[1]
+      if (lead) out.push(lead)
+      out.push(<em key={key}>{pick.m[3]}</em>)
+      i += pick.m.index + pick.m[0].length
+    } else {
+      out.push(<br key={key} />)
+      i += pick.m.index + 1
+    }
+  }
+  return out
+}
+
+export function renderMarkdown(text: string, keyBase = 'md'): ReactNode {
+  if (!text) return null
+  const blocks = text.split(/\n{2,}/)
+  return blocks.map((block, bi) => {
+    const lines = block.split('\n')
+    const isBullet = lines.every((l) => /^\s*[-*]\s+\S/.test(l))
+    const isNumbered = lines.every((l) => /^\s*\d+\.\s+\S/.test(l))
+    if (isBullet && lines.length > 0) {
+      return (
+        <ul key={`${keyBase}-b${bi}`} className="quote-md-list">
+          {lines.map((l, li) => {
+            const item = l.replace(/^\s*[-*]\s+/, '')
+            return <li key={li}>{inlineMarkdown(item, `${keyBase}-b${bi}-${li}`)}</li>
+          })}
+        </ul>
+      )
+    }
+    if (isNumbered && lines.length > 0) {
+      return (
+        <ol key={`${keyBase}-n${bi}`} className="quote-md-list">
+          {lines.map((l, li) => {
+            const item = l.replace(/^\s*\d+\.\s+/, '')
+            return <li key={li}>{inlineMarkdown(item, `${keyBase}-n${bi}-${li}`)}</li>
+          })}
+        </ol>
+      )
+    }
+    return <p key={`${keyBase}-p${bi}`}>{inlineMarkdown(block, `${keyBase}-p${bi}`)}</p>
+  })
+}
+
+export function normalizePictures(raw: unknown): QuotePicture[] {
+  if (!Array.isArray(raw)) return []
+  const out: QuotePicture[] = []
+  for (const p of raw) {
+    if (typeof p === 'string') {
+      const src = p.trim()
+      if (src) out.push({ src })
+    } else if (p && typeof p === 'object') {
+      const pp = p as Record<string, unknown>
+      const src = String(pp.src || '').trim()
+      if (!src) continue
+      const alt = typeof pp.alt === 'string' && pp.alt.trim() ? pp.alt : undefined
+      out.push(alt ? { src, alt } : { src })
+    }
+  }
+  return out
 }
 
 export function itemLineTotal(it: QuoteItem): number {
@@ -205,6 +312,7 @@ export function emptyOption(n: number): QuoteOption {
     description: '',
     assets: [],
     items: [],
+    pictures: [],
   }
 }
 
@@ -226,6 +334,7 @@ export function emptyQuote(): Quote {
     date: today,
     validThrough: next.toISOString().slice(0, 10),
     options: [emptyOption(1)],
+    pictures: [],
   }
 }
 
@@ -250,6 +359,7 @@ export function normalizeQuote(raw: unknown): Quote | null {
         styles: Array.isArray(aa.styles)
           ? aa.styles.map(String).map((s) => s.trim()).filter(Boolean)
           : [],
+        pictures: normalizePictures(aa.pictures),
       }
     })
     const itemsRaw = Array.isArray(oo.items) ? oo.items : []
@@ -265,6 +375,7 @@ export function normalizeQuote(raw: unknown): Quote | null {
         unit: String(ii.unit || ''),
         quantity,
         unitPrice: Number(ii.unitPrice) || 0,
+        pictures: normalizePictures(ii.pictures),
       }
     })
     return {
@@ -272,6 +383,7 @@ export function normalizeQuote(raw: unknown): Quote | null {
       description: String(oo.description || ''),
       assets: assets.filter((a) => !assetIsEmpty(a)),
       items: items.filter((it) => !itemIsEmpty(it)),
+      pictures: normalizePictures(oo.pictures),
     }
   })
   return {
@@ -280,5 +392,6 @@ export function normalizeQuote(raw: unknown): Quote | null {
     date: String(q.date || ''),
     validThrough: String(q.validThrough || ''),
     options,
+    pictures: normalizePictures(q.pictures),
   }
 }

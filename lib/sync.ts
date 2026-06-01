@@ -22,7 +22,7 @@ const FONT_MIME: Record<string, string> = {
   otf: 'font/otf',
 }
 
-function getS3Client() {
+export function getS3Client() {
   return new S3Client({
     region: 'auto',
     endpoint: process.env.R2_ENDPOINT!,
@@ -33,7 +33,7 @@ function getS3Client() {
   })
 }
 
-const BUCKET = 'typograaf'
+export const BUCKET = 'typograaf'
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || ''
 const RECENT_KEY = 'recent-projects.json'
 

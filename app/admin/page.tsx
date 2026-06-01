@@ -6,6 +6,7 @@ import {
   type QuoteOption,
   type QuoteAsset,
   type QuoteItem,
+  type QuotePicture,
   emptyQuote,
   emptyOption,
   emptyAsset,
@@ -58,6 +59,7 @@ export default function Admin() {
   const [showHidden, setShowHidden] = useState(true)
   const dragIndexRef = useRef<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [activeQuoteIdx, setActiveQuoteIdx] = useState(0)
 
   const load = async () => {
     setLoading(true)
@@ -146,10 +148,20 @@ export default function Admin() {
       }),
     }))
   }
-  const addQuote = () => setQuotes(prev => [...prev, emptyQuote()])
+  const addQuote = () => {
+    setQuotes(prev => {
+      const next = [...prev, emptyQuote()]
+      setActiveQuoteIdx(next.length - 1)
+      return next
+    })
+  }
   const removeQuote = (qi: number) => {
     if (!confirm(`Delete quote "${quotes[qi]?.project || quotes[qi]?.slug || 'untitled'}"? This cannot be undone after saving.`)) return
-    setQuotes(prev => prev.filter((_, i) => i !== qi))
+    setQuotes(prev => {
+      const next = prev.filter((_, i) => i !== qi)
+      setActiveQuoteIdx(i => Math.max(0, Math.min(i, next.length - 1)))
+      return next
+    })
   }
   const addOption = (qi: number) => setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
     ...q, options: [...q.options, emptyOption(q.options.length + 1)],
@@ -412,13 +424,40 @@ export default function Admin() {
 
         {tab === 'quotes' && (
           <div className="admin-quotes">
+            <div className="admin-subtabs">
+              {quotes.map((q, qi) => {
+                const label = q.project || q.slug || 'Untitled'
+                return (
+                  <button
+                    key={qi}
+                    type="button"
+                    className={`admin-subtab${qi === activeQuoteIdx ? ' is-active' : ''}`}
+                    onClick={() => setActiveQuoteIdx(qi)}
+                    title={label}
+                  >{label.length > 32 ? label.slice(0, 32) + '…' : label}</button>
+                )
+              })}
+              <button
+                type="button"
+                className="admin-subtab is-primary"
+                onClick={addQuote}
+              >+ Add quote</button>
+            </div>
             {quotes.length === 0 && (
               <p className="admin-muted">No quotes yet.</p>
             )}
-            {quotes.map((q, qi) => {
+            {quotes.length > 0 && activeQuoteIdx < quotes.length && [quotes[activeQuoteIdx]].map((q) => {
+              const qi = activeQuoteIdx
               const slug = q.slug || slugify(q.project)
               return (
                 <div key={qi} className="admin-quote">
+                  <PicturesField
+                    pictures={q.pictures || []}
+                    onChange={(pictures) => updateQuote(qi, { pictures })}
+                    library={images}
+                    size="md"
+                    label="Cover pictures"
+                  />
                   <div className="admin-quote-top">
                     <div className="admin-qfield">
                       <label>Project</label>
@@ -488,7 +527,16 @@ export default function Admin() {
                             rows={3}
                             onChange={(e) => updateOption(qi, oi, { description: e.target.value })}
                           />
+                          <span className="admin-hint">Supports <code>**bold**</code>, <code>*italic*</code>, <code>[link](url)</code>, <code>- bullets</code>, <code>1. numbered</code></span>
                         </div>
+
+                        <PicturesField
+                          pictures={o.pictures || []}
+                          onChange={(pictures) => updateOption(qi, oi, { pictures })}
+                          library={images}
+                          size="md"
+                          label="Option pictures"
+                        />
 
                         <div className="admin-assets">
                           {o.assets.map((a, ai) => (
@@ -544,6 +592,13 @@ export default function Admin() {
                                   />
                                 </div>
                               </div>
+                              <PicturesField
+                                pictures={a.pictures || []}
+                                onChange={(pictures) => updateAsset(qi, oi, ai, { pictures })}
+                                library={images}
+                                size="sm"
+                                label="Pictures"
+                              />
                             </div>
                           ))}
                           <button className="admin-arrow" type="button" onClick={() => addAsset(qi, oi)}>+ Add asset (typeface)</button>
@@ -596,7 +651,15 @@ export default function Admin() {
                                   placeholder="What's included, deliverables, scope notes…"
                                   onChange={(e) => updateItem(qi, oi, ii, { description: e.target.value })}
                                 />
+                                <span className="admin-hint">Supports <code>**bold**</code>, <code>*italic*</code>, <code>[link](url)</code>, <code>- bullets</code>, <code>1. numbered</code></span>
                               </div>
+                              <PicturesField
+                                pictures={it.pictures || []}
+                                onChange={(pictures) => updateItem(qi, oi, ii, { pictures })}
+                                library={images}
+                                size="sm"
+                                label="Pictures"
+                              />
                             </div>
                           ))}
                           <button className="admin-arrow" type="button" onClick={() => addItem(qi, oi)}>+ Add item (flat fee)</button>
@@ -633,7 +696,6 @@ export default function Admin() {
                 </div>
               )
             })}
-            <button className="admin-tab is-primary" type="button" onClick={addQuote}>+ Add quote</button>
           </div>
         )}
 
@@ -840,6 +902,155 @@ function FontAxisRow({
   )
 }
 
+function PicturesField({
+  pictures,
+  onChange,
+  library,
+  size = 'sm',
+  label,
+}: {
+  pictures: QuotePicture[]
+  onChange: (next: QuotePicture[]) => void
+  library: AdminImage[]
+  size?: 'sm' | 'md'
+  label?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const remove = (i: number) => {
+    if (!confirm('Remove this picture?')) return
+    onChange(pictures.filter((_, j) => j !== i))
+  }
+  const pick = (p: QuotePicture) => {
+    onChange([...pictures, p])
+    setOpen(false)
+  }
+  return (
+    <div className="admin-qfield">
+      {label && <label>{label}</label>}
+      <div className="admin-pictures">
+        {pictures.map((p, i) => (
+          <img
+            key={i}
+            src={p.src}
+            alt={p.alt || ''}
+            className={`admin-picture${size === 'md' ? ' is-md' : ''}`}
+            onClick={() => remove(i)}
+            title="Click to remove"
+          />
+        ))}
+        <button
+          className={`admin-picture-add${size === 'md' ? ' is-md' : ''}`}
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Add picture"
+        >+</button>
+      </div>
+      {open && (
+        <PicturePicker
+          onClose={() => setOpen(false)}
+          onPick={pick}
+          library={library}
+        />
+      )}
+    </div>
+  )
+}
+
+function PicturePicker({
+  onClose,
+  onPick,
+  library,
+}: {
+  onClose: () => void
+  onPick: (p: QuotePicture) => void
+  library: AdminImage[]
+}) {
+  const [mode, setMode] = useState<'library' | 'upload'>('library')
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const nonFonts = library.filter((i) => !i.isFont && !i.hidden)
+
+  const handleFile = async (file: File) => {
+    setError(null)
+    if (!file.type.startsWith('image/')) { setError('Not an image'); return }
+    if (file.size > 4 * 1024 * 1024) { setError('Max 4 MB'); return }
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'upload failed')
+      onPick({ src: String(data.url) })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="admin-picker-backdrop" onClick={onClose}>
+      <div className="admin-picker" onClick={(e) => e.stopPropagation()}>
+        <div className="admin-picker-head">
+          <div className="admin-picker-tabs">
+            <button
+              type="button"
+              className={`admin-subtab${mode === 'library' ? ' is-active' : ''}`}
+              onClick={() => setMode('library')}
+            >Library</button>
+            <button
+              type="button"
+              className={`admin-subtab${mode === 'upload' ? ' is-active' : ''}`}
+              onClick={() => setMode('upload')}
+            >Upload</button>
+          </div>
+          <button
+            type="button"
+            className="admin-arrow"
+            onClick={onClose}
+            aria-label="Close picker"
+          >×</button>
+        </div>
+        {mode === 'library' ? (
+          nonFonts.length === 0 ? (
+            <p className="admin-muted">No images in the library.</p>
+          ) : (
+            <div className="admin-picker-grid">
+              {nonFonts.map((img) => (
+                <img
+                  key={img.id}
+                  src={img.url}
+                  alt={img.name}
+                  className="admin-picker-thumb"
+                  onClick={() => onPick({ src: img.url, alt: img.name })}
+                  title={img.name}
+                />
+              ))}
+            </div>
+          )
+        ) : (
+          <div className="admin-picker-upload">
+            <input
+              type="file"
+              accept="image/*"
+              disabled={uploading}
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) handleFile(f)
+                e.target.value = ''
+              }}
+            />
+            <p className="admin-muted">Max 4 MB. Image files only.</p>
+            {uploading && <p className="admin-muted">Uploading…</p>}
+            {error && <p className="admin-danger">{error}</p>}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function AdminStyles() {
   return (
     <style dangerouslySetInnerHTML={{ __html: `
@@ -921,6 +1132,28 @@ function AdminStyles() {
 .admin-asset-row-two { gap: 12px; }
 .admin-asset-row-two .admin-qfield { flex: 1 0 0; }
 .admin-price-preview { display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; opacity: 0.55; }
+.admin-hint code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+.admin-subtabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; }
+.admin-subtab { background: transparent; border: 0; padding: 6px 10px; border-radius: 8px; font: inherit; font-size: 13px; color: #000; opacity: 0.5; cursor: pointer; transition: background 0.12s, opacity 0.12s; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-subtab:hover:not(.is-active) { background: rgba(0,0,0,0.04); opacity: 0.8; }
+.admin-subtab.is-active { background: #fff; opacity: 1; }
+.admin-subtab.is-primary { opacity: 1; }
+.admin-pictures { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.admin-picture { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; cursor: pointer; background: #f0f0f0; transition: opacity 0.12s; }
+.admin-picture:hover { opacity: 0.7; }
+.admin-picture.is-md { width: 96px; height: 96px; border-radius: 12px; }
+.admin-picture-add { width: 56px; height: 56px; border-radius: 8px; background: rgba(0,0,0,0.04); border: 1px dashed rgba(0,0,0,0.15); color: rgba(0,0,0,0.4); font: inherit; font-size: 20px; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.admin-picture-add:hover { background: rgba(0,0,0,0.08); color: rgba(0,0,0,0.6); }
+.admin-picture-add.is-md { width: 96px; height: 96px; border-radius: 12px; font-size: 28px; }
+.admin-picker-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 32px; }
+.admin-picker { background: #fff; border-radius: 16px; padding: 16px; width: 100%; max-width: 720px; max-height: 80vh; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.admin-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-picker-tabs { display: flex; gap: 4px; }
+.admin-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; overflow: auto; padding: 4px; }
+.admin-picker-thumb { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; background: #f0f0f0; cursor: pointer; transition: opacity 0.12s; }
+.admin-picker-thumb:hover { opacity: 0.7; }
+.admin-picker-upload { display: flex; flex-direction: column; gap: 12px; padding: 16px 4px; }
+.admin-picker-upload input[type='file'] { font: inherit; }
 @media (max-width: 700px) {
   .admin-page { padding: 88px 24px 64px; }
   .admin-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
@@ -928,6 +1161,7 @@ function AdminStyles() {
   .admin-quote-top { flex-direction: column; }
   .admin-asset-row, .admin-asset-row-two { flex-direction: column; }
   .admin-input-num { max-width: none; }
+  .admin-picker { padding: 12px; }
 }
     `.trim() }} />
   )

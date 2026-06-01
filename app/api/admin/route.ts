@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
+import { isAuthed } from '../../../lib/adminAuth'
 import {
   getAboutText,
   saveAboutText,
@@ -20,11 +20,6 @@ import { isFontFile, buildTiles } from '../../../lib/tiles'
 import type { Quote } from '../../../lib/quote'
 
 export const dynamic = 'force-dynamic'
-
-async function isAuthed() {
-  const c = await cookies()
-  return c.get('auth')?.value === '1'
-}
 
 export async function GET() {
   if (!(await isAuthed())) {

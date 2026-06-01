@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
   type Quote,
   type QuoteOption,
+  type QuotePicture,
   type LicenseModel,
   effectiveDesignCost,
   assetEffectivePrice,
@@ -15,9 +16,22 @@ import {
   styleLabel,
   formatQuoteDate,
   fillTokens,
+  renderMarkdown,
   DEFAULT_FOOTNOTE_ANNUAL,
   DEFAULT_FOOTNOTE_PERPETUAL,
 } from '@/lib/quote'
+
+function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefined; variant: 'hero' | 'option' | 'row' }) {
+  const list = (pictures || []).filter((p) => p.src?.trim())
+  if (list.length === 0) return null
+  return (
+    <div className={`quote-pictures quote-pictures-${variant}`}>
+      {list.map((p, i) => (
+        <img key={i} src={p.src} alt={p.alt || ''} loading="lazy" decoding="async" />
+      ))}
+    </div>
+  )
+}
 
 function licenseAmount(model: LicenseModel, d: number): number {
   return model === 'annual' ? annualFirstYear(d) : perpetualTotal(d)
@@ -59,8 +73,12 @@ function OptionBlock({ option }: { option: QuoteOption }) {
           <p>·</p>
           <p>{headlineLabel}</p>
         </div>
-        {option.description && <p className="quote-desc">{option.description}</p>}
+        {option.description && (
+          <div className="quote-desc">{renderMarkdown(option.description, `opt-${option.title}`)}</div>
+        )}
       </div>
+
+      <PictureStrip pictures={option.pictures} variant="option" />
 
       {hasAssets && (
         <div className="quote-block">
@@ -125,6 +143,7 @@ function OptionBlock({ option }: { option: QuoteOption }) {
               </div>
             </>
           )}
+          <PictureStrip pictures={a.pictures} variant="row" />
         </div>
       ))}
 
@@ -148,7 +167,10 @@ function OptionBlock({ option }: { option: QuoteOption }) {
               <div className="quote-cell">{formatEur(itemLineTotal(it))}</div>
             </div>
           </div>
-          {it.description && <p className="quote-desc">{it.description}</p>}
+          {it.description && (
+            <div className="quote-desc">{renderMarkdown(it.description, `it-${i}`)}</div>
+          )}
+          <PictureStrip pictures={it.pictures} variant="row" />
         </div>
       ))}
 
@@ -176,6 +198,8 @@ export default function QuoteView({ quote }: { quote: Quote }) {
           <p>Valid through {formatQuoteDate(quote.validThrough)}</p>
         </div>
       </section>
+
+      <PictureStrip pictures={quote.pictures} variant="hero" />
 
       {quote.options.map((o, i) => (
         <OptionBlock key={i} option={o} />

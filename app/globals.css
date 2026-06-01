@@ -795,6 +795,17 @@ body {
 
 .quote-foot { margin: 0; line-height: 1.4; white-space: pre-line; }
 
+.quote-pictures { display: flex; flex-wrap: wrap; gap: 12px; }
+.quote-pictures img { display: block; border-radius: 8px; max-width: 100%; height: auto; }
+.quote-pictures-hero img { max-height: 360px; object-fit: contain; }
+.quote-pictures-option img { max-height: 240px; object-fit: contain; }
+.quote-pictures-row img { width: 72px; height: 72px; object-fit: cover; }
+.quote-md-list { margin: 0; padding-left: 20px; line-height: 1.4; }
+.quote-md-list li { margin: 0; }
+.quote-desc p { margin: 0 0 6px 0; }
+.quote-desc p:last-child { margin-bottom: 0; }
+.quote-desc a { text-decoration: underline; text-underline-offset: 2px; color: inherit; }
+
 @media (max-width: 700px) {
   .quote-option { gap: 36px; }
   .quote-head + .quote-option,
@@ -807,4 +818,6 @@ body {
      into shared rows and the text overlapped. Calendar-style stack. */
   .quote-chips .quote-chip { flex: 1 0 100%; min-width: 0; white-space: normal; }
   .quote-total-amount { flex: 0 0 40%; }
+  .quote-pictures-hero img { max-height: 240px; }
+  .quote-pictures-option img { max-height: 180px; }
 }
