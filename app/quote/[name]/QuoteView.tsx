@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   type Quote,
   type QuoteOption,
@@ -31,6 +31,10 @@ const STACK_OFFSETS = [
   { x: -7, y: -3 },
   { x: 3, y: -6 },
 ]
+const FLIP_DURATION = 800
+const FLIP_STAGGER = 60
+const FLIP_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
+
 function stackStyle(i: number, mounted: boolean): React.CSSProperties {
   const r = STACK_ROTATIONS[i % STACK_ROTATIONS.length]
   const o = STACK_OFFSETS[i % STACK_OFFSETS.length]
@@ -48,27 +52,91 @@ function stackStyle(i: number, mounted: boolean): React.CSSProperties {
 function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefined; variant: 'hero' | 'option' | 'row' }) {
   const list = (pictures || []).filter((p) => p.src?.trim())
   const [open, setOpen] = useState(false)
+  const [closing, setClosing] = useState(false)
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
   const [mounted, setMounted] = useState(false)
+  const stackImgRefs = useRef<(HTMLImageElement | null)[]>([])
+  const gridImgRefs = useRef<(HTMLImageElement | null)[]>([])
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true))
     return () => cancelAnimationFrame(id)
   }, [])
 
+  // FLIP open: position each grid img at its stack img's spot, then animate to identity.
+  useLayoutEffect(() => {
+    if (!open || closing) return
+    for (let i = 0; i < list.length; i++) {
+      const sEl = stackImgRefs.current[i]
+      const gEl = gridImgRefs.current[i]
+      if (!sEl || !gEl) continue
+      const s = sEl.getBoundingClientRect()
+      const g = gEl.getBoundingClientRect()
+      if (s.width === 0 || g.width === 0) continue
+      const dx = (s.left + s.width / 2) - (g.left + g.width / 2)
+      const dy = (s.top + s.height / 2) - (g.top + g.height / 2)
+      const scale = s.width / g.width
+      const r = STACK_ROTATIONS[i % STACK_ROTATIONS.length]
+      gEl.style.transition = 'none'
+      gEl.style.transform = `translate(${dx}px, ${dy}px) scale(${scale}) rotate(${r}deg)`
+    }
+    void document.body.offsetHeight
+    for (let i = 0; i < list.length; i++) {
+      const gEl = gridImgRefs.current[i]
+      if (!gEl) continue
+      gEl.style.transition = `transform ${FLIP_DURATION}ms ${FLIP_EASING} ${i * FLIP_STAGGER}ms`
+      gEl.style.transform = ''
+    }
+  }, [open, closing, list.length])
+
+  // FLIP close: animate from identity back to stack positions, then unmount.
+  useLayoutEffect(() => {
+    if (!closing) return
+    for (let i = 0; i < list.length; i++) {
+      const sEl = stackImgRefs.current[i]
+      const gEl = gridImgRefs.current[i]
+      if (!sEl || !gEl) continue
+      const s = sEl.getBoundingClientRect()
+      const g = gEl.getBoundingClientRect()
+      if (s.width === 0 || g.width === 0) continue
+      const dx = (s.left + s.width / 2) - (g.left + g.width / 2)
+      const dy = (s.top + s.height / 2) - (g.top + g.height / 2)
+      const scale = s.width / g.width
+      const r = STACK_ROTATIONS[i % STACK_ROTATIONS.length]
+      const reverseDelay = (list.length - 1 - i) * FLIP_STAGGER
+      gEl.style.transition = `transform ${FLIP_DURATION}ms ${FLIP_EASING} ${reverseDelay}ms`
+      gEl.style.transform = `translate(${dx}px, ${dy}px) scale(${scale}) rotate(${r}deg)`
+    }
+  }, [closing, list.length])
+
+  useEffect(() => {
+    if (!closing) return
+    const totalMs = FLIP_DURATION + (list.length - 1) * FLIP_STAGGER + 60
+    const t = window.setTimeout(() => {
+      setOpen(false)
+      setClosing(false)
+    }, totalMs)
+    return () => window.clearTimeout(t)
+  }, [closing, list.length])
+
   useEffect(() => {
     if (!open && lightboxIdx === null) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       if (lightboxIdx !== null) setLightboxIdx(null)
-      else setOpen(false)
+      else if (open && !closing) setClosing(true)
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open, lightboxIdx])
+  }, [open, closing, lightboxIdx])
 
   if (list.length === 0) return null
   const stacked = list.length > 1
+  const gridShown = open || closing
+
+  const requestClose = () => {
+    if (!closing) setClosing(true)
+  }
 
   return (
     <>
@@ -77,12 +145,13 @@ function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefi
           <button
             type="button"
             className="quote-stack"
-            onClick={() => setOpen(true)}
+            onClick={() => !open && setOpen(true)}
             aria-label={`View ${list.length} pictures`}
           >
             {list.map((p, i) => (
               <img
                 key={i}
+                ref={(el) => { stackImgRefs.current[i] = el }}
                 src={p.src}
                 alt={p.alt || ''}
                 loading="lazy"
@@ -95,10 +164,10 @@ function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefi
           <img src={list[0].src} alt={list[0].alt || ''} loading="lazy" decoding="async" />
         )}
       </div>
-      {open && (
+      {gridShown && (
         <div
-          className="quote-pictures-overlay"
-          onClick={() => setOpen(false)}
+          className={`quote-pictures-overlay${closing ? ' is-closing' : ''}`}
+          onClick={requestClose}
           role="dialog"
           aria-label="Pictures"
         >
@@ -106,10 +175,10 @@ function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefi
             {list.map((p, i) => (
               <img
                 key={i}
+                ref={(el) => { gridImgRefs.current[i] = el }}
                 src={p.src}
                 alt={p.alt || ''}
-                onClick={() => setLightboxIdx(i)}
-                style={{ animationDelay: `${i * 70}ms` }}
+                onClick={() => !closing && setLightboxIdx(i)}
               />
             ))}
           </div>
