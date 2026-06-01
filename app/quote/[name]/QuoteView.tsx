@@ -35,16 +35,19 @@ const FLIP_DURATION = 800
 const FLIP_STAGGER = 60
 const FLIP_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
 
-function stackStyle(i: number, mounted: boolean): React.CSSProperties {
+function stackStyle(i: number, mounted: boolean, hidden: boolean): React.CSSProperties {
   const r = STACK_ROTATIONS[i % STACK_ROTATIONS.length]
   const o = STACK_OFFSETS[i % STACK_OFFSETS.length]
+  const transform = mounted
+    ? `translate(calc(-50% + ${o.x}px), calc(-50% + ${o.y}px)) rotate(${r}deg)`
+    : 'translate(-50%, -50%) rotate(0deg)'
   return {
-    transform: mounted
-      ? `translate(calc(-50% + ${o.x}px), calc(-50% + ${o.y}px)) rotate(${r}deg)`
-      : 'translate(-50%, -50%) rotate(0deg)',
-    opacity: mounted ? 1 : 0,
-    transition: 'transform 850ms cubic-bezier(0.22, 1, 0.36, 1), opacity 500ms ease-out',
-    transitionDelay: `${i * 70}ms`,
+    transform,
+    opacity: hidden ? 0 : (mounted ? 1 : 0),
+    transition: hidden
+      ? 'none'
+      : 'transform 850ms cubic-bezier(0.22, 1, 0.36, 1), opacity 500ms ease-out',
+    transitionDelay: hidden ? '0ms' : `${i * 70}ms`,
     zIndex: i + 1,
   }
 }
@@ -156,7 +159,7 @@ function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefi
                 alt={p.alt || ''}
                 loading="lazy"
                 decoding="async"
-                style={stackStyle(i, mounted)}
+                style={stackStyle(i, mounted, gridShown)}
               />
             ))}
           </button>
