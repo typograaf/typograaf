@@ -56,14 +56,12 @@ function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefi
   const [open, setOpen] = useState(false)
   const [closing, setClosing] = useState(false)
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
-  const [mounted, setMounted] = useState(false)
+  const [loaded, setLoaded] = useState<Set<number>>(() => new Set())
   const stackImgRefs = useRef<(HTMLImageElement | null)[]>([])
   const gridImgRefs = useRef<(HTMLImageElement | null)[]>([])
-
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setMounted(true))
-    return () => cancelAnimationFrame(id)
-  }, [])
+  const mounted = list.length > 0 && loaded.size >= list.length
+  const markLoaded = (i: number) =>
+    setLoaded((prev) => prev.has(i) ? prev : new Set(prev).add(i))
 
   // FLIP open: position each grid img at its stack img's spot, then animate to identity.
   useLayoutEffect(() => {
@@ -153,11 +151,15 @@ function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefi
             {list.map((p, i) => (
               <img
                 key={i}
-                ref={(el) => { stackImgRefs.current[i] = el }}
+                ref={(el) => {
+                  stackImgRefs.current[i] = el
+                  if (el && el.complete && el.naturalWidth > 0) markLoaded(i)
+                }}
                 src={p.src}
                 alt={p.alt || ''}
                 loading="lazy"
                 decoding="async"
+                onLoad={() => markLoaded(i)}
                 style={stackStyle(i, mounted, gridShown)}
               />
             ))}
