@@ -801,19 +801,26 @@ body {
 .quote-pictures-option > img { max-height: 240px; object-fit: contain; }
 .quote-pictures-row > img { width: 72px; height: 72px; object-fit: cover; }
 .quote-stack { position: relative; display: inline-block; background: transparent; border: 0; padding: 32px; cursor: pointer; }
-.quote-stack > img { position: absolute; left: 50%; top: 50%; display: block; border-radius: 8px; transform-origin: center center; animation: quote-stack-fan 850ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
-@keyframes quote-stack-fan {
-  from { transform: translate(-50%, -50%) rotate(0deg); opacity: 0; }
-}
+.quote-stack > img { position: absolute; left: 50%; top: 50%; display: block; border-radius: 12px; transform-origin: center center; }
 .quote-pictures-hero .quote-stack { width: 320px; height: 320px; }
 .quote-pictures-hero .quote-stack > img { width: 320px; height: 320px; object-fit: contain; }
 .quote-pictures-option .quote-stack { width: 220px; height: 220px; }
 .quote-pictures-option .quote-stack > img { width: 220px; height: 220px; object-fit: contain; }
 .quote-pictures-row .quote-stack { width: 80px; height: 80px; padding: 16px; }
-.quote-pictures-row .quote-stack > img { width: 72px; height: 72px; object-fit: cover; }
-.quote-pictures-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 48px; overflow: auto; cursor: pointer; }
+.quote-pictures-row .quote-stack > img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; }
+.quote-pictures-overlay { position: fixed; inset: 0; background: transparent; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 48px; overflow: auto; cursor: pointer; animation: quote-overlay-in 280ms ease-out backwards; }
+@keyframes quote-overlay-in { from { opacity: 0; } }
 .quote-pictures-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; width: 100%; max-width: 1200px; cursor: default; }
-.quote-pictures-grid img { display: block; width: 100%; height: auto; max-height: 60vh; object-fit: contain; border-radius: 8px; cursor: zoom-in; }
+.quote-pictures-grid > img { display: block; width: 100%; height: auto; max-height: 60vh; object-fit: contain; border-radius: 12px; cursor: zoom-in; transform-origin: center center; animation: quote-grid-in 700ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+@keyframes quote-grid-in {
+  from { transform: scale(0.55) rotate(-5deg); opacity: 0; }
+  60%  { opacity: 1; }
+}
+.quote-pictures-grid > img:nth-child(even) { animation-name: quote-grid-in-flip; }
+@keyframes quote-grid-in-flip {
+  from { transform: scale(0.55) rotate(5deg); opacity: 0; }
+  60%  { opacity: 1; }
+}
 .quote-md-list { margin: 0; padding-left: 20px; line-height: 1.4; }
 .quote-md-list li { margin: 0; }
 .quote-desc p { margin: 0 0 6px 0; }

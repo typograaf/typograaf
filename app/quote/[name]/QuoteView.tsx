@@ -31,11 +31,16 @@ const STACK_OFFSETS = [
   { x: -7, y: -3 },
   { x: 3, y: -6 },
 ]
-function stackStyle(i: number): React.CSSProperties {
+function stackStyle(i: number, mounted: boolean): React.CSSProperties {
   const r = STACK_ROTATIONS[i % STACK_ROTATIONS.length]
   const o = STACK_OFFSETS[i % STACK_OFFSETS.length]
   return {
-    transform: `translate(calc(-50% + ${o.x}px), calc(-50% + ${o.y}px)) rotate(${r}deg)`,
+    transform: mounted
+      ? `translate(calc(-50% + ${o.x}px), calc(-50% + ${o.y}px)) rotate(${r}deg)`
+      : 'translate(-50%, -50%) rotate(0deg)',
+    opacity: mounted ? 1 : 0,
+    transition: 'transform 850ms cubic-bezier(0.22, 1, 0.36, 1), opacity 500ms ease-out',
+    transitionDelay: `${i * 70}ms`,
     zIndex: i + 1,
   }
 }
@@ -44,6 +49,12 @@ function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefi
   const list = (pictures || []).filter((p) => p.src?.trim())
   const [open, setOpen] = useState(false)
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
 
   useEffect(() => {
     if (!open && lightboxIdx === null) return
@@ -76,7 +87,7 @@ function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefi
                 alt={p.alt || ''}
                 loading="lazy"
                 decoding="async"
-                style={{ ...stackStyle(i), animationDelay: `${i * 70}ms` }}
+                style={stackStyle(i, mounted)}
               />
             ))}
           </button>
@@ -98,6 +109,7 @@ function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefi
                 src={p.src}
                 alt={p.alt || ''}
                 onClick={() => setLightboxIdx(i)}
+                style={{ animationDelay: `${i * 70}ms` }}
               />
             ))}
           </div>
