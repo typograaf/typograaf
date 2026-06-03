@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import sharp from 'sharp'
 import type { ManifestImage } from './sync'
 
@@ -23,6 +23,10 @@ import type { ManifestImage } from './sync'
 const BUCKET = 'typograaf'
 const PUBLIC_URL = process.env.R2_PUBLIC_URL || ''
 const ARENA_MAP_KEY = 'arena-map.json'
+const ARENA_LOCK_KEY = 'arena-lock.json'
+// TTL must outlast the function's maxDuration (300s) so a crashed run's lock
+// expires before the next webhook fires repeatedly; 6 minutes gives slack.
+const ARENA_LOCK_TTL_MS = 6 * 60 * 1000
 const ARENA_API = 'https://api.are.na/v3'
 
 // Bump when the transcode strategy changes: existing entries below this
@@ -85,6 +89,71 @@ async function saveArenaMap(map: ArenaMap): Promise<void> {
     Body: JSON.stringify(map),
     ContentType: 'application/json',
   }))
+}
+
+// Dropbox webhooks fan out: one save can fire several events, each waking a
+// separate function instance. Without serialization the runs read the same
+// map snapshot, both decide "image X is missing", both addBlock — Are.na ends
+// up with duplicate blocks. The lock keeps reconciles strictly sequential.
+type ArenaLock = { heldBy: string; expiresAt: number }
+
+async function readArenaLock(): Promise<ArenaLock | null> {
+  try {
+    const res = await fetch(`${PUBLIC_URL}/${ARENA_LOCK_KEY}?t=${Date.now()}`, { cache: 'no-store' })
+    if (!res.ok) return null
+    const data = await res.json()
+    if (data && typeof data.heldBy === 'string' && typeof data.expiresAt === 'number') {
+      return data as ArenaLock
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+async function writeArenaLock(lock: ArenaLock): Promise<void> {
+  const client = getS3()
+  await client.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: ARENA_LOCK_KEY,
+    Body: JSON.stringify(lock),
+    ContentType: 'application/json',
+  }))
+}
+
+async function deleteArenaLock(): Promise<void> {
+  try {
+    const client = getS3()
+    await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: ARENA_LOCK_KEY }))
+  } catch {
+    /* best effort */
+  }
+}
+
+// Returns the token (the heldBy uuid) if we acquired the lock, or null if
+// another run already holds it. A stale lock past its TTL is overwritten.
+async function tryAcquireArenaLock(): Promise<string | null> {
+  const existing = await readArenaLock()
+  if (existing && existing.expiresAt > Date.now()) return null
+  const heldBy = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  try {
+    await writeArenaLock({ heldBy, expiresAt: Date.now() + ARENA_LOCK_TTL_MS })
+  } catch {
+    return null
+  }
+  // R2 PUTs from concurrent writers both succeed; only the last write sticks.
+  // Read back: if our token is what's there, we hold the lock; otherwise lost
+  // the race and bail. The window is small but real, so cleanup at end of
+  // run is the second layer of defence.
+  const after = await readArenaLock()
+  if (!after || after.heldBy !== heldBy) return null
+  return heldBy
+}
+
+async function releaseArenaLock(heldBy: string): Promise<void> {
+  const current = await readArenaLock()
+  if (!current || current.heldBy !== heldBy) return
+  await deleteArenaLock()
 }
 
 let cachedChannelId: number | null = null
@@ -313,6 +382,9 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
   if (!config) return result
   const { token, slug } = config
 
+  const lockToken = await tryAcquireArenaLock()
+  if (lockToken === null) return result
+
   try {
     const channelId = await resolveChannelId(slug, token)
     if (channelId === null) return result
@@ -411,6 +483,18 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
       }
     }
 
+    // Defence in depth: re-walk the channel and remove anything that's not
+    // in `ours`. `state` was a snapshot from the start of the run, so blocks
+    // a concurrent (un-locked, pre-fix) sync added would slip past the pass
+    // above. The lock should now prevent that race, but the lock isn't
+    // strongly consistent — this catches the rare slip-through.
+    const fresh = await getChannelState(slug, token)
+    for (const [block, conn] of fresh.byBlock) {
+      if (!ours.has(block) && !state.byBlock.has(block)) {
+        if (await removeConnection(conn, token)) result.removed++
+      }
+    }
+
     await saveChain
 
     const mutated = result.added + result.replaced + result.removed > 0
@@ -449,5 +533,7 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
     return result
   } catch {
     return result
+  } finally {
+    await releaseArenaLock(lockToken)
   }
 }
