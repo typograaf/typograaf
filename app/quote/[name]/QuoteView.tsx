@@ -376,7 +376,14 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
               return { row, runs, laneCount }
             })
             const monthLanes = rowsInfo.reduce((m, r) => Math.max(m, r.laneCount), 0)
-            const gridTemplateRows = `24px repeat(${monthLanes}, 24px)`
+            // Lane rows are bar-height exact (20px) — no internal align-centering
+            // padding. The 4px row-gap supplies the consistent inter-bar
+            // spacing, and a trailing 0-height row turns that same row-gap
+            // into a 4px bottom inset below the last bar. Result: 4px
+            // everywhere — matches the bars' horizontal 4px margin.
+            const gridTemplateRows = monthLanes > 0
+              ? `24px repeat(${monthLanes}, 20px) 0`
+              : '24px'
             return (
               <div key={mi} className="cal-top">
                 <div className="cal-header"><span className="cal-month">{mo.label}</span></div>
