@@ -332,6 +332,13 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
           {months.map((mo, mi) => {
             const rows: CalDay[][] = []
             for (let i = 0; i < 6; i++) rows.push(mo.days.slice(i * 7, i * 7 + 7))
+            const rowsInfo = rows.map((row) => {
+              const runs = detectRuns(row)
+              const laneCount = runs.reduce((m, r) => Math.max(m, r.lane + 1), 0)
+              return { row, runs, laneCount }
+            })
+            const monthLanes = rowsInfo.reduce((m, r) => Math.max(m, r.laneCount), 0)
+            const gridTemplateRows = `24px repeat(${monthLanes}, 24px)`
             return (
               <div key={mi} className="cal-top">
                 <div className="cal-header"><span className="cal-month">{mo.label}</span></div>
@@ -341,14 +348,12 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
                   ))}
                 </div>
                 <div className="cal-grid">
-                  {rows.map((row, ri) => {
-                    const runs = detectRuns(row)
-                    const laneCount = runs.reduce((m, r) => Math.max(m, r.lane + 1), 0)
+                  {rowsInfo.map(({ row, runs }, ri) => {
                     return (
                       <div
                         key={ri}
                         className="cal-row"
-                        style={{ gridTemplateRows: `24px repeat(${laneCount}, 24px)` }}
+                        style={{ gridTemplateRows }}
                       >
                         {row.map((day, ci) => {
                           const classes = ['cal-day']
