@@ -1144,16 +1144,16 @@ function planSources(option: QuoteOption): PlanSource[] {
     const used = placed.filter((b) => b.kind === 'item' && b.itemIndex === i).length
     out.push({ key: `i-${i}`, kind: 'item', itemIndex: i, label: it.name || `Item ${i + 1}`, total, placed: used })
   })
-  const pres = Math.max(0, Math.round(option.presentationDays || 0))
-  if (pres > 0) {
-    const used = placed.filter((b) => b.kind === 'presentation').length
-    out.push({ key: 'pres', kind: 'presentation', label: 'Presentation', total: pres, placed: used })
-  }
-  const fb = Math.max(0, Math.round(option.feedbackDays || 0))
-  if (fb > 0) {
-    const used = placed.filter((b) => b.kind === 'feedback').length
-    out.push({ key: 'fb', kind: 'feedback', label: 'Feedback', total: fb, placed: used })
-  }
+  // Presentation + feedback are unlimited pools (total: 0 by convention).
+  // The user drags as many as they need without preconfiguring a count.
+  out.push({
+    key: 'pres', kind: 'presentation', label: 'Presentation', total: 0,
+    placed: placed.filter((b) => b.kind === 'presentation').length,
+  })
+  out.push({
+    key: 'fb', kind: 'feedback', label: 'Feedback', total: 0,
+    placed: placed.filter((b) => b.kind === 'feedback').length,
+  })
   return out
 }
 
@@ -1226,7 +1226,7 @@ function PlanEditor({
   const isUnavailable = (iso: string): boolean => isWeekend(iso) || blockedDays.has(iso)
 
   const handleSourceDragStart = (e: React.DragEvent<HTMLButtonElement>, src: PlanSource) => {
-    if (src.placed >= src.total) { e.preventDefault(); return }
+    if (src.total > 0 && src.placed >= src.total) { e.preventDefault(); return }
     const payload = { mode: 'new', kind: src.kind, itemIndex: src.itemIndex }
     e.dataTransfer.setData('application/x-planblock', JSON.stringify(payload))
     e.dataTransfer.effectAllowed = 'copy'
@@ -1285,37 +1285,16 @@ function PlanEditor({
             onChange={(e) => onChange({ startDate: e.target.value || undefined })}
           />
         </div>
-        <div className="admin-qfield admin-qfield-sm">
-          <label>Presentation days</label>
-          <input
-            className="admin-input admin-input-num"
-            type="number"
-            min={0}
-            value={option.presentationDays || ''}
-            placeholder="0"
-            onChange={(e) => onChange({ presentationDays: Number(e.target.value) || 0 })}
-          />
-        </div>
-        <div className="admin-qfield admin-qfield-sm">
-          <label>Feedback waiting days</label>
-          <input
-            className="admin-input admin-input-num"
-            type="number"
-            min={0}
-            value={option.feedbackDays || ''}
-            placeholder="0"
-            onChange={(e) => onChange({ feedbackDays: Number(e.target.value) || 0 })}
-          />
-        </div>
       </div>
-      <span className="admin-hint">Drag blocks below onto days. Weekends, Belgian holidays, and busy days from your calendar are greyed out.</span>
+      <span className="admin-hint">Drag blocks below onto days. Weekends, Belgian holidays, and busy days from your calendar are greyed out. Presentation and feedback are unlimited — drag as many as you need.</span>
 
-      {totalPool > 0 && (
+      {sources.length > 0 && (
         <>
           <div className="plan-sources">
             {sources.map((src) => {
-              const remaining = src.total - src.placed
-              const done = remaining === 0
+              const unlimited = src.total === 0
+              const remaining = unlimited ? Infinity : src.total - src.placed
+              const done = !unlimited && remaining === 0
               return (
                 <button
                   key={src.key}
@@ -1323,10 +1302,10 @@ function PlanEditor({
                   className={`plan-source plan-source-${src.kind}${done ? ' is-done' : ''}`}
                   draggable={!done}
                   onDragStart={(e) => handleSourceDragStart(e, src)}
-                  title={done ? `${src.label} fully placed` : `Drag onto a day (${remaining} left)`}
+                  title={done ? `${src.label} fully placed` : unlimited ? `Drag onto a day (${src.placed} placed)` : `Drag onto a day (${remaining} left)`}
                 >
                   <span className="plan-source-label">{src.label}</span>
-                  <span className="plan-source-count">{src.placed}/{src.total}</span>
+                  <span className="plan-source-count">{unlimited ? src.placed : `${src.placed}/${src.total}`}</span>
                 </button>
               )
             })}
