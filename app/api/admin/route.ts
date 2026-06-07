@@ -13,6 +13,7 @@ import {
   saveSentences,
   getPreviewAxes,
   savePreviewAxes,
+  getBlockedDays,
 } from '../../../lib/cms'
 import { getProjectOrder, getManifest, deleteImage, orderedVisible } from '../../../lib/sync'
 import { reconcileArena } from '../../../lib/arena'
@@ -27,7 +28,7 @@ export async function GET() {
   }
   const folderPath = (process.env.DROPBOX_FOLDER_PATH || '').toLowerCase()
   const baseDepth = folderPath.split('/').length
-  const [order, about, manifest, hiddenIds, quotes, sentences, previewAxes] = await Promise.all([
+  const [order, about, manifest, hiddenIds, quotes, sentences, previewAxes, blockedDays] = await Promise.all([
     getProjectOrder(),
     getAboutText(),
     getManifest(),
@@ -35,6 +36,7 @@ export async function GET() {
     getQuotes(),
     getSentences(),
     getPreviewAxes(),
+    getBlockedDays(),
   ])
   const hidden = new Set(hiddenIds)
   const images = manifest.map(img => {
@@ -54,7 +56,7 @@ export async function GET() {
   const fonts = buildTiles(orderedVisible(manifest, order, []))
     .filter((t): t is Extract<typeof t, { kind: 'font' }> => t.kind === 'font')
     .map(t => ({ id: t.id, name: t.name, url: t.styles[0]?.url || '' }))
-  return NextResponse.json({ order, about, images, quotes, sentences, fonts, previewAxes })
+  return NextResponse.json({ order, about, images, quotes, sentences, fonts, previewAxes, blockedDays })
 }
 
 export async function POST(request: NextRequest) {

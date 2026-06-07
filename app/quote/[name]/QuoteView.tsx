@@ -18,6 +18,7 @@ import {
   formatPlanDate,
   daysBetween,
   computeOptionPlan,
+  buildPlanSegments,
   fillTokens,
   renderMarkdown,
   DEFAULT_FOOTNOTE_ANNUAL,
@@ -203,6 +204,49 @@ function licenseAmount(model: LicenseModel, d: number): number {
 }
 
 function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDays: Set<string> }) {
+  // Explicit blocks win; otherwise auto-chain from the kickoff date.
+  const explicit = buildPlanSegments(option)
+
+  if (explicit) {
+    const total = daysBetween(explicit.rangeStart, explicit.rangeEnd)
+    return (
+      <div className="quote-block">
+        <p className="quote-label">Planning</p>
+        <div className="quote-plan">
+          {explicit.rows.map((row, ri) => (
+            <div key={ri} className="quote-plan-row">
+              <span className="quote-plan-label">{row.label}</span>
+              <div className="quote-plan-track">
+                {row.segments.map((seg, si) => {
+                  const offset = daysBetween(explicit.rangeStart, seg.start) - 1
+                  const span = daysBetween(seg.start, seg.end)
+                  const left = (offset / total) * 100
+                  const width = (span / total) * 100
+                  return (
+                    <div
+                      key={si}
+                      className={`quote-plan-bar quote-plan-bar-${seg.kind}`}
+                      style={{ left: `${left}%`, width: `${width}%` }}
+                      title={`${formatPlanDate(seg.start)} – ${formatPlanDate(seg.end)} · ${seg.days} day${seg.days === 1 ? '' : 's'}`}
+                    />
+                  )
+                })}
+              </div>
+              <span className="quote-plan-dates">
+                {row.segments.length === 1
+                  ? (row.segments[0].start === row.segments[0].end
+                      ? formatPlanDate(row.segments[0].start)
+                      : `${formatPlanDate(row.segments[0].start)} – ${formatPlanDate(row.segments[0].end)}`)
+                  : `${formatPlanDate(row.segments[0].start)} – ${formatPlanDate(row.segments[row.segments.length - 1].end)}`}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="quote-plan-summary">{`${formatPlanDate(explicit.rangeStart)} – ${formatPlanDate(explicit.rangeEnd)} · ${total} day${total === 1 ? '' : 's'} including weekends and busy days`}</p>
+      </div>
+    )
+  }
+
   const plan = computeOptionPlan(option, blockedDays)
   if (!plan) return null
   const total = daysBetween(plan.rangeStart, plan.rangeEnd)

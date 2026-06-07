@@ -801,6 +801,8 @@ body {
 .quote-plan-track { position: relative; height: 24px; background: rgba(0,0,0,0.04); border-radius: 6px; }
 .quote-plan-bar { position: absolute; top: 0; bottom: 0; background: #000; border-radius: 6px; min-width: 8px; transition: filter 0.12s; }
 .quote-plan-bar:hover { filter: invert(20%); }
+.quote-plan-bar-presentation { background: #2b8c3a; }
+.quote-plan-bar-feedback { background: #b39530; }
 .quote-plan-dates { font-size: 12px; opacity: 0.55; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
 .quote-plan-summary { margin: 4px 0 0; font-size: 12px; opacity: 0.45; }
 

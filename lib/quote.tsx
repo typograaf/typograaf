@@ -46,13 +46,27 @@ export interface QuoteItem {
   startDate?: string // optional planning override (yyyy-mm-dd); empty = auto-chain
 }
 
+// Each PlanBlock occupies exactly one calendar day. Multi-day items become
+// multiple blocks. Source of truth for the visual gantt when present;
+// otherwise the chain auto-derives from `startDate`.
+export type PlanBlockKind = 'item' | 'presentation' | 'feedback'
+export interface PlanBlock {
+  id: string                     // stable identifier (random-ish, locally unique)
+  kind: PlanBlockKind
+  date: string                   // yyyy-mm-dd
+  itemIndex?: number             // 0-based ref into option.items, only for kind: 'item'
+}
+
 export interface QuoteOption {
   title: string // "Option 1"
   description: string
   assets: QuoteAsset[]
   items: QuoteItem[]
   pictures: QuotePicture[]
-  startDate?: string // kickoff for the planning (yyyy-mm-dd); empty = no planning
+  startDate?: string // kickoff for auto-chain fallback (yyyy-mm-dd)
+  presentationDays?: number      // pool of "presentation" days, draggable in admin
+  feedbackDays?: number          // pool of "feedback waiting" days, draggable in admin
+  planBlocks?: PlanBlock[]       // explicit placed blocks (overrides auto-chain)
 }
 
 export interface Quote {
@@ -409,6 +423,87 @@ export function daysBetween(startIso: string, endIso: string): number {
   return Math.round((e.getTime() - s.getTime()) / (24 * 3600 * 1000)) + 1
 }
 
+// One contiguous segment for the gantt: a row of consecutive same-kind blocks
+// shown as a single bar. PlanBlocks are coalesced into segments per render.
+export interface PlanSegment {
+  kind: PlanBlockKind
+  itemIndex?: number
+  start: string
+  end: string
+  days: number
+  label: string
+}
+
+// Build coalesced segments per row from explicitly placed PlanBlocks. Rows
+// are: one per item (kind='item' grouped by itemIndex), plus an aggregated
+// "Presentation" row and "Feedback" row if blocks of those kinds exist.
+// Consecutive calendar days (no gap) within the same row collapse into one
+// bar; a one-day gap starts a new bar.
+export function buildPlanSegments(option: QuoteOption): {
+  rangeStart: string
+  rangeEnd: string
+  rows: { label: string; segments: PlanSegment[] }[]
+} | null {
+  const blocks = (option.planBlocks || []).slice().sort((a, b) => a.date.localeCompare(b.date))
+  if (blocks.length === 0) return null
+
+  const items = option.items || []
+  // Group blocks by row key (item index or kind).
+  const groups = new Map<string, { label: string; sortKey: number; blocks: PlanBlock[] }>()
+  for (const b of blocks) {
+    let key: string
+    let label: string
+    let sortKey: number
+    if (b.kind === 'item' && typeof b.itemIndex === 'number') {
+      key = `i${b.itemIndex}`
+      const name = items[b.itemIndex]?.name || `Item ${b.itemIndex + 1}`
+      label = name
+      sortKey = b.itemIndex
+    } else if (b.kind === 'presentation') {
+      key = 'pres'; label = 'Presentation'; sortKey = 9000
+    } else {
+      key = 'fb'; label = 'Feedback'; sortKey = 9100
+    }
+    const existing = groups.get(key)
+    if (existing) existing.blocks.push(b)
+    else groups.set(key, { label, sortKey, blocks: [b] })
+  }
+
+  // Coalesce consecutive-day blocks per row.
+  const rows: { label: string; sortKey: number; segments: PlanSegment[] }[] = []
+  for (const [, g] of groups) {
+    g.blocks.sort((a, b) => a.date.localeCompare(b.date))
+    const segments: PlanSegment[] = []
+    let cur: { start: string; end: string; days: number; kind: PlanBlockKind; itemIndex?: number } | null = null
+    for (const b of g.blocks) {
+      if (!cur) {
+        cur = { start: b.date, end: b.date, days: 1, kind: b.kind, itemIndex: b.itemIndex }
+        continue
+      }
+      const prev = parseISODate(cur.end)!
+      const next = parseISODate(b.date)!
+      const gap = Math.round((next.getTime() - prev.getTime()) / (24 * 3600 * 1000))
+      if (gap === 1 && b.kind === cur.kind && b.itemIndex === cur.itemIndex) {
+        cur.end = b.date
+        cur.days++
+      } else {
+        segments.push({ ...cur, label: g.label })
+        cur = { start: b.date, end: b.date, days: 1, kind: b.kind, itemIndex: b.itemIndex }
+      }
+    }
+    if (cur) segments.push({ ...cur, label: g.label })
+    rows.push({ label: g.label, sortKey: g.sortKey, segments })
+  }
+  rows.sort((a, b) => a.sortKey - b.sortKey)
+
+  const allStarts = blocks.map((b) => b.date).sort()
+  return {
+    rangeStart: allStarts[0],
+    rangeEnd: allStarts[allStarts.length - 1],
+    rows: rows.map((r) => ({ label: r.label, segments: r.segments })),
+  }
+}
+
 // Footnotes are fixed (not editable in the CMS). The public page
 // renders these per the selected license model, with tokens filled in.
 export const DEFAULT_FOOTNOTE_ANNUAL =
@@ -496,6 +591,18 @@ export function normalizeQuote(raw: unknown): Quote | null {
     const optStartDate = typeof oo.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(oo.startDate.trim())
       ? oo.startDate.trim()
       : undefined
+    const presentationDays = Number(oo.presentationDays)
+    const feedbackDays = Number(oo.feedbackDays)
+    const planBlocksRaw = Array.isArray(oo.planBlocks) ? oo.planBlocks : []
+    const planBlocks: PlanBlock[] = planBlocksRaw.flatMap((b) => {
+      const bb = (b || {}) as Record<string, unknown>
+      const date = typeof bb.date === 'string' ? bb.date.trim() : ''
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return []
+      const kind = bb.kind === 'presentation' || bb.kind === 'feedback' ? bb.kind : 'item'
+      const id = typeof bb.id === 'string' && bb.id.trim() ? bb.id.trim() : `pb-${Math.random().toString(36).slice(2, 10)}`
+      const itemIndex = typeof bb.itemIndex === 'number' && bb.itemIndex >= 0 ? bb.itemIndex : undefined
+      return [{ id, kind, date, ...(itemIndex !== undefined ? { itemIndex } : {}) }]
+    })
     return {
       title: String(oo.title || ''),
       description: String(oo.description || ''),
@@ -503,6 +610,9 @@ export function normalizeQuote(raw: unknown): Quote | null {
       items: items.filter((it) => !itemIsEmpty(it)),
       pictures: normalizePictures(oo.pictures),
       ...(optStartDate ? { startDate: optStartDate } : {}),
+      ...(presentationDays > 0 ? { presentationDays: Math.round(presentationDays) } : {}),
+      ...(feedbackDays > 0 ? { feedbackDays: Math.round(feedbackDays) } : {}),
+      ...(planBlocks.length > 0 ? { planBlocks } : {}),
     }
   })
   return {

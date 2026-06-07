@@ -7,6 +7,8 @@ import {
   type QuoteAsset,
   type QuoteItem,
   type QuotePicture,
+  type PlanBlock,
+  type PlanBlockKind,
   emptyQuote,
   emptyOption,
   emptyAsset,
@@ -47,6 +49,7 @@ export default function Admin() {
   const [about, setAbout] = useState('')
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [sentences, setSentences] = useState<string[]>([])
+  const [blockedDays, setBlockedDays] = useState<string[]>([])
   const [fonts, setFonts] = useState<{ id: string; name: string; url: string }[]>([])
   const [previewAxes, setPreviewAxes] = useState<Record<string, Record<string, number>>>({})
   const [images, setImages] = useState<AdminImage[]>([])
@@ -60,6 +63,7 @@ export default function Admin() {
   const dragIndexRef = useRef<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [activeQuoteIdx, setActiveQuoteIdx] = useState(0)
+  const blockedDaysSet = useMemo(() => new Set(blockedDays), [blockedDays])
 
   const load = async () => {
     setLoading(true)
@@ -74,6 +78,7 @@ export default function Admin() {
     setAbout(data.about || '')
     setQuotes(Array.isArray(data.quotes) ? data.quotes : [])
     setSentences(Array.isArray(data.sentences) ? data.sentences : [])
+    setBlockedDays(Array.isArray(data.blockedDays) ? data.blockedDays : [])
     setFonts(Array.isArray(data.fonts) ? data.fonts : [])
     setPreviewAxes(data.previewAxes && typeof data.previewAxes === 'object' ? data.previewAxes : {})
     setImages(data.images || [])
@@ -530,18 +535,11 @@ export default function Admin() {
                           <span className="admin-hint">Supports <code>**bold**</code>, <code>*italic*</code>, <code>[link](url)</code>, <code>- bullets</code>, <code>1. numbered</code></span>
                         </div>
 
-                        <div className="admin-asset-row admin-asset-row-two">
-                          <div className="admin-qfield admin-qfield-sm">
-                            <label>Planning kickoff</label>
-                            <input
-                              className="admin-input"
-                              type="date"
-                              value={o.startDate || ''}
-                              onChange={(e) => updateOption(qi, oi, { startDate: e.target.value || undefined })}
-                            />
-                            <span className="admin-hint">Items chain sequentially from this date, skipping weekends, holidays, and your busy days. Leave empty for no planning.</span>
-                          </div>
-                        </div>
+                        <PlanEditor
+                          option={o}
+                          onChange={(patch) => updateOption(qi, oi, patch)}
+                          blockedDays={blockedDaysSet}
+                        />
 
                         <PicturesField
                           pictures={o.pictures || []}
@@ -1064,6 +1062,263 @@ function PicturePicker({
   )
 }
 
+type PlanSource = {
+  key: string
+  kind: PlanBlockKind
+  itemIndex?: number
+  label: string
+  total: number
+  placed: number
+}
+
+function planSources(option: QuoteOption): PlanSource[] {
+  const placed = option.planBlocks || []
+  const items = option.items || []
+  const out: PlanSource[] = []
+  items.forEach((it, i) => {
+    const total = Math.max(0, Math.round(Number(it.quantity) || 0))
+    if (total === 0) return
+    const used = placed.filter((b) => b.kind === 'item' && b.itemIndex === i).length
+    out.push({ key: `i-${i}`, kind: 'item', itemIndex: i, label: it.name || `Item ${i + 1}`, total, placed: used })
+  })
+  const pres = Math.max(0, Math.round(option.presentationDays || 0))
+  if (pres > 0) {
+    const used = placed.filter((b) => b.kind === 'presentation').length
+    out.push({ key: 'pres', kind: 'presentation', label: 'Presentation', total: pres, placed: used })
+  }
+  const fb = Math.max(0, Math.round(option.feedbackDays || 0))
+  if (fb > 0) {
+    const used = placed.filter((b) => b.kind === 'feedback').length
+    out.push({ key: 'fb', kind: 'feedback', label: 'Feedback', total: fb, placed: used })
+  }
+  return out
+}
+
+function fmtDateLocal(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function PlanEditor({
+  option,
+  onChange,
+  blockedDays,
+}: {
+  option: QuoteOption
+  onChange: (patch: Partial<QuoteOption>) => void
+  blockedDays: Set<string>
+}) {
+  const placed = option.planBlocks || []
+  const sources = planSources(option)
+  const totalPool = sources.reduce((s, x) => s + x.total, 0)
+
+  const initialMonth = (() => {
+    if (option.startDate) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(option.startDate)
+      if (m) return new Date(Number(m[1]), Number(m[2]) - 1, 1)
+    }
+    const t = new Date()
+    return new Date(t.getFullYear(), t.getMonth(), 1)
+  })()
+  const [month, setMonth] = useState<Date>(initialMonth)
+
+  const placedByDate = useMemo(() => {
+    const map = new Map<string, PlanBlock[]>()
+    for (const b of placed) {
+      const arr = map.get(b.date)
+      if (arr) arr.push(b)
+      else map.set(b.date, [b])
+    }
+    return map
+  }, [placed])
+
+  const monthLabel = month.toLocaleString('en-GB', { month: 'long', year: 'numeric' })
+
+  const gridDays: { date: string; inMonth: boolean; isToday: boolean }[] = useMemo(() => {
+    const first = new Date(month.getFullYear(), month.getMonth(), 1)
+    const startDow = (first.getDay() + 6) % 7 // Mon=0
+    const start = new Date(first)
+    start.setDate(first.getDate() - startDow)
+    const today = new Date()
+    const todayIso = fmtDateLocal(today)
+    const cells: { date: string; inMonth: boolean; isToday: boolean }[] = []
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start)
+      d.setDate(start.getDate() + i)
+      cells.push({
+        date: fmtDateLocal(d),
+        inMonth: d.getMonth() === month.getMonth(),
+        isToday: fmtDateLocal(d) === todayIso,
+      })
+    }
+    return cells
+  }, [month])
+
+  const isUnavailable = (iso: string): boolean => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+    if (!m) return true
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    const dow = d.getDay()
+    if (dow === 0 || dow === 6) return true
+    if (blockedDays.has(iso)) return true
+    return false
+  }
+
+  const handleSourceDragStart = (e: React.DragEvent<HTMLButtonElement>, src: PlanSource) => {
+    if (src.placed >= src.total) { e.preventDefault(); return }
+    const payload = { mode: 'new', kind: src.kind, itemIndex: src.itemIndex }
+    e.dataTransfer.setData('application/x-planblock', JSON.stringify(payload))
+    e.dataTransfer.effectAllowed = 'copy'
+  }
+
+  const handleBlockDragStart = (e: React.DragEvent<HTMLDivElement>, block: PlanBlock) => {
+    e.stopPropagation()
+    const payload = { mode: 'move', id: block.id }
+    e.dataTransfer.setData('application/x-planblock', JSON.stringify(payload))
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDayDragOver = (e: React.DragEvent<HTMLDivElement>, iso: string) => {
+    if (isUnavailable(iso)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDayDrop = (e: React.DragEvent<HTMLDivElement>, iso: string) => {
+    e.preventDefault()
+    if (isUnavailable(iso)) return
+    const raw = e.dataTransfer.getData('application/x-planblock')
+    if (!raw) return
+    let payload: { mode: 'new' | 'move'; kind?: PlanBlockKind; itemIndex?: number; id?: string }
+    try { payload = JSON.parse(raw) } catch { return }
+    if (payload.mode === 'new' && payload.kind) {
+      const block: PlanBlock = {
+        id: `pb-${Math.random().toString(36).slice(2, 10)}`,
+        kind: payload.kind,
+        date: iso,
+        ...(payload.kind === 'item' && typeof payload.itemIndex === 'number' ? { itemIndex: payload.itemIndex } : {}),
+      }
+      onChange({ planBlocks: [...placed, block] })
+    } else if (payload.mode === 'move' && payload.id) {
+      onChange({ planBlocks: placed.map((b) => b.id === payload.id ? { ...b, date: iso } : b) })
+    }
+  }
+
+  const removeBlock = (id: string) => {
+    onChange({ planBlocks: placed.filter((b) => b.id !== id) })
+  }
+
+  const goMonth = (delta: number) => {
+    setMonth(new Date(month.getFullYear(), month.getMonth() + delta, 1))
+  }
+
+  return (
+    <div className="admin-qfield">
+      <div className="admin-asset-row admin-asset-row-two">
+        <div className="admin-qfield admin-qfield-sm">
+          <label>Planning kickoff (auto-chain fallback)</label>
+          <input
+            className="admin-input"
+            type="date"
+            value={option.startDate || ''}
+            onChange={(e) => onChange({ startDate: e.target.value || undefined })}
+          />
+        </div>
+        <div className="admin-qfield admin-qfield-sm">
+          <label>Presentation days</label>
+          <input
+            className="admin-input admin-input-num"
+            type="number"
+            min={0}
+            value={option.presentationDays || ''}
+            placeholder="0"
+            onChange={(e) => onChange({ presentationDays: Number(e.target.value) || 0 })}
+          />
+        </div>
+        <div className="admin-qfield admin-qfield-sm">
+          <label>Feedback waiting days</label>
+          <input
+            className="admin-input admin-input-num"
+            type="number"
+            min={0}
+            value={option.feedbackDays || ''}
+            placeholder="0"
+            onChange={(e) => onChange({ feedbackDays: Number(e.target.value) || 0 })}
+          />
+        </div>
+      </div>
+      <span className="admin-hint">Drag blocks below onto days. Weekends, Belgian holidays, and busy days from your calendar are greyed out.</span>
+
+      {totalPool > 0 && (
+        <>
+          <div className="plan-sources">
+            {sources.map((src) => {
+              const remaining = src.total - src.placed
+              const done = remaining === 0
+              return (
+                <button
+                  key={src.key}
+                  type="button"
+                  className={`plan-source plan-source-${src.kind}${done ? ' is-done' : ''}`}
+                  draggable={!done}
+                  onDragStart={(e) => handleSourceDragStart(e, src)}
+                  title={done ? `${src.label} fully placed` : `Drag onto a day (${remaining} left)`}
+                >
+                  <span className="plan-source-label">{src.label}</span>
+                  <span className="plan-source-count">{src.placed}/{src.total}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="plan-cal">
+            <div className="plan-cal-head">
+              <button type="button" className="admin-arrow" onClick={() => goMonth(-1)} aria-label="Previous month">‹</button>
+              <span className="plan-cal-month">{monthLabel}</span>
+              <button type="button" className="admin-arrow" onClick={() => goMonth(1)} aria-label="Next month">›</button>
+            </div>
+            <div className="plan-cal-dows">
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => <span key={d}>{d}</span>)}
+            </div>
+            <div className="plan-cal-grid">
+              {gridDays.map((cell) => {
+                const blocks = placedByDate.get(cell.date) || []
+                const offDay = isUnavailable(cell.date)
+                return (
+                  <div
+                    key={cell.date}
+                    className={`plan-cal-day${cell.inMonth ? '' : ' is-out'}${offDay ? ' is-off' : ''}${cell.isToday ? ' is-today' : ''}`}
+                    onDragOver={(e) => handleDayDragOver(e, cell.date)}
+                    onDrop={(e) => handleDayDrop(e, cell.date)}
+                  >
+                    <span className="plan-cal-daynum">{cell.date.slice(8, 10).replace(/^0/, '')}</span>
+                    <div className="plan-cal-blocks">
+                      {blocks.map((b) => {
+                        const label = b.kind === 'item'
+                          ? (option.items[b.itemIndex ?? -1]?.name || 'Item')
+                          : b.kind === 'presentation' ? 'Pres' : 'FB'
+                        return (
+                          <div
+                            key={b.id}
+                            className={`plan-cal-block plan-cal-block-${b.kind}`}
+                            draggable
+                            onDragStart={(e) => handleBlockDragStart(e, b)}
+                            onClick={() => removeBlock(b.id)}
+                            title={`${label} — click to remove`}
+                          >{label}</div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function AdminStyles() {
   return (
     <style dangerouslySetInnerHTML={{ __html: `
@@ -1167,6 +1422,33 @@ function AdminStyles() {
 .admin-picker-thumb:hover { opacity: 0.7; }
 .admin-picker-upload { display: flex; flex-direction: column; gap: 12px; padding: 16px 4px; }
 .admin-picker-upload input[type='file'] { font: inherit; }
+.plan-sources { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.plan-source { background: #fff; border: 1px solid rgba(0,0,0,0.12); border-radius: 8px; padding: 6px 10px; display: inline-flex; gap: 8px; align-items: center; cursor: grab; font: inherit; font-size: 13px; color: #000; transition: opacity 0.12s, transform 0.12s; }
+.plan-source:active { cursor: grabbing; transform: scale(0.98); }
+.plan-source.is-done { opacity: 0.35; cursor: not-allowed; }
+.plan-source-label { font-weight: 500; }
+.plan-source-count { font-variant-numeric: tabular-nums; font-size: 12px; opacity: 0.55; }
+.plan-source-item { border-left: 4px solid #000; }
+.plan-source-presentation { border-left: 4px solid #2b8c3a; }
+.plan-source-feedback { border-left: 4px solid #b39530; }
+.plan-cal { background: #fff; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.plan-cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.plan-cal-month { font-weight: 500; font-size: 14px; }
+.plan-cal-dows { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; font-size: 11px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.04em; }
+.plan-cal-dows span { padding: 0 4px; }
+.plan-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.plan-cal-day { aspect-ratio: 1.1; min-height: 56px; background: #f8f8f8; border-radius: 8px; padding: 4px 6px; display: flex; flex-direction: column; gap: 2px; position: relative; }
+.plan-cal-day.is-out { opacity: 0.3; }
+.plan-cal-day.is-off { background: rgba(0,0,0,0.06); }
+.plan-cal-day.is-off .plan-cal-daynum { text-decoration: line-through; opacity: 0.4; }
+.plan-cal-day.is-today { box-shadow: inset 0 0 0 2px #000; }
+.plan-cal-daynum { font-size: 11px; opacity: 0.65; font-variant-numeric: tabular-nums; }
+.plan-cal-blocks { display: flex; flex-direction: column; gap: 2px; flex: 1 0 auto; min-height: 0; }
+.plan-cal-block { font-size: 11px; padding: 2px 5px; border-radius: 4px; color: #fff; cursor: grab; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-cal-block:active { cursor: grabbing; }
+.plan-cal-block-item { background: #000; }
+.plan-cal-block-presentation { background: #2b8c3a; }
+.plan-cal-block-feedback { background: #b39530; }
 @media (max-width: 700px) {
   .admin-page { padding: 88px 24px 64px; }
   .admin-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
@@ -1175,6 +1457,8 @@ function AdminStyles() {
   .admin-asset-row, .admin-asset-row-two { flex-direction: column; }
   .admin-input-num { max-width: none; }
   .admin-picker { padding: 12px; }
+  .plan-cal-day { min-height: 40px; }
+  .plan-cal-block { font-size: 10px; padding: 1px 4px; }
 }
     `.trim() }} />
   )
