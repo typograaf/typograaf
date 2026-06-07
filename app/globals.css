@@ -795,6 +795,21 @@ body {
 
 .quote-foot { margin: 0; line-height: 1.4; white-space: pre-line; }
 
+.quote-plan { display: flex; flex-direction: column; gap: 8px; }
+.quote-plan-row { display: grid; grid-template-columns: minmax(120px, 180px) 1fr minmax(120px, max-content); gap: 16px; align-items: center; }
+.quote-plan-label { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quote-plan-track { position: relative; height: 24px; background: rgba(0,0,0,0.04); border-radius: 6px; }
+.quote-plan-bar { position: absolute; top: 0; bottom: 0; background: #000; border-radius: 6px; min-width: 8px; transition: filter 0.12s; }
+.quote-plan-bar:hover { filter: invert(20%); }
+.quote-plan-dates { font-size: 12px; opacity: 0.55; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.quote-plan-summary { margin: 4px 0 0; font-size: 12px; opacity: 0.45; }
+
+@media (max-width: 700px) {
+  .quote-plan-row { grid-template-columns: 1fr; gap: 4px; }
+  .quote-plan-dates { text-align: left; }
+  .quote-plan-track { height: 14px; }
+}
+
 .quote-pictures { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; }
 .quote-pictures > img { display: block; border-radius: 14px; max-width: 100%; height: auto; }
 .quote-pictures-hero > img { max-height: 360px; }

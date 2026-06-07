@@ -530,6 +530,19 @@ export default function Admin() {
                           <span className="admin-hint">Supports <code>**bold**</code>, <code>*italic*</code>, <code>[link](url)</code>, <code>- bullets</code>, <code>1. numbered</code></span>
                         </div>
 
+                        <div className="admin-asset-row admin-asset-row-two">
+                          <div className="admin-qfield admin-qfield-sm">
+                            <label>Planning kickoff</label>
+                            <input
+                              className="admin-input"
+                              type="date"
+                              value={o.startDate || ''}
+                              onChange={(e) => updateOption(qi, oi, { startDate: e.target.value || undefined })}
+                            />
+                            <span className="admin-hint">Items chain sequentially from this date, skipping weekends, holidays, and your busy days. Leave empty for no planning.</span>
+                          </div>
+                        </div>
+
                         <PicturesField
                           pictures={o.pictures || []}
                           onChange={(pictures) => updateOption(qi, oi, { pictures })}

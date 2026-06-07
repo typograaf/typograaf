@@ -15,6 +15,9 @@ import {
   formatVariable,
   styleLabel,
   formatQuoteDate,
+  formatPlanDate,
+  daysBetween,
+  computeOptionPlan,
   fillTokens,
   renderMarkdown,
   DEFAULT_FOOTNOTE_ANNUAL,
@@ -199,7 +202,46 @@ function licenseAmount(model: LicenseModel, d: number): number {
   return model === 'annual' ? annualFirstYear(d) : perpetualTotal(d)
 }
 
-function OptionBlock({ option }: { option: QuoteOption }) {
+function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDays: Set<string> }) {
+  const plan = computeOptionPlan(option, blockedDays)
+  if (!plan) return null
+  const total = daysBetween(plan.rangeStart, plan.rangeEnd)
+  return (
+    <div className="quote-block">
+      <p className="quote-label">Planning</p>
+      <div className="quote-plan">
+        {option.items.map((it, i) => {
+          const range = plan.ranges[i]
+          if (!range) return null
+          const offset = daysBetween(plan.rangeStart, range.start) - 1
+          const span = daysBetween(range.start, range.end)
+          const left = (offset / total) * 100
+          const width = (span / total) * 100
+          return (
+            <div key={i} className="quote-plan-row">
+              <span className="quote-plan-label">{it.name}</span>
+              <div className="quote-plan-track">
+                <div
+                  className="quote-plan-bar"
+                  style={{ left: `${left}%`, width: `${width}%` }}
+                  title={`${formatPlanDate(range.start)} – ${formatPlanDate(range.end)} · ${range.days} day${range.days === 1 ? '' : 's'}`}
+                />
+              </div>
+              <span className="quote-plan-dates">
+                {range.start === range.end
+                  ? formatPlanDate(range.start)
+                  : `${formatPlanDate(range.start)} – ${formatPlanDate(range.end)}`}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      <p className="quote-plan-summary">{`${formatPlanDate(plan.rangeStart)} – ${formatPlanDate(plan.rangeEnd)} · ${total} day${total === 1 ? '' : 's'} including weekends and busy days`}</p>
+    </div>
+  )
+}
+
+function OptionBlock({ option, blockedDays }: { option: QuoteOption; blockedDays: Set<string> }) {
   const assets = option.assets.filter(
     (a) => a.name.trim() || a.variable.trim() || (Number(a.price) || 0) > 0 || a.styles.length > 0,
   )
@@ -336,6 +378,8 @@ function OptionBlock({ option }: { option: QuoteOption }) {
         </div>
       ))}
 
+      <PlanningBlock option={option} blockedDays={blockedDays} />
+
       <div className="quote-block">
         <div className="quote-total-row">
           <div className="quote-cell">Total, Excluding Revisions, Excl. VAT</div>
@@ -347,7 +391,8 @@ function OptionBlock({ option }: { option: QuoteOption }) {
   )
 }
 
-export default function QuoteView({ quote }: { quote: Quote }) {
+export default function QuoteView({ quote, blockedDays = [] }: { quote: Quote; blockedDays?: string[] }) {
+  const blockedSet = new Set(blockedDays)
   return (
     <main className="page">
       <section className="quote-head">
@@ -364,7 +409,7 @@ export default function QuoteView({ quote }: { quote: Quote }) {
       <PictureStrip pictures={quote.pictures} variant="hero" />
 
       {quote.options.map((o, i) => (
-        <OptionBlock key={i} option={o} />
+        <OptionBlock key={i} option={o} blockedDays={blockedSet} />
       ))}
     </main>
   )

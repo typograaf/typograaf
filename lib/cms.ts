@@ -132,6 +132,38 @@ export async function saveQuotes(quotes: Quote[]): Promise<void> {
   }))
 }
 
+const BLOCKED_DAYS_KEY = 'cms/blocked-days.json'
+
+// yyyy-mm-dd strings the planning chain should skip (Belgian holidays plus
+// Martijn's Mac calendar busy days). Pushed by the sync_blocked_days.py
+// script via POST /api/quote/blocked-days; read by the quote page each
+// render to factor into the gantt.
+export async function getBlockedDays(): Promise<string[]> {
+  try {
+    const res = await fetch(`${PUBLIC_URL}/${BLOCKED_DAYS_KEY}?t=${Date.now()}`, { cache: 'no-store' })
+    if (!res.ok) return []
+    const data = await res.json()
+    if (!Array.isArray(data)) return []
+    return data
+      .filter((s): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s))
+  } catch {
+    return []
+  }
+}
+
+export async function saveBlockedDays(days: string[]): Promise<void> {
+  const cleaned = Array.from(new Set(
+    days.filter((s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.trim())).map((s) => s.trim()),
+  )).sort()
+  const client = getS3()
+  await client.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: BLOCKED_DAYS_KEY,
+    Body: JSON.stringify(cleaned),
+    ContentType: 'application/json',
+  }))
+}
+
 // Sample sentences shown in the typeface type-tester. Editable via the
 // admin Sentences tab; this list is the seed used until something is saved.
 const DEFAULT_SENTENCES = [

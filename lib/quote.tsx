@@ -43,6 +43,7 @@ export interface QuoteItem {
   quantity: number // default 1
   unitPrice: number // EUR
   pictures: QuotePicture[]
+  startDate?: string // optional planning override (yyyy-mm-dd); empty = auto-chain
 }
 
 export interface QuoteOption {
@@ -51,6 +52,7 @@ export interface QuoteOption {
   assets: QuoteAsset[]
   items: QuoteItem[]
   pictures: QuotePicture[]
+  startDate?: string // kickoff for the planning (yyyy-mm-dd); empty = no planning
 }
 
 export interface Quote {
@@ -298,6 +300,115 @@ export function itemsTotal(opt: QuoteOption): number {
   return (opt.items || []).reduce((s, it) => s + itemLineTotal(it), 0)
 }
 
+// Planning — auto-chain items as sequential workday blocks. Weekends and any
+// dates in `blocked` are skipped (Belgian holidays + Mac calendar busy days
+// flow in via R2). Item.startDate is an optional override; otherwise the next
+// available workday after the previous item lands.
+export interface PlanRange {
+  start: string // yyyy-mm-dd
+  end: string   // yyyy-mm-dd, inclusive
+  days: number  // workdays the bar covers
+}
+export interface OptionPlan {
+  ranges: (PlanRange | null)[] // aligned 1:1 with option.items
+  rangeStart: string // earliest start across all bars
+  rangeEnd: string   // latest end across all bars
+}
+
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function parseISODate(iso: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim())
+  if (!m) return null
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+function formatISODate(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+export function formatPlanDate(iso: string): string {
+  const d = parseISODate(iso)
+  return d ? `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}` : iso
+}
+
+function isOff(d: Date, blocked: Set<string>): boolean {
+  const dow = d.getDay()
+  if (dow === 0 || dow === 6) return true
+  return blocked.has(formatISODate(d))
+}
+
+function ensureWorking(d: Date, blocked: Set<string>): Date {
+  const r = new Date(d)
+  while (isOff(r, blocked)) r.setDate(r.getDate() + 1)
+  return r
+}
+
+function addWorkdays(start: Date, days: number, blocked: Set<string>): Date {
+  const n = Math.max(1, Math.round(days))
+  const r = new Date(start)
+  let counted = 1
+  while (counted < n) {
+    r.setDate(r.getDate() + 1)
+    if (!isOff(r, blocked)) counted++
+  }
+  return r
+}
+
+function nextWorking(d: Date, blocked: Set<string>): Date {
+  const r = new Date(d)
+  do { r.setDate(r.getDate() + 1) } while (isOff(r, blocked))
+  return r
+}
+
+export function computeOptionPlan(opt: QuoteOption, blockedDays: Set<string> = new Set()): OptionPlan | null {
+  if (!opt.startDate) return null
+  const base = parseISODate(opt.startDate)
+  if (!base) return null
+  const items = opt.items || []
+  if (items.length === 0) return null
+
+  let cursor = ensureWorking(base, blockedDays)
+  const ranges: (PlanRange | null)[] = []
+  for (const it of items) {
+    const days = Math.max(1, Math.round(Number(it.quantity) || 1))
+    if (!it.name.trim()) { ranges.push(null); continue }
+    let start: Date
+    const override = it.startDate ? parseISODate(it.startDate) : null
+    if (override) start = ensureWorking(override, blockedDays)
+    else start = cursor
+    const end = addWorkdays(start, days, blockedDays)
+    ranges.push({ start: formatISODate(start), end: formatISODate(end), days })
+    cursor = nextWorking(end, blockedDays)
+  }
+
+  const valid = ranges.filter((r): r is PlanRange => r !== null)
+  if (valid.length === 0) return null
+  let minStart = parseISODate(valid[0].start)!.getTime()
+  let maxEnd = parseISODate(valid[0].end)!.getTime()
+  for (const r of valid) {
+    minStart = Math.min(minStart, parseISODate(r.start)!.getTime())
+    maxEnd = Math.max(maxEnd, parseISODate(r.end)!.getTime())
+  }
+  return {
+    ranges,
+    rangeStart: formatISODate(new Date(minStart)),
+    rangeEnd: formatISODate(new Date(maxEnd)),
+  }
+}
+
+// Inclusive day count between two yyyy-mm-dd strings.
+export function daysBetween(startIso: string, endIso: string): number {
+  const s = parseISODate(startIso)
+  const e = parseISODate(endIso)
+  if (!s || !e) return 0
+  return Math.round((e.getTime() - s.getTime()) / (24 * 3600 * 1000)) + 1
+}
+
 // Footnotes are fixed (not editable in the CMS). The public page
 // renders these per the selected license model, with tokens filled in.
 export const DEFAULT_FOOTNOTE_ANNUAL =
@@ -369,6 +480,9 @@ export function normalizeQuote(raw: unknown): Quote | null {
       const quantity = qRaw === undefined || qRaw === null || qRaw === ''
         ? 1
         : Number(qRaw) || 0
+      const startDate = typeof ii.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ii.startDate.trim())
+        ? ii.startDate.trim()
+        : undefined
       return {
         name: String(ii.name || ''),
         description: String(ii.description || ''),
@@ -376,14 +490,19 @@ export function normalizeQuote(raw: unknown): Quote | null {
         quantity,
         unitPrice: Number(ii.unitPrice) || 0,
         pictures: normalizePictures(ii.pictures),
+        ...(startDate ? { startDate } : {}),
       }
     })
+    const optStartDate = typeof oo.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(oo.startDate.trim())
+      ? oo.startDate.trim()
+      : undefined
     return {
       title: String(oo.title || ''),
       description: String(oo.description || ''),
       assets: assets.filter((a) => !assetIsEmpty(a)),
       items: items.filter((it) => !itemIsEmpty(it)),
       pictures: normalizePictures(oo.pictures),
+      ...(optStartDate ? { startDate: optStartDate } : {}),
     }
   })
   return {

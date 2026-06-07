@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getQuoteBySlug } from '@/lib/cms'
+import { getQuoteBySlug, getBlockedDays } from '@/lib/cms'
 import QuoteView from './QuoteView'
 
 // Quotes are edited in /admin and stored in R2. Render fresh so an
@@ -17,7 +17,10 @@ export async function generateMetadata({ params }: { params: Promise<{ name: str
 
 export default async function QuotePage({ params }: { params: Promise<{ name: string }> }) {
   const { name } = await params
-  const quote = await getQuoteBySlug(name)
+  const [quote, blockedDays] = await Promise.all([
+    getQuoteBySlug(name),
+    getBlockedDays(),
+  ])
   if (!quote) notFound()
-  return <QuoteView quote={quote} />
+  return <QuoteView quote={quote} blockedDays={blockedDays} />
 }
