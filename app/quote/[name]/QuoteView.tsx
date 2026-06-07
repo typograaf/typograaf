@@ -348,9 +348,7 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
                       <div
                         key={ri}
                         className="cal-row"
-                        style={laneCount > 0
-                          ? { gridTemplateRows: `auto repeat(${laneCount}, 20px)` }
-                          : { gridTemplateRows: 'auto' }}
+                        style={{ gridTemplateRows: `24px repeat(${laneCount}, 24px)` }}
                       >
                         {row.map((day, ci) => {
                           const classes = ['cal-day']
@@ -361,11 +359,17 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
                               key={day.iso}
                               className={classes.join(' ')}
                               style={{ gridColumn: ci + 1, gridRow: '1 / -1' }}
-                            >
-                              <span className="cal-daynum">{day.dayNum}</span>
-                            </div>
+                              aria-hidden="true"
+                            />
                           )
                         })}
+                        {row.map((day, ci) => (
+                          <span
+                            key={`${day.iso}-num`}
+                            className={`cal-daynum${day.inMonth ? '' : ' is-out'}`}
+                            style={{ gridColumn: ci + 1, gridRow: 1 }}
+                          >{day.dayNum}</span>
+                        ))}
                         {runs.map((r) => (
                           <span
                             key={r.id}

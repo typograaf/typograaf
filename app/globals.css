@@ -806,25 +806,27 @@ body {
 
 /* Quote planning — the row layout switches from the booking calendar's
    flex row (one day per cell) to a CSS grid so a single bar can span
-   multiple day columns and visually connect adjacent same-item days. */
+   multiple day columns and visually connect adjacent same-item days.
+   The day cell is the background plate; the date number and bars are
+   separate grid items positioned over it (number in row 1, bars in
+   their assigned lane rows). */
 .cal-plan { gap: 48px; }
 .cal-plan .cal-header { justify-content: center; }
-.cal-plan .cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px 12px; }
-.cal-plan .cal-day { flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 6px 4px 8px; gap: 4px; cursor: default; min-height: 56px; background: rgba(0,0,0,0.025); }
+.cal-plan .cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: 8px; row-gap: 4px; }
+.cal-plan .cal-day { padding: 0; display: block; cursor: default; background: rgba(0,0,0,0.025); border-radius: 12px; }
 .cal-plan .cal-day:hover { background: rgba(0,0,0,0.025); }
 .cal-plan .cal-day.is-out { background: transparent; opacity: 0.18; }
-.cal-plan .cal-day.is-weekend { opacity: 1; background: rgba(0,0,0,0.06); }
-.cal-plan .cal-day.is-weekend .cal-daynum { opacity: 0.4; }
-.cal-daynum { font-size: 12px; opacity: 0.55; font-variant-numeric: tabular-nums; text-align: center; }
-.cal-plan .cal-bar { font-size: 11px; padding: 2px 8px; border-radius: 4px; line-height: 18px; height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; align-self: stretch; box-sizing: border-box; }
+.cal-plan .cal-day.is-weekend { background: rgba(0,0,0,0.06); }
+.cal-plan .cal-daynum { font-size: 12px; opacity: 0.55; font-variant-numeric: tabular-nums; text-align: center; align-self: center; pointer-events: none; }
+.cal-plan .cal-daynum.is-out { opacity: 0.18; }
+.cal-plan .cal-bar { font-size: 11px; padding: 0 8px; border-radius: 4px; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: center; margin: 0 4px; box-sizing: border-box; height: 20px; }
 .cal-bar-item { background: #000; color: #fff; }
 .cal-bar-presentation, .cal-bar-feedback { background: #fff; color: #000; }
 @media (max-width: 700px) {
   .cal-plan { gap: 32px; }
-  .cal-plan .cal-row { gap: 3px 6px; }
-  .cal-plan .cal-day { min-height: 44px; padding: 4px 3px 6px; gap: 2px; }
-  .cal-plan .cal-bar { font-size: 10px; height: 18px; line-height: 16px; padding: 1px 5px; }
-  .cal-daynum { font-size: 10px; }
+  .cal-plan .cal-row { column-gap: 4px; row-gap: 3px; }
+  .cal-plan .cal-bar { font-size: 10px; line-height: 18px; height: 18px; padding: 0 5px; margin: 0 2px; }
+  .cal-plan .cal-daynum { font-size: 10px; }
 }
 .quote-plan-dates { font-size: 12px; opacity: 0.55; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
 .quote-plan-summary { margin: 4px 0 0; font-size: 12px; opacity: 0.45; }
