@@ -841,15 +841,15 @@ body {
 .quote-pictures > img { display: block; border-radius: 14px; max-width: 100%; height: auto; }
 .quote-pictures-hero > img { max-height: 360px; }
 .quote-pictures-option > img { max-height: 240px; }
-.quote-pictures-row > img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; }
+.quote-pictures-row > img { max-height: 240px; }
 .quote-stack { position: relative; display: inline-block; background: transparent; border: 0; padding: 32px; cursor: pointer; }
 .quote-stack > img { position: absolute; left: 50%; top: 50%; display: block; border-radius: 14px; transform-origin: center center; width: auto; height: auto; }
 .quote-pictures-hero .quote-stack { width: 360px; height: 360px; }
 .quote-pictures-hero .quote-stack > img { max-width: 360px; max-height: 360px; }
 .quote-pictures-option .quote-stack { width: 260px; height: 260px; }
 .quote-pictures-option .quote-stack > img { max-width: 260px; max-height: 260px; }
-.quote-pictures-row .quote-stack { width: 80px; height: 80px; padding: 16px; }
-.quote-pictures-row .quote-stack > img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; }
+.quote-pictures-row .quote-stack { width: 260px; height: 260px; }
+.quote-pictures-row .quote-stack > img { max-width: 260px; max-height: 260px; }
 .quote-pictures-overlay { position: fixed; inset: 0; background: transparent; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 48px; overflow: auto; cursor: pointer; }
 .quote-pictures-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; width: 100%; max-width: 1200px; cursor: default; align-items: center; justify-items: center; }
 .quote-pictures-grid > img { display: block; max-width: 100%; height: auto; max-height: 60vh; border-radius: 14px; cursor: zoom-in; transform-origin: center center; will-change: transform; }
@@ -873,4 +873,7 @@ body {
   .quote-total-amount { flex: 0 0 40%; }
   .quote-pictures-hero img { max-height: 240px; }
   .quote-pictures-option img { max-height: 180px; }
+  .quote-pictures-row > img { max-height: 180px; }
+  .quote-pictures-row .quote-stack { width: 180px; height: 180px; }
+  .quote-pictures-row .quote-stack > img { max-width: 180px; max-height: 180px; }
 }
