@@ -11,7 +11,7 @@ export default function CalendarTerms() {
     <main className="page legal">
       <section>
         <h1>Terms &amp; Conditions</h1>
-        <p className="updated">Last updated 22 May 2025</p>
+        <p className="updated">Last updated 7 June 2026</p>
       </section>
 
       <section>
@@ -27,7 +27,8 @@ export default function CalendarTerms() {
       <section>
         <h2>2. Fees and Payment Terms</h2>
         <p>The Service Provider&rsquo;s daily rate is &euro;600 per day, excluding VAT.</p>
-        <p>Invoices are issued on the first calendar day of each month for services rendered in the preceding month.</p>
+        <p>For project-based engagements, 50% of the agreed total is invoiced upon acceptance of the quote and is due before work commences. The remaining 50% is invoiced at project completion or against agreed milestones, as specified in the project quote.</p>
+        <p>For day-rate engagements without a fixed project total, invoices are issued on the first calendar day of each month for services rendered in the preceding month.</p>
         <p>Payments are due one month from the invoice date unless otherwise specified in writing.</p>
         <p>Late payments may incur interest at the rate specified by Belgian law.</p>
       </section>
@@ -42,7 +43,8 @@ export default function CalendarTerms() {
       <section>
         <h2>4. Intellectual Property</h2>
         <p>Upon full payment of all fees, the Client obtains the rights to the final deliverables created during the service period.</p>
-        <p>The Service Provider retains the copyright and moral rights to all creative concepts, drafts, and working files unless otherwise agreed in writing. The Service Provider reserves the right to use completed projects, once publicly released, for portfolio, website, social media, and promotional purposes.</p>
+        <p>The Service Provider retains the copyright and moral rights to all creative concepts, drafts, and working files unless otherwise agreed in writing.</p>
+        <p>After the project&rsquo;s public launch date, the Service Provider may display, share, and publish any work created for the Client &mdash; including work-in-progress, drafts, sketches, and final deliverables &mdash; on its portfolio, website, social media, and other promotional channels. Until the public launch date, the Service Provider will not share project work publicly without the Client&rsquo;s written consent.</p>
       </section>
 
       <section>

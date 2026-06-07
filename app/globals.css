@@ -795,8 +795,8 @@ body {
 
 .quote-foot { margin: 0; line-height: 1.4; white-space: pre-line; }
 
-.quote-terms { text-align: center; margin-top: 64px; font-size: 13px; opacity: 0.5; }
-.quote-terms p { margin: 0; }
+.quote-terms { margin-top: 48px; }
+.quote-terms p { margin: 0; line-height: 1.4; }
 .quote-terms a { color: inherit; text-decoration: underline; text-underline-offset: 2px; -webkit-user-select: text; user-select: text; }
 
 .quote-plan { display: flex; flex-direction: column; gap: 8px; }
