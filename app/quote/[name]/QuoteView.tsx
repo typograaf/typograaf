@@ -6,6 +6,7 @@ import {
   type QuoteOption,
   type QuotePicture,
   type PlanBlock,
+  type PlanBlockKind,
   type LicenseModel,
   effectiveDesignCost,
   assetEffectivePrice,
@@ -271,8 +272,58 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
       return 'Feedback'
     }
 
-    const sameRun = (a: PlanBlock, b: PlanBlock): boolean =>
-      a.kind === b.kind && (a.itemIndex ?? null) === (b.itemIndex ?? null)
+    // Detect runs: consecutive same-(kind, itemIndex) blocks within the same
+    // row. A weekend or empty day in between breaks the run; new row starts
+    // a new run too — connection is calendar-adjacency only.
+    type Run = { id: string; startCol: number; endCol: number; lane: number; kind: PlanBlockKind; label: string }
+    const detectRuns = (rowDays: CalDay[]): Run[] => {
+      const open = new Map<string, Run>() // key: kind|itemIndex
+      const runs: Run[] = []
+      for (let ci = 0; ci < rowDays.length; ci++) {
+        const day = rowDays[ci]
+        const seenThisCol = new Set<string>()
+        for (const b of day.blocks) {
+          const key = `${b.kind}|${b.itemIndex ?? ''}`
+          seenThisCol.add(key)
+          const carry = open.get(key)
+          if (carry && carry.endCol === ci - 1) carry.endCol = ci
+          else {
+            const r: Run = {
+              id: b.id,
+              startCol: ci,
+              endCol: ci,
+              lane: 0,
+              kind: b.kind,
+              label: blockLabel(b),
+            }
+            runs.push(r)
+            open.set(key, r)
+          }
+        }
+        for (const key of Array.from(open.keys())) {
+          if (!seenThisCol.has(key)) open.delete(key)
+        }
+      }
+      // Greedy lane assignment by start column.
+      runs.sort((a, b) => a.startCol - b.startCol)
+      const laneEnds: number[] = []
+      for (const r of runs) {
+        let placed = false
+        for (let li = 0; li < laneEnds.length; li++) {
+          if (laneEnds[li] < r.startCol) {
+            r.lane = li
+            laneEnds[li] = r.endCol
+            placed = true
+            break
+          }
+        }
+        if (!placed) {
+          r.lane = laneEnds.length
+          laneEnds.push(r.endCol)
+        }
+      }
+      return runs
+    }
 
     return (
       <div className="quote-block">
@@ -290,43 +341,45 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
                   ))}
                 </div>
                 <div className="cal-grid">
-                  {rows.map((row, ri) => (
-                    <div key={ri} className="cal-row">
-                      {row.map((day, ci) => {
-                        const classes = ['cal-day']
-                        if (!day.inMonth) classes.push('is-out')
-                        if (day.isWeekend) classes.push('is-weekend')
-                        const prevBlocks = ci > 0 ? row[ci - 1].blocks : []
-                        const nextBlocks = ci < 6 ? row[ci + 1].blocks : []
-                        return (
-                          <div key={day.iso} className={classes.join(' ')}>
-                            <span className="cal-daynum">{day.dayNum}</span>
-                            {day.blocks.length > 0 && (
-                              <div className="cal-day-blocks">
-                                {day.blocks.map((b) => {
-                                  const continuesLeft = prevBlocks.some((p) => sameRun(p, b))
-                                  const continuesRight = nextBlocks.some((n) => sameRun(n, b))
-                                  const blockClasses = [
-                                    'cal-day-block',
-                                    `cal-day-block-${b.kind}`,
-                                    continuesLeft ? 'is-runs-left' : '',
-                                    continuesRight ? 'is-runs-right' : '',
-                                  ].filter(Boolean).join(' ')
-                                  return (
-                                    <span
-                                      key={b.id}
-                                      className={blockClasses}
-                                      title={blockLabel(b)}
-                                    >{continuesLeft ? '' : blockLabel(b)}</span>
-                                  )
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ))}
+                  {rows.map((row, ri) => {
+                    const runs = detectRuns(row)
+                    const laneCount = runs.reduce((m, r) => Math.max(m, r.lane + 1), 0)
+                    return (
+                      <div
+                        key={ri}
+                        className="cal-row"
+                        style={laneCount > 0
+                          ? { gridTemplateRows: `auto repeat(${laneCount}, 20px)` }
+                          : { gridTemplateRows: 'auto' }}
+                      >
+                        {row.map((day, ci) => {
+                          const classes = ['cal-day']
+                          if (!day.inMonth) classes.push('is-out')
+                          if (day.isWeekend) classes.push('is-weekend')
+                          return (
+                            <div
+                              key={day.iso}
+                              className={classes.join(' ')}
+                              style={{ gridColumn: ci + 1, gridRow: '1 / -1' }}
+                            >
+                              <span className="cal-daynum">{day.dayNum}</span>
+                            </div>
+                          )
+                        })}
+                        {runs.map((r) => (
+                          <span
+                            key={r.id}
+                            className={`cal-bar cal-bar-${r.kind}`}
+                            style={{
+                              gridColumn: `${r.startCol + 1} / span ${r.endCol - r.startCol + 1}`,
+                              gridRow: 2 + r.lane,
+                            }}
+                            title={r.label}
+                          >{r.label}</span>
+                        ))}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )
