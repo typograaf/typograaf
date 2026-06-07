@@ -554,14 +554,6 @@ function OptionBlock({ option, blockedDays }: { option: QuoteOption; blockedDays
               <div className="quote-cell">{it.name}</div>
             </div>
             <div className="quote-col">
-              <p className="quote-colhead">Unit</p>
-              <div className="quote-cell">
-                {it.unit
-                  ? `${it.quantity} × ${it.unit}`
-                  : `${it.quantity} ×`}
-              </div>
-            </div>
-            <div className="quote-col">
               <p className="quote-colhead">Price</p>
               <div className="quote-cell">{formatEur(itemLineTotal(it))}</div>
             </div>
