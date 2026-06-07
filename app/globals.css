@@ -819,7 +819,7 @@ body {
 .cal-plan .cal-day.is-weekend { background: rgba(0,0,0,0.06); }
 .cal-plan .cal-daynum { font-size: 12px; opacity: 0.55; font-variant-numeric: tabular-nums; text-align: center; align-self: center; pointer-events: none; }
 .cal-plan .cal-daynum.is-out { opacity: 0.18; }
-.cal-plan .cal-bar { font-size: 11px; padding: 0 8px; border-radius: 4px; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: center; margin: 0 4px; box-sizing: border-box; height: 20px; }
+.cal-plan .cal-bar { font-size: 11px; padding: 0 8px; border-radius: 8px; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: center; margin: 0 4px; box-sizing: border-box; height: 20px; }
 .cal-bar-item { background: #000; color: #fff; }
 .cal-bar-presentation, .cal-bar-feedback { background: #fff; color: #000; }
 @media (max-width: 700px) {
