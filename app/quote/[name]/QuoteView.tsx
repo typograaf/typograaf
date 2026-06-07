@@ -298,16 +298,21 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
       m = new Date(m.getFullYear(), m.getMonth() + 1, 1)
     }
 
-    const blockLabel = (b: PlanBlock): string => {
+    const blockFullLabel = (b: PlanBlock): string => {
       if (b.kind === 'item') return option.items[b.itemIndex ?? -1]?.name || 'Item'
       if (b.kind === 'presentation') return 'Presentation'
       return 'Feedback'
+    }
+    const blockShortLabel = (b: PlanBlock): string => {
+      if (b.kind === 'item') return option.items[b.itemIndex ?? -1]?.name || 'Item'
+      if (b.kind === 'presentation') return 'PRES'
+      return 'FB'
     }
 
     // Detect runs: consecutive same-(kind, itemIndex) blocks within the same
     // row. A weekend or empty day in between breaks the run; new row starts
     // a new run too — connection is calendar-adjacency only.
-    type Run = { id: string; startCol: number; endCol: number; lane: number; kind: PlanBlockKind; label: string }
+    type Run = { id: string; startCol: number; endCol: number; lane: number; kind: PlanBlockKind; label: string; title: string }
     const detectRuns = (rowDays: CalDay[]): Run[] => {
       const open = new Map<string, Run>() // key: kind|itemIndex
       const runs: Run[] = []
@@ -326,7 +331,8 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
               endCol: ci,
               lane: 0,
               kind: b.kind,
-              label: blockLabel(b),
+              label: blockShortLabel(b),
+              title: blockFullLabel(b),
             }
             runs.push(r)
             open.set(key, r)
@@ -415,7 +421,7 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
                               gridColumn: `${r.startCol + 1} / span ${r.endCol - r.startCol + 1}`,
                               gridRow: 2 + r.lane,
                             }}
-                            title={r.label}
+                            title={r.title}
                           >{r.label}</span>
                         ))}
                       </div>
