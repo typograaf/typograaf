@@ -342,24 +342,35 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
           if (!seenThisCol.has(key)) open.delete(key)
         }
       }
-      // Greedy lane assignment by start column.
-      runs.sort((a, b) => a.startCol - b.startCol)
-      const laneEnds: number[] = []
-      for (const r of runs) {
-        let placed = false
-        for (let li = 0; li < laneEnds.length; li++) {
-          if (laneEnds[li] < r.startCol) {
-            r.lane = li
-            laneEnds[li] = r.endCol
-            placed = true
-            break
+      // Two-layer lane assignment: item runs claim the top lanes (always
+      // visually on top of the cell); presentation + feedback share the
+      // lanes underneath. So FB and PRES on a day without an item still sit
+      // on lane 0, but the moment any item exists in the row they shift down
+      // to lane 1+, even if their column ranges don't conflict.
+      const assignWithinGroup = (group: Run[], startLane: number): number => {
+        group.sort((a, b) => a.startCol - b.startCol)
+        const laneEnds: number[] = []
+        for (const r of group) {
+          let placed = false
+          for (let li = 0; li < laneEnds.length; li++) {
+            if (laneEnds[li] < r.startCol) {
+              r.lane = startLane + li
+              laneEnds[li] = r.endCol
+              placed = true
+              break
+            }
+          }
+          if (!placed) {
+            r.lane = startLane + laneEnds.length
+            laneEnds.push(r.endCol)
           }
         }
-        if (!placed) {
-          r.lane = laneEnds.length
-          laneEnds.push(r.endCol)
-        }
+        return laneEnds.length
       }
+      const itemRuns = runs.filter((r) => r.kind === 'item')
+      const otherRuns = runs.filter((r) => r.kind !== 'item')
+      const itemLanesUsed = assignWithinGroup(itemRuns, 0)
+      assignWithinGroup(otherRuns, itemLanesUsed)
       return runs
     }
 
