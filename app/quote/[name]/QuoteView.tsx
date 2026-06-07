@@ -218,16 +218,48 @@ function fmtISOLocal(d: Date): string {
 }
 
 function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDays: Set<string> }) {
-  // Explicit blocks win; otherwise auto-chain from the kickoff date.
-  const explicit = buildPlanSegments(option)
+  // Build the effective block list. Explicit placements take priority; if
+  // none are set but there's a kickoff date, synthesize virtual blocks from
+  // the auto-chain so we render the same calendar in either case.
+  let blocks: PlanBlock[] = option.planBlocks || []
+  if (blocks.length === 0 && option.startDate) {
+    const plan = computeOptionPlan(option, blockedDays)
+    if (plan) {
+      const synthetic: PlanBlock[] = []
+      plan.ranges.forEach((range, itemIndex) => {
+        if (!range) return
+        const start = parseISOLocal(range.start)
+        const end = parseISOLocal(range.end)
+        if (!start || !end) return
+        const cur = new Date(start)
+        while (cur.getTime() <= end.getTime()) {
+          const iso = fmtISOLocal(cur)
+          const dow = cur.getDay()
+          if (dow !== 0 && dow !== 6 && !blockedDays.has(iso)) {
+            synthetic.push({
+              id: `auto-${itemIndex}-${iso}`,
+              kind: 'item',
+              itemIndex,
+              date: iso,
+            })
+          }
+          cur.setDate(cur.getDate() + 1)
+        }
+      })
+      blocks = synthetic
+    }
+  }
+  if (blocks.length === 0) return null
 
-  if (explicit) {
-    const total = daysBetween(explicit.rangeStart, explicit.rangeEnd)
-    const startDate = parseISOLocal(explicit.rangeStart)!
-    const endDate = parseISOLocal(explicit.rangeEnd)!
+  {
+    const sortedBlocks = [...blocks].sort((a, b) => a.date.localeCompare(b.date))
+    const rangeStartIso = sortedBlocks[0].date
+    const rangeEndIso = sortedBlocks[sortedBlocks.length - 1].date
+    const startDate = parseISOLocal(rangeStartIso)!
+    const endDate = parseISOLocal(rangeEndIso)!
 
     const blocksByDate = new Map<string, PlanBlock[]>()
-    for (const b of option.planBlocks || []) {
+    for (const b of blocks) {
       const arr = blocksByDate.get(b.date)
       if (arr) arr.push(b)
       else blocksByDate.set(b.date, [b])
@@ -397,43 +429,6 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
       </div>
     )
   }
-
-  const plan = computeOptionPlan(option, blockedDays)
-  if (!plan) return null
-  const total = daysBetween(plan.rangeStart, plan.rangeEnd)
-  return (
-    <div className="quote-block">
-      <p className="quote-label">Planning</p>
-      <div className="quote-plan">
-        {option.items.map((it, i) => {
-          const range = plan.ranges[i]
-          if (!range) return null
-          const offset = daysBetween(plan.rangeStart, range.start) - 1
-          const span = daysBetween(range.start, range.end)
-          const left = (offset / total) * 100
-          const width = (span / total) * 100
-          return (
-            <div key={i} className="quote-plan-row">
-              <span className="quote-plan-label">{it.name}</span>
-              <div className="quote-plan-track">
-                <div
-                  className="quote-plan-bar"
-                  style={{ left: `${left}%`, width: `${width}%` }}
-                  title={`${formatPlanDate(range.start)} – ${formatPlanDate(range.end)} · ${range.days} day${range.days === 1 ? '' : 's'}`}
-                />
-              </div>
-              <span className="quote-plan-dates">
-                {range.start === range.end
-                  ? formatPlanDate(range.start)
-                  : `${formatPlanDate(range.start)} – ${formatPlanDate(range.end)}`}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-      <p className="quote-plan-summary">{`${formatPlanDate(plan.rangeStart)} – ${formatPlanDate(plan.rangeEnd)} · ${total} day${total === 1 ? '' : 's'} including weekends and busy days`}</p>
-    </div>
-  )
 }
 
 function OptionBlock({ option, blockedDays }: { option: QuoteOption; blockedDays: Set<string> }) {
