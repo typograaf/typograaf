@@ -1436,15 +1436,15 @@ function AdminStyles() {
 .plan-cal-month { font-weight: 500; font-size: 14px; }
 .plan-cal-dows { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; font-size: 11px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.04em; }
 .plan-cal-dows span { padding: 0 4px; }
-.plan-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.plan-cal-day { aspect-ratio: 1.1; min-height: 56px; background: #f8f8f8; border-radius: 8px; padding: 4px 6px; display: flex; flex-direction: column; gap: 2px; position: relative; }
+.plan-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.plan-cal-day { aspect-ratio: 1.1; min-height: 56px; min-width: 0; background: #f8f8f8; border-radius: 8px; padding: 4px 6px; display: flex; flex-direction: column; gap: 2px; position: relative; overflow: hidden; }
 .plan-cal-day.is-out { opacity: 0.3; }
 .plan-cal-day.is-off { background: rgba(0,0,0,0.06); }
 .plan-cal-day.is-off .plan-cal-daynum { text-decoration: line-through; opacity: 0.4; }
 .plan-cal-day.is-today { box-shadow: inset 0 0 0 2px #000; }
 .plan-cal-daynum { font-size: 11px; opacity: 0.65; font-variant-numeric: tabular-nums; }
-.plan-cal-blocks { display: flex; flex-direction: column; gap: 2px; flex: 1 0 auto; min-height: 0; }
-.plan-cal-block { font-size: 11px; padding: 2px 5px; border-radius: 4px; color: #fff; cursor: grab; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-cal-blocks { display: flex; flex-direction: column; gap: 2px; flex: 1 0 auto; min-height: 0; min-width: 0; }
+.plan-cal-block { font-size: 11px; padding: 2px 5px; border-radius: 4px; color: #fff; cursor: grab; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; min-width: 0; }
 .plan-cal-block:active { cursor: grabbing; }
 .plan-cal-block-item { background: #000; }
 .plan-cal-block-presentation { background: #2b8c3a; }
