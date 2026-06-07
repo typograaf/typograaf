@@ -271,6 +271,9 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
       return 'Feedback'
     }
 
+    const sameRun = (a: PlanBlock, b: PlanBlock): boolean =>
+      a.kind === b.kind && (a.itemIndex ?? null) === (b.itemIndex ?? null)
+
     return (
       <div className="quote-block">
         <p className="quote-label">Planning</p>
@@ -289,23 +292,34 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
                 <div className="cal-grid">
                   {rows.map((row, ri) => (
                     <div key={ri} className="cal-row">
-                      {row.map((day) => {
+                      {row.map((day, ci) => {
                         const classes = ['cal-day']
                         if (!day.inMonth) classes.push('is-out')
                         if (day.isWeekend) classes.push('is-weekend')
-                        if (day.isBlocked) classes.push('is-blocked')
+                        const prevBlocks = ci > 0 ? row[ci - 1].blocks : []
+                        const nextBlocks = ci < 6 ? row[ci + 1].blocks : []
                         return (
                           <div key={day.iso} className={classes.join(' ')}>
                             <span className="cal-daynum">{day.dayNum}</span>
                             {day.blocks.length > 0 && (
                               <div className="cal-day-blocks">
-                                {day.blocks.map((b) => (
-                                  <span
-                                    key={b.id}
-                                    className={`cal-day-block cal-day-block-${b.kind}`}
-                                    title={blockLabel(b)}
-                                  >{blockLabel(b)}</span>
-                                ))}
+                                {day.blocks.map((b) => {
+                                  const continuesLeft = prevBlocks.some((p) => sameRun(p, b))
+                                  const continuesRight = nextBlocks.some((n) => sameRun(n, b))
+                                  const blockClasses = [
+                                    'cal-day-block',
+                                    `cal-day-block-${b.kind}`,
+                                    continuesLeft ? 'is-runs-left' : '',
+                                    continuesRight ? 'is-runs-right' : '',
+                                  ].filter(Boolean).join(' ')
+                                  return (
+                                    <span
+                                      key={b.id}
+                                      className={blockClasses}
+                                      title={blockLabel(b)}
+                                    >{continuesLeft ? '' : blockLabel(b)}</span>
+                                  )
+                                })}
                               </div>
                             )}
                           </div>
@@ -318,7 +332,6 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
             )
           })}
         </div>
-        <p className="quote-plan-summary">{`${formatPlanDate(explicit.rangeStart)} – ${formatPlanDate(explicit.rangeEnd)} · ${total} day${total === 1 ? '' : 's'} including weekends`}</p>
       </div>
     )
   }
