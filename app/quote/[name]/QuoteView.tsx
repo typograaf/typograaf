@@ -5,6 +5,7 @@ import {
   type Quote,
   type QuoteOption,
   type QuotePicture,
+  type PlanBlock,
   type LicenseModel,
   effectiveDesignCost,
   assetEffectivePrice,
@@ -203,46 +204,111 @@ function licenseAmount(model: LicenseModel, d: number): number {
   return model === 'annual' ? annualFirstYear(d) : perpetualTotal(d)
 }
 
+const MONTHS_SHORT_VIEW = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function parseISOLocal(iso: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim())
+  if (!m) return null
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+}
+
+function fmtISOLocal(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDays: Set<string> }) {
   // Explicit blocks win; otherwise auto-chain from the kickoff date.
   const explicit = buildPlanSegments(option)
 
   if (explicit) {
     const total = daysBetween(explicit.rangeStart, explicit.rangeEnd)
+    const startDate = parseISOLocal(explicit.rangeStart)!
+    const endDate = parseISOLocal(explicit.rangeEnd)!
+    // Anchor the strip to the Monday of rangeStart's week and the Sunday of
+    // rangeEnd's week, so every row is a full 7-day strip (no orphan cells).
+    const firstMonday = new Date(startDate)
+    firstMonday.setDate(firstMonday.getDate() - ((firstMonday.getDay() + 6) % 7))
+    const lastSunday = new Date(endDate)
+    lastSunday.setDate(lastSunday.getDate() + ((7 - lastSunday.getDay()) % 7))
+
+    const blocksByDate = new Map<string, PlanBlock[]>()
+    for (const b of option.planBlocks || []) {
+      const arr = blocksByDate.get(b.date)
+      if (arr) arr.push(b)
+      else blocksByDate.set(b.date, [b])
+    }
+
+    type Week = { label: string; days: { date: Date; iso: string; inRange: boolean; isWeekend: boolean; blocks: PlanBlock[] }[] }
+    const weeks: Week[] = []
+    let cursor = new Date(firstMonday)
+    while (cursor <= lastSunday) {
+      const days: Week['days'] = []
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(cursor)
+        d.setDate(cursor.getDate() + i)
+        const iso = fmtISOLocal(d)
+        const inRange = d >= startDate && d <= endDate
+        const dow = d.getDay()
+        days.push({
+          date: d,
+          iso,
+          inRange,
+          isWeekend: dow === 0 || dow === 6,
+          blocks: blocksByDate.get(iso) || [],
+        })
+      }
+      const monStart = days[0].date
+      const monEnd = days[6].date
+      const sameMonth = monStart.getMonth() === monEnd.getMonth()
+      const label = sameMonth
+        ? `${MONTHS_SHORT_VIEW[monStart.getMonth()]} ${monStart.getDate()} – ${monEnd.getDate()}`
+        : `${MONTHS_SHORT_VIEW[monStart.getMonth()]} ${monStart.getDate()} – ${MONTHS_SHORT_VIEW[monEnd.getMonth()]} ${monEnd.getDate()}`
+      weeks.push({ label, days })
+      cursor = new Date(cursor)
+      cursor.setDate(cursor.getDate() + 7)
+    }
+
+    const blockLabel = (b: PlanBlock): string => {
+      if (b.kind === 'item') return option.items[b.itemIndex ?? -1]?.name || 'Item'
+      if (b.kind === 'presentation') return 'Presentation'
+      return 'Feedback'
+    }
+
     return (
       <div className="quote-block">
         <p className="quote-label">Planning</p>
-        <div className="quote-plan">
-          {explicit.rows.map((row, ri) => (
-            <div key={ri} className="quote-plan-row">
-              <span className="quote-plan-label">{row.label}</span>
-              <div className="quote-plan-track">
-                {row.segments.map((seg, si) => {
-                  const offset = daysBetween(explicit.rangeStart, seg.start) - 1
-                  const span = daysBetween(seg.start, seg.end)
-                  const left = (offset / total) * 100
-                  const width = (span / total) * 100
-                  return (
-                    <div
-                      key={si}
-                      className={`quote-plan-bar quote-plan-bar-${seg.kind}`}
-                      style={{ left: `${left}%`, width: `${width}%` }}
-                      title={`${formatPlanDate(seg.start)} – ${formatPlanDate(seg.end)} · ${seg.days} day${seg.days === 1 ? '' : 's'}`}
-                    />
-                  )
-                })}
+        <div className="quote-cal">
+          <div className="quote-cal-dows">
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => <span key={d}>{d}</span>)}
+          </div>
+          {weeks.map((week, wi) => (
+            <div key={wi} className="quote-cal-week">
+              <span className="quote-cal-weeklabel">{week.label}</span>
+              <div className="quote-cal-row">
+                {week.days.map((day) => (
+                  <div
+                    key={day.iso}
+                    className={`quote-cal-cell${day.inRange ? '' : ' is-out'}${day.isWeekend ? ' is-weekend' : ''}`}
+                  >
+                    <span className="quote-cal-daynum">{day.date.getDate()}</span>
+                    {day.blocks.length > 0 && (
+                      <div className="quote-cal-blocks">
+                        {day.blocks.map((b) => (
+                          <div
+                            key={b.id}
+                            className={`quote-cal-block quote-cal-block-${b.kind}`}
+                            title={blockLabel(b)}
+                          >{blockLabel(b)}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-              <span className="quote-plan-dates">
-                {row.segments.length === 1
-                  ? (row.segments[0].start === row.segments[0].end
-                      ? formatPlanDate(row.segments[0].start)
-                      : `${formatPlanDate(row.segments[0].start)} – ${formatPlanDate(row.segments[0].end)}`)
-                  : `${formatPlanDate(row.segments[0].start)} – ${formatPlanDate(row.segments[row.segments.length - 1].end)}`}
-              </span>
             </div>
           ))}
         </div>
-        <p className="quote-plan-summary">{`${formatPlanDate(explicit.rangeStart)} – ${formatPlanDate(explicit.rangeEnd)} · ${total} day${total === 1 ? '' : 's'} including weekends and busy days`}</p>
+        <p className="quote-plan-summary">{`${formatPlanDate(explicit.rangeStart)} – ${formatPlanDate(explicit.rangeEnd)} · ${total} day${total === 1 ? '' : 's'} including weekends`}</p>
       </div>
     )
   }
