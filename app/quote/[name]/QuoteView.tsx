@@ -606,6 +606,12 @@ export default function QuoteView({ quote, blockedDays = [] }: { quote: Quote; b
       {quote.options.map((o, i) => (
         <OptionBlock key={i} option={o} blockedDays={blockedSet} />
       ))}
+
+      <section className="quote-terms">
+        <p>
+          This quote is subject to the <a href="/calendar/terms" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</a>.
+        </p>
+      </section>
     </main>
   )
 }

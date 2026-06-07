@@ -795,6 +795,10 @@ body {
 
 .quote-foot { margin: 0; line-height: 1.4; white-space: pre-line; }
 
+.quote-terms { text-align: center; margin-top: 64px; font-size: 13px; opacity: 0.5; }
+.quote-terms p { margin: 0; }
+.quote-terms a { color: inherit; text-decoration: underline; text-underline-offset: 2px; -webkit-user-select: text; user-select: text; }
+
 .quote-plan { display: flex; flex-direction: column; gap: 8px; }
 .quote-plan-row { display: grid; grid-template-columns: minmax(120px, 180px) 1fr minmax(120px, max-content); gap: 16px; align-items: center; }
 .quote-plan-label { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
