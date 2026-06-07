@@ -1216,15 +1216,14 @@ function PlanEditor({
     return cells
   }, [month])
 
-  const isUnavailable = (iso: string): boolean => {
+  const isWeekend = (iso: string): boolean => {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
-    if (!m) return true
+    if (!m) return false
     const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
     const dow = d.getDay()
-    if (dow === 0 || dow === 6) return true
-    if (blockedDays.has(iso)) return true
-    return false
+    return dow === 0 || dow === 6
   }
+  const isUnavailable = (iso: string): boolean => isWeekend(iso) || blockedDays.has(iso)
 
   const handleSourceDragStart = (e: React.DragEvent<HTMLButtonElement>, src: PlanSource) => {
     if (src.placed >= src.total) { e.preventDefault(); return }
@@ -1345,11 +1344,17 @@ function PlanEditor({
             <div className="plan-cal-grid">
               {gridDays.map((cell) => {
                 const blocks = placedByDate.get(cell.date) || []
-                const offDay = isUnavailable(cell.date)
+                const weekend = isWeekend(cell.date)
+                const blocked = blockedDays.has(cell.date)
+                const classes = ['plan-cal-day']
+                if (!cell.inMonth) classes.push('is-out')
+                if (weekend) classes.push('is-weekend')
+                if (blocked) classes.push('is-blocked')
+                if (cell.isToday) classes.push('is-today')
                 return (
                   <div
                     key={cell.date}
-                    className={`plan-cal-day${cell.inMonth ? '' : ' is-out'}${offDay ? ' is-off' : ''}${cell.isToday ? ' is-today' : ''}`}
+                    className={classes.join(' ')}
                     onDragOver={(e) => handleDayDragOver(e, cell.date)}
                     onDrop={(e) => handleDayDrop(e, cell.date)}
                   >
@@ -1506,8 +1511,10 @@ function AdminStyles() {
 .plan-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .plan-cal-day { aspect-ratio: 1.1; min-height: 56px; min-width: 0; background: #f8f8f8; border-radius: 8px; padding: 4px 6px; display: flex; flex-direction: column; gap: 2px; position: relative; overflow: hidden; }
 .plan-cal-day.is-out { opacity: 0.3; }
-.plan-cal-day.is-off { background: rgba(0,0,0,0.06); }
-.plan-cal-day.is-off .plan-cal-daynum { text-decoration: line-through; opacity: 0.4; }
+.plan-cal-day.is-weekend { background: rgba(0,0,0,0.06); }
+.plan-cal-day.is-weekend .plan-cal-daynum { opacity: 0.4; }
+.plan-cal-day.is-blocked { background-color: rgba(0,0,0,0.07); background-image: repeating-linear-gradient(135deg, rgba(0,0,0,0.05) 0 6px, transparent 6px 12px); }
+.plan-cal-day.is-blocked .plan-cal-daynum { text-decoration: line-through; opacity: 0.5; }
 .plan-cal-day.is-today { box-shadow: inset 0 0 0 2px #000; }
 .plan-cal-daynum { font-size: 11px; opacity: 0.65; font-variant-numeric: tabular-nums; }
 .plan-cal-blocks { display: flex; flex-direction: column; gap: 2px; flex: 1 0 auto; min-height: 0; min-width: 0; }

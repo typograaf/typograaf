@@ -224,12 +224,6 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
     const total = daysBetween(explicit.rangeStart, explicit.rangeEnd)
     const startDate = parseISOLocal(explicit.rangeStart)!
     const endDate = parseISOLocal(explicit.rangeEnd)!
-    // Anchor the strip to the Monday of rangeStart's week and the Sunday of
-    // rangeEnd's week, so every row is a full 7-day strip (no orphan cells).
-    const firstMonday = new Date(startDate)
-    firstMonday.setDate(firstMonday.getDate() - ((firstMonday.getDay() + 6) % 7))
-    const lastSunday = new Date(endDate)
-    lastSunday.setDate(lastSunday.getDate() + ((7 - lastSunday.getDay()) % 7))
 
     const blocksByDate = new Map<string, PlanBlock[]>()
     for (const b of option.planBlocks || []) {
@@ -238,34 +232,37 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
       else blocksByDate.set(b.date, [b])
     }
 
-    type Week = { label: string; days: { date: Date; iso: string; inRange: boolean; isWeekend: boolean; blocks: PlanBlock[] }[] }
-    const weeks: Week[] = []
-    let cursor = new Date(firstMonday)
-    while (cursor <= lastSunday) {
-      const days: Week['days'] = []
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(cursor)
-        d.setDate(cursor.getDate() + i)
+    type CalDay = { iso: string; dayNum: number; inMonth: boolean; inRange: boolean; isWeekend: boolean; isBlocked: boolean; blocks: PlanBlock[] }
+    type CalMonth = { label: string; days: CalDay[] }
+
+    const firstMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+    const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+    const months: CalMonth[] = []
+    let m = new Date(firstMonth)
+    while (m <= lastMonth) {
+      const first = new Date(m.getFullYear(), m.getMonth(), 1)
+      const startDow = (first.getDay() + 6) % 7 // Mon=0
+      const grid: CalDay[] = []
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(first)
+        d.setDate(first.getDate() - startDow + i)
         const iso = fmtISOLocal(d)
-        const inRange = d >= startDate && d <= endDate
         const dow = d.getDay()
-        days.push({
-          date: d,
+        grid.push({
           iso,
-          inRange,
+          dayNum: d.getDate(),
+          inMonth: d.getMonth() === m.getMonth(),
+          inRange: d >= startDate && d <= endDate,
           isWeekend: dow === 0 || dow === 6,
+          isBlocked: blockedDays.has(iso),
           blocks: blocksByDate.get(iso) || [],
         })
       }
-      const monStart = days[0].date
-      const monEnd = days[6].date
-      const sameMonth = monStart.getMonth() === monEnd.getMonth()
-      const label = sameMonth
-        ? `${MONTHS_SHORT_VIEW[monStart.getMonth()]} ${monStart.getDate()} – ${monEnd.getDate()}`
-        : `${MONTHS_SHORT_VIEW[monStart.getMonth()]} ${monStart.getDate()} – ${MONTHS_SHORT_VIEW[monEnd.getMonth()]} ${monEnd.getDate()}`
-      weeks.push({ label, days })
-      cursor = new Date(cursor)
-      cursor.setDate(cursor.getDate() + 7)
+      months.push({
+        label: m.toLocaleString('en-GB', { month: 'long', year: 'numeric' }),
+        days: grid,
+      })
+      m = new Date(m.getFullYear(), m.getMonth() + 1, 1)
     }
 
     const blockLabel = (b: PlanBlock): string => {
@@ -277,36 +274,49 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
     return (
       <div className="quote-block">
         <p className="quote-label">Planning</p>
-        <div className="quote-cal">
-          <div className="quote-cal-dows">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => <span key={d}>{d}</span>)}
-          </div>
-          {weeks.map((week, wi) => (
-            <div key={wi} className="quote-cal-week">
-              <span className="quote-cal-weeklabel">{week.label}</span>
-              <div className="quote-cal-row">
-                {week.days.map((day) => (
-                  <div
-                    key={day.iso}
-                    className={`quote-cal-cell${day.inRange ? '' : ' is-out'}${day.isWeekend ? ' is-weekend' : ''}`}
-                  >
-                    <span className="quote-cal-daynum">{day.date.getDate()}</span>
-                    {day.blocks.length > 0 && (
-                      <div className="quote-cal-blocks">
-                        {day.blocks.map((b) => (
-                          <div
-                            key={b.id}
-                            className={`quote-cal-block quote-cal-block-${b.kind}`}
-                            title={blockLabel(b)}
-                          >{blockLabel(b)}</div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+        <div className="cal cal-plan">
+          {months.map((mo, mi) => {
+            const rows: CalDay[][] = []
+            for (let i = 0; i < 6; i++) rows.push(mo.days.slice(i * 7, i * 7 + 7))
+            return (
+              <div key={mi} className="cal-top">
+                <div className="cal-header"><span className="cal-month">{mo.label}</span></div>
+                <div className="cal-weekdays" aria-hidden="true">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
+                    <span key={d} className="cal-weekday">{d}</span>
+                  ))}
+                </div>
+                <div className="cal-grid">
+                  {rows.map((row, ri) => (
+                    <div key={ri} className="cal-row">
+                      {row.map((day) => {
+                        const classes = ['cal-day']
+                        if (!day.inMonth) classes.push('is-out')
+                        if (day.isWeekend) classes.push('is-weekend')
+                        if (day.isBlocked) classes.push('is-blocked')
+                        return (
+                          <div key={day.iso} className={classes.join(' ')}>
+                            <span className="cal-daynum">{day.dayNum}</span>
+                            {day.blocks.length > 0 && (
+                              <div className="cal-day-blocks">
+                                {day.blocks.map((b) => (
+                                  <span
+                                    key={b.id}
+                                    className={`cal-day-block cal-day-block-${b.kind}`}
+                                    title={blockLabel(b)}
+                                  >{blockLabel(b)}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
         <p className="quote-plan-summary">{`${formatPlanDate(explicit.rangeStart)} – ${formatPlanDate(explicit.rangeEnd)} · ${total} day${total === 1 ? '' : 's'} including weekends`}</p>
       </div>
