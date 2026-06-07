@@ -64,6 +64,8 @@ export default function Admin() {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [activeQuoteIdx, setActiveQuoteIdx] = useState(0)
   const blockedDaysSet = useMemo(() => new Set(blockedDays), [blockedDays])
+  const itemDragRef = useRef<{ oi: number; from: number } | null>(null)
+  const [itemDragOver, setItemDragOver] = useState<{ oi: number; over: number } | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -199,6 +201,31 @@ export default function Admin() {
     ...q,
     options: q.options.map((o, j) => j !== oi ? o : { ...o, items: (o.items || []).filter((_, k) => k !== ii) }),
   }))
+  const reorderItem = (qi: number, oi: number, from: number, to: number) => {
+    if (from === to) return
+    setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
+      ...q,
+      options: q.options.map((o, j) => {
+        if (j !== oi) return o
+        const items = [...(o.items || [])]
+        if (from < 0 || from >= items.length || to < 0 || to >= items.length) return o
+        const [moved] = items.splice(from, 1)
+        items.splice(to, 0, moved)
+        const remap = (old: number): number => {
+          if (old === from) return to
+          if (from < to && old > from && old <= to) return old - 1
+          if (from > to && old >= to && old < from) return old + 1
+          return old
+        }
+        const planBlocks = o.planBlocks?.map((b) =>
+          b.kind === 'item' && typeof b.itemIndex === 'number'
+            ? { ...b, itemIndex: remap(b.itemIndex) }
+            : b,
+        )
+        return { ...o, items, ...(planBlocks ? { planBlocks } : {}) }
+      }),
+    }))
+  }
 
   const toggleHide = async (img: AdminImage) => {
     setTogglingIds(prev => new Set(prev).add(img.id))
@@ -616,9 +643,44 @@ export default function Admin() {
                         </div>
 
                         <div className="admin-assets">
-                          {(o.items || []).map((it, ii) => (
-                            <div key={ii} className="admin-asset">
+                          {(o.items || []).map((it, ii) => {
+                            const isDragOver = itemDragOver?.oi === oi && itemDragOver.over === ii && itemDragRef.current?.from !== ii
+                            return (
+                            <div
+                              key={ii}
+                              className={`admin-asset${isDragOver ? ' is-drag-over' : ''}`}
+                              onDragOver={(e) => {
+                                if (itemDragRef.current?.oi !== oi) return
+                                e.preventDefault()
+                                e.dataTransfer.dropEffect = 'move'
+                                if (itemDragOver?.over !== ii) setItemDragOver({ oi, over: ii })
+                              }}
+                              onDrop={(e) => {
+                                if (itemDragRef.current?.oi !== oi) return
+                                e.preventDefault()
+                                reorderItem(qi, oi, itemDragRef.current.from, ii)
+                                itemDragRef.current = null
+                                setItemDragOver(null)
+                              }}
+                            >
                               <div className="admin-asset-row">
+                                <button
+                                  className="admin-item-handle"
+                                  type="button"
+                                  draggable
+                                  onDragStart={(e) => {
+                                    itemDragRef.current = { oi, from: ii }
+                                    setItemDragOver({ oi, over: ii })
+                                    e.dataTransfer.effectAllowed = 'move'
+                                    e.dataTransfer.setData('text/plain', String(ii))
+                                  }}
+                                  onDragEnd={() => {
+                                    itemDragRef.current = null
+                                    setItemDragOver(null)
+                                  }}
+                                  aria-label="Drag to reorder"
+                                  title="Drag to reorder"
+                                >⋮⋮</button>
                                 <input
                                   className="admin-input"
                                   value={it.name}
@@ -672,7 +734,8 @@ export default function Admin() {
                                 label="Pictures"
                               />
                             </div>
-                          ))}
+                            )
+                          })}
                           <button className="admin-arrow" type="button" onClick={() => addItem(qi, oi)}>+ Add item (flat fee)</button>
                         </div>
 
@@ -1395,7 +1458,11 @@ function AdminStyles() {
 .admin-danger { color: #ff3b30; }
 .admin-option { background: #f8f8f8; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 .admin-assets { display: flex; flex-direction: column; gap: 12px; }
-.admin-asset { background: #fff; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.admin-asset { background: #fff; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; transition: box-shadow 0.12s, transform 0.12s; }
+.admin-asset.is-drag-over { box-shadow: 0 0 0 2px rgba(0,0,0,0.25); transform: translateY(-1px); }
+.admin-item-handle { flex: 0 0 auto; align-self: stretch; display: inline-flex; align-items: center; justify-content: center; width: 22px; background: transparent; border: 0; padding: 0; color: rgba(0,0,0,0.25); cursor: grab; font-size: 14px; letter-spacing: -2px; border-radius: 6px; transition: background 0.12s, color 0.12s; -webkit-user-select: none; user-select: none; }
+.admin-item-handle:hover { background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.7); }
+.admin-item-handle:active { cursor: grabbing; }
 .admin-asset-row { display: flex; gap: 12px; align-items: flex-start; }
 .admin-asset-row-two { gap: 12px; }
 .admin-asset-row-two .admin-qfield { flex: 1 0 0; }
