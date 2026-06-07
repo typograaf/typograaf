@@ -369,7 +369,8 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
         <div className="cal cal-plan">
           {months.map((mo, mi) => {
             const rows: CalDay[][] = []
-            for (let i = 0; i < 6; i++) rows.push(mo.days.slice(i * 7, i * 7 + 7))
+            // Weekdays only — slice each Mon-Sun week to Mon-Fri.
+            for (let i = 0; i < 6; i++) rows.push(mo.days.slice(i * 7, i * 7 + 5))
             const rowsInfo = rows.map((row) => {
               const runs = detectRuns(row)
               const laneCount = runs.reduce((m, r) => Math.max(m, r.lane + 1), 0)
@@ -388,7 +389,7 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
               <div key={mi} className="cal-top">
                 <div className="cal-header"><span className="cal-month">{mo.label}</span></div>
                 <div className="cal-weekdays" aria-hidden="true">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((d) => (
                     <span key={d} className="cal-weekday">{d}</span>
                   ))}
                 </div>

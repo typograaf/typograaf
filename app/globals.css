@@ -816,7 +816,7 @@ body {
    their assigned lane rows). */
 .cal-plan { gap: 48px; }
 .cal-plan .cal-header { justify-content: center; }
-.cal-plan .cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: 8px; row-gap: 4px; }
+.cal-plan .cal-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); column-gap: 8px; row-gap: 4px; }
 .cal-plan .cal-day { padding: 0; display: block; cursor: default; background: rgba(0,0,0,0.025); border-radius: 12px; }
 .cal-plan .cal-day:hover { background: rgba(0,0,0,0.025); }
 .cal-plan .cal-day.is-out { background: transparent; opacity: 0.18; }
