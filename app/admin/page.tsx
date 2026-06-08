@@ -1223,10 +1223,19 @@ function PlanEditor({
     const dow = d.getDay()
     return dow === 0 || dow === 6
   }
-  const isUnavailable = (iso: string): boolean => isWeekend(iso) || blockedDays.has(iso)
+  // Feedback is waiting time, not active work — Martijn can mark days he's
+  // busy on his calendar as feedback time too. Items + presentation still
+  // reject on blocked days. Weekends still reject everything.
+  const dragKindRef = useRef<PlanBlockKind | null>(null)
+  const canDropOn = (iso: string): boolean => {
+    if (isWeekend(iso)) return false
+    if (!blockedDays.has(iso)) return true
+    return dragKindRef.current === 'feedback'
+  }
 
   const handleSourceDragStart = (e: React.DragEvent<HTMLButtonElement>, src: PlanSource) => {
     if (src.total > 0 && src.placed >= src.total) { e.preventDefault(); return }
+    dragKindRef.current = src.kind
     const payload = { mode: 'new', kind: src.kind, itemIndex: src.itemIndex }
     e.dataTransfer.setData('application/x-planblock', JSON.stringify(payload))
     e.dataTransfer.effectAllowed = 'copy'
@@ -1234,24 +1243,27 @@ function PlanEditor({
 
   const handleBlockDragStart = (e: React.DragEvent<HTMLDivElement>, block: PlanBlock) => {
     e.stopPropagation()
+    dragKindRef.current = block.kind
     const payload = { mode: 'move', id: block.id }
     e.dataTransfer.setData('application/x-planblock', JSON.stringify(payload))
     e.dataTransfer.effectAllowed = 'move'
   }
 
+  const clearDragKind = () => { dragKindRef.current = null }
+
   const handleDayDragOver = (e: React.DragEvent<HTMLDivElement>, iso: string) => {
-    if (isUnavailable(iso)) return
+    if (!canDropOn(iso)) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
   }
 
   const handleDayDrop = (e: React.DragEvent<HTMLDivElement>, iso: string) => {
     e.preventDefault()
-    if (isUnavailable(iso)) return
+    if (!canDropOn(iso)) { clearDragKind(); return }
     const raw = e.dataTransfer.getData('application/x-planblock')
-    if (!raw) return
+    if (!raw) { clearDragKind(); return }
     let payload: { mode: 'new' | 'move'; kind?: PlanBlockKind; itemIndex?: number; id?: string }
-    try { payload = JSON.parse(raw) } catch { return }
+    try { payload = JSON.parse(raw) } catch { clearDragKind(); return }
     if (payload.mode === 'new' && payload.kind) {
       const block: PlanBlock = {
         id: `pb-${Math.random().toString(36).slice(2, 10)}`,
@@ -1263,6 +1275,7 @@ function PlanEditor({
     } else if (payload.mode === 'move' && payload.id) {
       onChange({ planBlocks: placed.map((b) => b.id === payload.id ? { ...b, date: iso } : b) })
     }
+    clearDragKind()
   }
 
   const removeBlock = (id: string) => {
@@ -1302,6 +1315,7 @@ function PlanEditor({
                   className={`plan-source plan-source-${src.kind}${done ? ' is-done' : ''}`}
                   draggable={!done}
                   onDragStart={(e) => handleSourceDragStart(e, src)}
+                  onDragEnd={clearDragKind}
                   title={done ? `${src.label} fully placed` : unlimited ? `Drag onto a day (${src.placed} placed)` : `Drag onto a day (${remaining} left)`}
                 >
                   <span className="plan-source-label">{src.label}</span>
@@ -1349,6 +1363,7 @@ function PlanEditor({
                             className={`plan-cal-block plan-cal-block-${b.kind}`}
                             draggable
                             onDragStart={(e) => handleBlockDragStart(e, b)}
+                            onDragEnd={clearDragKind}
                             onClick={() => removeBlock(b.id)}
                             title={`${label} — click to remove`}
                           >{label}</div>
