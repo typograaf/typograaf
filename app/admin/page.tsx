@@ -9,6 +9,8 @@ import {
   type QuotePicture,
   type PlanBlock,
   type PlanBlockKind,
+  TYPEFACE_PHASES,
+  planKindLabel,
   emptyQuote,
   emptyOption,
   emptyAsset,
@@ -1144,6 +1146,16 @@ function planSources(option: QuoteOption): PlanSource[] {
     const used = placed.filter((b) => b.kind === 'item' && b.itemIndex === i).length
     out.push({ key: `i-${i}`, kind: 'item', itemIndex: i, label: it.name || `Item ${i + 1}`, total, placed: used })
   })
+  // Typeface phases — unlimited pools, only for options with a typeface (asset).
+  // They let a typeface project be planned day-by-day the way items already are.
+  if ((option.assets || []).length > 0) {
+    TYPEFACE_PHASES.forEach((p) => {
+      out.push({
+        key: `ph-${p.kind}`, kind: p.kind, label: p.label, total: 0,
+        placed: placed.filter((b) => b.kind === p.kind).length,
+      })
+    })
+  }
   // Presentation + feedback are unlimited pools (total: 0 by convention).
   // The user drags as many as they need without preconfiguring a count.
   out.push({
@@ -1299,7 +1311,7 @@ function PlanEditor({
           />
         </div>
       </div>
-      <span className="admin-hint">Drag blocks below onto days. Weekends, Belgian holidays, and busy days from your calendar are greyed out. Presentation and feedback are unlimited — drag as many as you need.</span>
+      <span className="admin-hint">Drag blocks below onto days. Weekends, Belgian holidays, and busy days from your calendar are greyed out. Typeface phases, presentation, and feedback are unlimited — drag as many as you need.</span>
 
       {sources.length > 0 && (
         <>
@@ -1356,7 +1368,7 @@ function PlanEditor({
                       {blocks.map((b) => {
                         const label = b.kind === 'item'
                           ? (option.items[b.itemIndex ?? -1]?.name || 'Item')
-                          : b.kind === 'presentation' ? 'Pres' : 'FB'
+                          : planKindLabel(b.kind, true)
                         return (
                           <div
                             key={b.id}
@@ -1497,6 +1509,10 @@ function AdminStyles() {
 .plan-source-item { border-left: 4px solid #000; }
 .plan-source-presentation { border-left: 4px solid #2b8c3a; }
 .plan-source-feedback { border-left: 4px solid #b39530; }
+.plan-source-glyph-design { border-left: 4px solid #2b6cb0; }
+.plan-source-refinement { border-left: 4px solid #6b46c1; }
+.plan-source-spacing-kerning { border-left: 4px solid #2c7a7b; }
+.plan-source-testing-output { border-left: 4px solid #c05621; }
 .plan-cal { background: #fff; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .plan-cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .plan-cal-month { font-weight: 500; font-size: 14px; }
@@ -1517,6 +1533,10 @@ function AdminStyles() {
 .plan-cal-block-item { background: #000; }
 .plan-cal-block-presentation { background: #2b8c3a; }
 .plan-cal-block-feedback { background: #b39530; }
+.plan-cal-block-glyph-design { background: #2b6cb0; }
+.plan-cal-block-refinement { background: #6b46c1; }
+.plan-cal-block-spacing-kerning { background: #2c7a7b; }
+.plan-cal-block-testing-output { background: #c05621; }
 @media (max-width: 700px) {
   .admin-page { padding: 88px 24px 64px; }
   .admin-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }

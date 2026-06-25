@@ -21,6 +21,7 @@ import {
   daysBetween,
   computeOptionPlan,
   buildPlanSegments,
+  planKindLabel,
   fillTokens,
   renderMarkdown,
   DEFAULT_FOOTNOTE_ANNUAL,
@@ -300,13 +301,11 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
 
     const blockFullLabel = (b: PlanBlock): string => {
       if (b.kind === 'item') return option.items[b.itemIndex ?? -1]?.name || 'Item'
-      if (b.kind === 'presentation') return 'Presentation'
-      return 'Feedback'
+      return planKindLabel(b.kind)
     }
     const blockShortLabel = (b: PlanBlock): string => {
       if (b.kind === 'item') return option.items[b.itemIndex ?? -1]?.name || 'Item'
-      if (b.kind === 'presentation') return 'PRES'
-      return 'FB'
+      return planKindLabel(b.kind, true)
     }
 
     // Detect runs: consecutive same-(kind, itemIndex) blocks within the same

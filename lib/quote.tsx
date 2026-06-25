@@ -49,12 +49,52 @@ export interface QuoteItem {
 // Each PlanBlock occupies exactly one calendar day. Multi-day items become
 // multiple blocks. Source of truth for the visual gantt when present;
 // otherwise the chain auto-derives from `startDate`.
-export type PlanBlockKind = 'item' | 'presentation' | 'feedback'
+//
+// The phase kinds (glyph-design … testing-output) break typeface work into
+// its stages so a typeface option can be planned on the calendar, the way
+// flat-fee items already can.
+export type PlanBlockKind =
+  | 'item'
+  | 'presentation'
+  | 'feedback'
+  | 'glyph-design'
+  | 'refinement'
+  | 'spacing-kerning'
+  | 'testing-output'
 export interface PlanBlock {
   id: string                     // stable identifier (random-ish, locally unique)
   kind: PlanBlockKind
   date: string                   // yyyy-mm-dd
   itemIndex?: number             // 0-based ref into option.items, only for kind: 'item'
+}
+
+// Typeface work breaks into these sequential phases for planning. Like
+// presentation/feedback they're unlimited draggable pools (no preset count);
+// they only surface for options that include a typeface (asset).
+export const TYPEFACE_PHASES: { kind: PlanBlockKind; label: string; short: string }[] = [
+  { kind: 'glyph-design', label: 'Glyph design', short: 'GLYPH' },
+  { kind: 'refinement', label: 'Refinement', short: 'REFINE' },
+  { kind: 'spacing-kerning', label: 'Spacing & kerning', short: 'KERN' },
+  { kind: 'testing-output', label: 'Testing & output', short: 'TEST' },
+]
+const PLAN_PHASE_BY_KIND = new Map(TYPEFACE_PHASES.map((p) => [p.kind, p]))
+const PLAN_PHASE_ORDER = new Map(TYPEFACE_PHASES.map((p, i) => [p.kind, i]))
+
+// Non-item plan-block kinds that are valid (everything except 'item', which
+// is the fallback and carries an itemIndex).
+const PLAN_NON_ITEM_KINDS = new Set<PlanBlockKind>([
+  'presentation', 'feedback', ...TYPEFACE_PHASES.map((p) => p.kind),
+])
+
+// Human label for a plan block kind. `short` returns the compact form used on
+// calendar bars; otherwise the full label. Item labels come from the option,
+// so this only covers the non-item kinds.
+export function planKindLabel(kind: PlanBlockKind, short = false): string {
+  const phase = PLAN_PHASE_BY_KIND.get(kind)
+  if (phase) return short ? phase.short : phase.label
+  if (kind === 'presentation') return short ? 'PRES' : 'Presentation'
+  if (kind === 'feedback') return short ? 'FB' : 'Feedback'
+  return short ? 'ITEM' : 'Item'
 }
 
 export interface QuoteOption {
@@ -459,6 +499,10 @@ export function buildPlanSegments(option: QuoteOption): {
       const name = items[b.itemIndex]?.name || `Item ${b.itemIndex + 1}`
       label = name
       sortKey = b.itemIndex
+    } else if (PLAN_PHASE_BY_KIND.has(b.kind)) {
+      // Typeface phases sit between items and presentation/feedback, in their
+      // canonical glyph → refinement → spacing → testing order.
+      key = b.kind; label = planKindLabel(b.kind); sortKey = 1000 + (PLAN_PHASE_ORDER.get(b.kind) ?? 0)
     } else if (b.kind === 'presentation') {
       key = 'pres'; label = 'Presentation'; sortKey = 9000
     } else {
@@ -598,7 +642,9 @@ export function normalizeQuote(raw: unknown): Quote | null {
       const bb = (b || {}) as Record<string, unknown>
       const date = typeof bb.date === 'string' ? bb.date.trim() : ''
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return []
-      const kind = bb.kind === 'presentation' || bb.kind === 'feedback' ? bb.kind : 'item'
+      const kind: PlanBlockKind = PLAN_NON_ITEM_KINDS.has(bb.kind as PlanBlockKind)
+        ? (bb.kind as PlanBlockKind)
+        : 'item'
       const id = typeof bb.id === 'string' && bb.id.trim() ? bb.id.trim() : `pb-${Math.random().toString(36).slice(2, 10)}`
       const itemIndex = typeof bb.itemIndex === 'number' && bb.itemIndex >= 0 ? bb.itemIndex : undefined
       return [{ id, kind, date, ...(itemIndex !== undefined ? { itemIndex } : {}) }]
