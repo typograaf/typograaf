@@ -23,9 +23,9 @@ export const CONFIG = {
   // Oblique is a mechanical slant, standard-included at no cost. Only a true
   // (separately drawn) italic set adds to the design cost.
   SLANT_MULT: { none: 1, oblique: 1, italic: 1.8 } as Record<Slant, number>,
-  // small = the baseline (×1); shallow steps so a large company pays a
-  // reasonable premium, not multiples of the price.
-  SIZE_TIER: { solo: 0.9, small: 1, mid: 1.15, large: 1.3, enterprise: 1.5 } as Record<CompanySize, number>,
+  // small = the baseline (×1); a solo/individual licensee pays roughly half,
+  // and larger companies a reasonable premium — not multiples of the price.
+  SIZE_TIER: { solo: 0.5, small: 1, mid: 1.15, large: 1.3, enterprise: 1.5 } as Record<CompanySize, number>,
   // Desktop is the included base (scope starts at 1); each extra medium is just
   // a small surcharge (a few % each), capped by SCOPE_CAP so covered media
   // never ramps the price up hard.
