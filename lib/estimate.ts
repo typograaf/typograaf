@@ -14,16 +14,23 @@
 // exactly as lib/quote.tsx does: perpetual = 1.5·D, annual first year = D,
 // renews at D/6, convert for D crediting up to 2/3·D.
 export const CONFIG = {
-  BASE_DESIGN: 3000, // studio baseline / first master (EUR)
-  MASTER_RATE: 2200, // per drawn corner master
-  INSTANCE_RATE: 220, // per extra interpolated weight×width instance
+  BASE_DESIGN: 3700, // studio baseline / first style (EUR)
+  MASTER_RATE: 1800, // per effective (tapered) style-unit of the design space
+  // Weights/widths taper: each added axis value costs less than the last
+  // (interpolation is cheap), so a big family plateaus instead of running away.
+  WEIGHT_DECAY: 0.72, // each extra weight adds ~72% of the previous one
+  WIDTH_DECAY: 0.85, // widths taper slower (each ~ a fresh master set)
   // Oblique is a mechanical slant, standard-included at no cost. Only a true
   // (separately drawn) italic set adds to the design cost.
   SLANT_MULT: { none: 1, oblique: 1, italic: 1.8 } as Record<Slant, number>,
-  // small = the baseline (×1); others scale the license up/down.
-  SIZE_TIER: { solo: 0.85, small: 1, mid: 1.5, large: 2.4, enterprise: 3.6 } as Record<CompanySize, number>,
-  // Desktop is the included base (scope starts at 1); each extra medium adds.
-  MEDIA_INCREMENT: { desktop: 0, web: 0.25, app: 0.35, broadcast: 0.6, logo: 0.4 } as Record<Medium, number>,
+  // small = the baseline (×1); gentle steps so the license doesn't compound.
+  SIZE_TIER: { solo: 0.9, small: 1, mid: 1.25, large: 1.6, enterprise: 2.0 } as Record<CompanySize, number>,
+  // Desktop is the included base (scope starts at 1); each extra medium adds a
+  // modest increment. Kept gentle + capped (SCOPE_CAP) so stacking media can't
+  // balloon the price.
+  MEDIA_INCREMENT: { desktop: 0, web: 0.15, app: 0.2, broadcast: 0.35, logo: 0.25 } as Record<Medium, number>,
+  SCOPE_CAP: 1.6, // media scope ceiling (1 + Σ increments, capped)
+  MULT_CAP: 3.0, // overall license-multiplier ceiling (size × scope)
   PERPETUAL_MULT: 1.5, // one-time buyout = D × 1.5
   ANNUAL_YEARLY_DIVISOR: 6, // yearly renewal after year one = D / 6
   CREDIT_FRACTION: 2 / 3, // max annual fees credited toward a perpetual conversion
@@ -98,24 +105,35 @@ export function computeInstances(weights: number, widths: number): number {
   return w * d
 }
 
-// Pure production/design work before any license scaling: studio baseline +
-// drawn corner masters at the full rate + every extra interpolated instance
-// at the cheaper per-instance rate, then scaled by the slant multiplier (a
-// true italic is a second set of drawings; oblique is free).
+// Diminishing geometric sum: 1 + decay + decay² + … + decay^(n-1). n=1 → 1,
+// and it asymptotes to 1/(1-decay), so adding more axis values can never make
+// the price run away — it plateaus.
+export function taperedUnits(n: number, decay: number): number {
+  const count = Math.max(0, Math.floor(n))
+  if (count <= 0) return 0
+  if (decay >= 1) return count
+  return (1 - Math.pow(decay, count)) / (1 - decay)
+}
+
+// Pure production/design work before any license scaling: a studio baseline
+// plus a tapered 2-D design space (weights × widths, each axis with its own
+// diminishing marginal cost), scaled by the slant multiplier (a true italic is
+// a second set of drawings; oblique is free).
 export function designWork(spec: EstimateSpec): number {
-  const masters = computeMasters(spec.weights, spec.widths)
-  const instances = computeInstances(spec.weights, spec.widths)
-  const extra = Math.max(0, instances - masters)
-  const base = CONFIG.BASE_DESIGN + CONFIG.MASTER_RATE * masters + CONFIG.INSTANCE_RATE * extra
+  const units = taperedUnits(spec.weights, CONFIG.WEIGHT_DECAY) * taperedUnits(spec.widths, CONFIG.WIDTH_DECAY)
+  const base = CONFIG.BASE_DESIGN + CONFIG.MASTER_RATE * units
   return base * (CONFIG.SLANT_MULT[spec.slant] ?? 1)
 }
 
 // License scaling from who's using it and where. Company size sets the tier;
-// covered media adds scope on top of the desktop-included base (×1).
+// covered media adds scope on top of the desktop-included base (×1). Both the
+// media scope and the size×scope product are capped so the license can't
+// compound out of control.
 export function licenseMultiplier(spec: EstimateSpec): number {
   const tier = CONFIG.SIZE_TIER[spec.size] ?? 1
-  const scope = 1 + spec.media.reduce((s, m) => s + (CONFIG.MEDIA_INCREMENT[m] ?? 0), 0)
-  return tier * scope
+  const rawScope = 1 + spec.media.reduce((s, m) => s + (CONFIG.MEDIA_INCREMENT[m] ?? 0), 0)
+  const scope = Math.min(CONFIG.SCOPE_CAP, rawScope)
+  return Math.min(CONFIG.MULT_CAP, tier * scope)
 }
 
 // The effective design cost D that the license formulas run on: the raw
