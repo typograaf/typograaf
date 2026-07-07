@@ -7,6 +7,8 @@ import {
   type CompanySize,
   type Medium,
   type LicenseModel,
+  type CharacterSet,
+  type Exclusivity,
   WEIGHTS_MIN,
   WEIGHTS_MAX,
   WIDTHS_MIN,
@@ -15,6 +17,10 @@ import {
   SIZE_LABELS,
   MEDIA_ORDER,
   MEDIA_LABELS,
+  CHARSET_ORDER,
+  CHARSET_LABELS,
+  EXCLUSIVITY_ORDER,
+  EXCLUSIVITY_LABELS,
   defaultSpec,
   computeMasters,
   computeInstances,
@@ -56,6 +62,12 @@ function specFromParams(qs: string): EstimateSpec {
   const slant = (['none', 'oblique', 'italic'] as Slant[]).includes(p.get('slant') as Slant)
     ? (p.get('slant') as Slant)
     : base.slant
+  const charset = CHARSET_ORDER.includes(p.get('cs') as CharacterSet)
+    ? (p.get('cs') as CharacterSet)
+    : base.charset
+  const exclusivity = EXCLUSIVITY_ORDER.includes(p.get('excl') as Exclusivity)
+    ? (p.get('excl') as Exclusivity)
+    : base.exclusivity
   const size = SIZE_ORDER.includes(p.get('size') as CompanySize)
     ? (p.get('size') as CompanySize)
     : base.size
@@ -68,6 +80,8 @@ function specFromParams(qs: string): EstimateSpec {
     weights: clampInt(p.get('w'), WEIGHTS_MIN, WEIGHTS_MAX, base.weights),
     widths: clampInt(p.get('d'), WIDTHS_MIN, WIDTHS_MAX, base.widths),
     slant,
+    charset,
+    exclusivity,
     size,
     media: media.includes('desktop') ? media : (['desktop', ...media] as Medium[]),
     license,
@@ -80,6 +94,8 @@ function paramsFromSpec(spec: EstimateSpec): string {
   p.set('w', String(spec.weights))
   p.set('d', String(spec.widths))
   p.set('slant', spec.slant)
+  p.set('cs', spec.charset)
+  p.set('excl', spec.exclusivity)
   p.set('size', spec.size)
   p.set('media', spec.media.join(','))
   p.set('license', spec.license)
@@ -173,6 +189,8 @@ export default function EstimateCalc() {
       `• Widths: ${spec.widths}`,
       `• Masters drawn: ${masters} (${instances} styles${slantLabel})`,
       `• Slant: ${SLANTS.find((s) => s.value === spec.slant)?.label}`,
+      `• Character set: ${CHARSET_LABELS[spec.charset]}`,
+      `• Exclusivity: ${EXCLUSIVITY_LABELS[spec.exclusivity]}`,
       `• Company size: ${SIZE_LABELS[spec.size].label} (${SIZE_LABELS[spec.size].hint})`,
       `• Covered media: ${['desktop' as const, ...covered].map((m) => MEDIA_LABELS[m]).join(', ')}${bundleOn ? ' (bundle — all included)' : ''}`,
       `• License: ${spec.license === 'perpetual' ? 'Perpetual' : 'Annual'}`,
@@ -221,6 +239,22 @@ export default function EstimateCalc() {
         <p className="est-hint">Oblique is a mechanical slant, standard-included at no extra cost; italic is a separately drawn cursive set.</p>
       </div>
 
+      {/* Character set */}
+      <div className="quote-block">
+        <p className="quote-label">Character set</p>
+        <div className="quote-toggle">
+          {CHARSET_ORDER.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`pill${spec.charset === c ? ' is-selected' : ''}`}
+              onClick={() => set('charset', c)}
+            >{CHARSET_LABELS[c]}</button>
+          ))}
+        </div>
+        <p className="est-hint">Full covers accented lowercase and uppercase; uppercase-only is far fewer glyphs.</p>
+      </div>
+
       {/* Company size */}
       <div className="quote-block">
         <p className="quote-label">Company size</p>
@@ -259,6 +293,22 @@ export default function EstimateCalc() {
         {bundleOn && (
           <p className="est-hint">Bundle deal — all media included for the price of three blocks.</p>
         )}
+      </div>
+
+      {/* Exclusivity */}
+      <div className="quote-block">
+        <p className="quote-label">Exclusivity</p>
+        <div className="quote-toggle">
+          {EXCLUSIVITY_ORDER.map((e) => (
+            <button
+              key={e}
+              type="button"
+              className={`pill${spec.exclusivity === e ? ' is-selected' : ''}`}
+              onClick={() => set('exclusivity', e)}
+            >{EXCLUSIVITY_LABELS[e]}</button>
+          ))}
+        </div>
+        <p className="est-hint">Full exclusive means the typeface is yours alone; non-exclusive lets it be licensed elsewhere, for less.</p>
       </div>
 
       {/* License model */}

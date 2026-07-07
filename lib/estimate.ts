@@ -23,10 +23,17 @@ export const CONFIG = {
   // Oblique is a mechanical slant, standard-included at no cost. Only a true
   // (separately drawn) italic set adds to the design cost.
   SLANT_MULT: { none: 1, oblique: 1, italic: 1.8 } as Record<Slant, number>,
+  // Character set. Full Western European is the reference (×1); an uppercase-
+  // only set is far fewer glyphs, so it's cheaper.
+  CHARSET_MULT: { uppercase: 0.65, full: 1 } as Record<CharacterSet, number>,
+  // Exclusivity. Full exclusive (client owns it outright) is the reference
+  // premium (×1); time-limited or non-exclusive rights cost the client less.
+  EXCLUSIVITY_MULT: { exclusive: 1, twoYear: 0.8, nonExclusive: 0.6 } as Record<Exclusivity, number>,
   // Company-size license tiers. Solo/small/mid sit below the reference rate so
-  // smaller clients pay noticeably less; large/enterprise a reasonable premium
-  // — not multiples of the price.
-  SIZE_TIER: { solo: 0.5, small: 0.8, mid: 1.0, large: 1.3, enterprise: 1.5 } as Record<CompanySize, number>,
+  // smaller clients pay noticeably less; large is a modest premium and
+  // enterprise (1000+ staff, real corporates) a real one — foundries scale the
+  // license hard for big companies, so enterprise steps up well above large.
+  SIZE_TIER: { solo: 0.5, small: 0.8, mid: 1.0, large: 1.3, enterprise: 2.5 } as Record<CompanySize, number>,
   // Desktop is the included base (scope starts at 1); each extra medium is just
   // a small surcharge (a few % each), capped by SCOPE_CAP so covered media
   // never ramps the price up hard.
@@ -36,7 +43,7 @@ export const CONFIG = {
   // blocks among the three (desktop is free) — so the rest come free.
   MEDIA_BUNDLE_THRESHOLD: 3,
   SCOPE_CAP: 1.35, // media scope ceiling (1 + Σ increments, capped)
-  MULT_CAP: 2.0, // overall license-multiplier ceiling (size × scope)
+  MULT_CAP: 3.25, // overall license-multiplier ceiling (size × scope) — high enough that enterprise + media isn't clipped early
   PERPETUAL_MULT: 1.5, // one-time buyout = D × 1.5
   ANNUAL_YEARLY_DIVISOR: 6, // yearly renewal after year one = D / 6
   CREDIT_FRACTION: 2 / 3, // max annual fees credited toward a perpetual conversion
@@ -51,11 +58,15 @@ export type Slant = 'none' | 'oblique' | 'italic'
 export type CompanySize = 'solo' | 'small' | 'mid' | 'large' | 'enterprise'
 export type Medium = 'desktop' | 'web' | 'app' | 'broadcast' | 'logo'
 export type LicenseModel = 'perpetual' | 'annual'
+export type CharacterSet = 'uppercase' | 'full'
+export type Exclusivity = 'exclusive' | 'twoYear' | 'nonExclusive'
 
 export interface EstimateSpec {
   weights: number
   widths: number
   slant: Slant
+  charset: CharacterSet
+  exclusivity: Exclusivity
   size: CompanySize
   media: Medium[]
   license: LicenseModel
@@ -86,8 +97,24 @@ export const MEDIA_LABELS: Record<Medium, string> = {
   logo: 'Logo / wordmark',
 }
 
+export const CHARSET_ORDER: CharacterSet[] = ['full', 'uppercase']
+export const CHARSET_LABELS: Record<CharacterSet, string> = {
+  full: 'Full Western European',
+  uppercase: 'Uppercase Western European',
+}
+
+export const EXCLUSIVITY_ORDER: Exclusivity[] = ['exclusive', 'twoYear', 'nonExclusive']
+export const EXCLUSIVITY_LABELS: Record<Exclusivity, string> = {
+  exclusive: 'Full exclusive',
+  twoYear: '2-year exclusive',
+  nonExclusive: 'Non-exclusive',
+}
+
 export function defaultSpec(): EstimateSpec {
-  return { weights: 3, widths: 1, slant: 'none', size: 'small', media: ['desktop'], license: 'annual' }
+  return {
+    weights: 3, widths: 1, slant: 'none', charset: 'full', exclusivity: 'exclusive',
+    size: 'small', media: ['desktop'], license: 'annual',
+  }
 }
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -128,7 +155,10 @@ export function taperedUnits(n: number, decay: number): number {
 export function designWork(spec: EstimateSpec): number {
   const units = taperedUnits(spec.weights, CONFIG.WEIGHT_DECAY) * taperedUnits(spec.widths, CONFIG.WIDTH_DECAY)
   const base = CONFIG.BASE_DESIGN + CONFIG.MASTER_RATE * units
-  return base * (CONFIG.SLANT_MULT[spec.slant] ?? 1)
+  return base
+    * (CONFIG.SLANT_MULT[spec.slant] ?? 1)
+    * (CONFIG.CHARSET_MULT[spec.charset] ?? 1)
+    * (CONFIG.EXCLUSIVITY_MULT[spec.exclusivity] ?? 1)
 }
 
 // The optional (chargeable) media — everything except the always-included
@@ -208,7 +238,9 @@ export function estimateWorkdays(spec: EstimateSpec): number {
   const extra = Math.max(0, computeInstances(spec.weights, spec.widths) - masters)
   // Oblique adds no time (auto-generated); a true italic ~doubles the work.
   const slantFactor = spec.slant === 'italic' ? 1.8 : 1
-  return Math.ceil((masters * CONFIG.DAYS_PER_MASTER + extra * CONFIG.DAYS_PER_INSTANCE) * slantFactor)
+  // Uppercase-only is far fewer glyphs → less production time.
+  const charsetFactor = CONFIG.CHARSET_MULT[spec.charset] ?? 1
+  return Math.ceil((masters * CONFIG.DAYS_PER_MASTER + extra * CONFIG.DAYS_PER_INSTANCE) * slantFactor * charsetFactor)
 }
 
 export function estimateWeeks(spec: EstimateSpec): number {
