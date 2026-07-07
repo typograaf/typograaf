@@ -26,9 +26,6 @@ export const CONFIG = {
   // Character set. Full Western European is the reference (×1); an uppercase-
   // only set is far fewer glyphs, so it's cheaper.
   CHARSET_MULT: { uppercase: 0.65, full: 1 } as Record<CharacterSet, number>,
-  // Exclusivity. Full exclusive (client owns it outright) is the reference
-  // premium (×1); time-limited or non-exclusive rights cost the client less.
-  EXCLUSIVITY_MULT: { exclusive: 1, twoYear: 0.8, nonExclusive: 0.6 } as Record<Exclusivity, number>,
   // Company-size license tiers. Solo/small/mid sit below the reference rate so
   // smaller clients pay noticeably less; large is a modest premium and
   // enterprise (1000+ staff, real corporates) a real one — foundries scale the
@@ -44,9 +41,11 @@ export const CONFIG = {
   MEDIA_BUNDLE_THRESHOLD: 3,
   SCOPE_CAP: 1.35, // media scope ceiling (1 + Σ increments, capped)
   MULT_CAP: 3.25, // overall license-multiplier ceiling (size × scope) — high enough that enterprise + media isn't clipped early
-  PERPETUAL_MULT: 1.5, // one-time buyout = D × 1.5
-  ANNUAL_YEARLY_DIVISOR: 6, // yearly renewal after year one = D / 6
-  CREDIT_FRACTION: 2 / 3, // max annual fees credited toward a perpetual conversion
+  // Licensing options (exclusivity + duration merged into one coherent set):
+  LICENSE_BUYOUT_MULT: 1.5, // exclusive buyout, one-time = D × 1.5
+  LICENSE_TERM2Y_MULT: 1.0, // 2-year exclusive term, one-time (~2/3 of the buyout)
+  LICENSE_ANNUAL_FIRST: 0.8, // non-exclusive annual, first year = D × 0.8
+  ANNUAL_YEARLY_DIVISOR: 6, // non-exclusive annual renewal after year one = D / 6
   DAYS_PER_MASTER: 8,
   DAYS_PER_INSTANCE: 1.5,
   WORKDAYS_PER_WEEK: 5,
@@ -57,19 +56,18 @@ export const CONFIG = {
 export type Slant = 'none' | 'oblique' | 'italic'
 export type CompanySize = 'solo' | 'small' | 'mid' | 'large' | 'enterprise'
 export type Medium = 'desktop' | 'web' | 'app' | 'broadcast' | 'logo'
-export type LicenseModel = 'perpetual' | 'annual'
 export type CharacterSet = 'uppercase' | 'full'
-export type Exclusivity = 'exclusive' | 'twoYear' | 'nonExclusive'
+// Exclusivity and duration merged into one coherent licensing choice.
+export type Licensing = 'buyout' | 'term2y' | 'annual'
 
 export interface EstimateSpec {
   weights: number
   widths: number
   slant: Slant
   charset: CharacterSet
-  exclusivity: Exclusivity
   size: CompanySize
   media: Medium[]
-  license: LicenseModel
+  licensing: Licensing
   deadline?: string // yyyy-mm-dd, optional
 }
 
@@ -103,17 +101,17 @@ export const CHARSET_LABELS: Record<CharacterSet, string> = {
   uppercase: 'Uppercase Western European',
 }
 
-export const EXCLUSIVITY_ORDER: Exclusivity[] = ['exclusive', 'twoYear', 'nonExclusive']
-export const EXCLUSIVITY_LABELS: Record<Exclusivity, string> = {
-  exclusive: 'Full exclusive',
-  twoYear: '2-year exclusive',
-  nonExclusive: 'Non-exclusive',
+export const LICENSING_ORDER: Licensing[] = ['buyout', 'term2y', 'annual']
+export const LICENSING_LABELS: Record<Licensing, { label: string; hint: string }> = {
+  buyout: { label: 'Exclusive buyout', hint: 'one-time, yours alone' },
+  term2y: { label: '2-year exclusive', hint: 'term, exclusive 2 yrs' },
+  annual: { label: 'Non-exclusive', hint: 'annual, others may license' },
 }
 
 export function defaultSpec(): EstimateSpec {
   return {
-    weights: 3, widths: 1, slant: 'none', charset: 'full', exclusivity: 'exclusive',
-    size: 'small', media: ['desktop'], license: 'annual',
+    weights: 3, widths: 1, slant: 'none', charset: 'full',
+    size: 'small', media: ['desktop'], licensing: 'buyout',
   }
 }
 
@@ -158,7 +156,6 @@ export function designWork(spec: EstimateSpec): number {
   return base
     * (CONFIG.SLANT_MULT[spec.slant] ?? 1)
     * (CONFIG.CHARSET_MULT[spec.charset] ?? 1)
-    * (CONFIG.EXCLUSIVITY_MULT[spec.exclusivity] ?? 1)
 }
 
 // The optional (chargeable) media — everything except the always-included
@@ -212,24 +209,22 @@ export function effectiveDesignCost(spec: EstimateSpec): number {
   return designWork(spec) * licenseMultiplier(spec)
 }
 
-// One-time buyout: D × 1.5 (matches lib/quote.tsx perpetualTotal).
-export function perpetualTotal(spec: EstimateSpec): number {
-  return effectiveDesignCost(spec) * CONFIG.PERPETUAL_MULT
+// Headline figure for the chosen licensing option, before any rush surcharge.
+// Buyout and 2-year term are one-time; annual is the first-year figure (with a
+// separate yearly renewal, see annualRenewal).
+export function licensingTotal(spec: EstimateSpec): number {
+  const d = effectiveDesignCost(spec)
+  switch (spec.licensing) {
+    case 'buyout': return d * CONFIG.LICENSE_BUYOUT_MULT
+    case 'term2y': return d * CONFIG.LICENSE_TERM2Y_MULT
+    case 'annual': return d * CONFIG.LICENSE_ANNUAL_FIRST
+  }
 }
 
-// Annual, first year of use included = D.
-export function annualFirstYear(spec: EstimateSpec): number {
-  return effectiveDesignCost(spec)
-}
-
-// Annual, each following year: D / 6.
-export function annualYearly(spec: EstimateSpec): number {
+// Non-exclusive annual: cost of each year after the first (D / 6). Only
+// meaningful when licensing === 'annual'.
+export function annualRenewal(spec: EstimateSpec): number {
   return effectiveDesignCost(spec) / CONFIG.ANNUAL_YEARLY_DIVISOR
-}
-
-// Max annual fees credited when converting annual → perpetual: 2/3 of D.
-export function creditMax(spec: EstimateSpec): number {
-  return effectiveDesignCost(spec) * CONFIG.CREDIT_FRACTION
 }
 
 // Estimated production effort, in workdays, from masters + extra instances.
@@ -266,10 +261,10 @@ export function isRush(spec: EstimateSpec, now: Date = new Date()): boolean {
   return target.getTime() < earliest.getTime()
 }
 
-// Selected-license total, with the rush surcharge folded in when applicable.
-// For annual, "total" is the first-year figure (what the headline shows).
+// Headline total for the chosen licensing option, with the rush surcharge
+// folded in when applicable. For annual this is the first-year figure.
 export function grandTotal(spec: EstimateSpec, now: Date = new Date()): number {
-  const base = spec.license === 'perpetual' ? perpetualTotal(spec) : annualFirstYear(spec)
+  const base = licensingTotal(spec)
   return isRush(spec, now) ? base * (1 + CONFIG.RUSH_SURCHARGE) : base
 }
 

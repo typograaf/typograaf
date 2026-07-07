@@ -6,9 +6,8 @@ import {
   type Slant,
   type CompanySize,
   type Medium,
-  type LicenseModel,
   type CharacterSet,
-  type Exclusivity,
+  type Licensing,
   WEIGHTS_MIN,
   WEIGHTS_MAX,
   WIDTHS_MIN,
@@ -19,13 +18,12 @@ import {
   MEDIA_LABELS,
   CHARSET_ORDER,
   CHARSET_LABELS,
-  EXCLUSIVITY_ORDER,
-  EXCLUSIVITY_LABELS,
+  LICENSING_ORDER,
+  LICENSING_LABELS,
   defaultSpec,
   computeMasters,
   computeInstances,
-  annualYearly,
-  creditMax,
+  annualRenewal,
   grandTotal,
   coveredMedia,
   mediaBundleActive,
@@ -65,13 +63,12 @@ function specFromParams(qs: string): EstimateSpec {
   const charset = CHARSET_ORDER.includes(p.get('cs') as CharacterSet)
     ? (p.get('cs') as CharacterSet)
     : base.charset
-  const exclusivity = EXCLUSIVITY_ORDER.includes(p.get('excl') as Exclusivity)
-    ? (p.get('excl') as Exclusivity)
-    : base.exclusivity
   const size = SIZE_ORDER.includes(p.get('size') as CompanySize)
     ? (p.get('size') as CompanySize)
     : base.size
-  const license: LicenseModel = p.get('license') === 'annual' ? 'annual' : 'perpetual'
+  const licensing = LICENSING_ORDER.includes(p.get('lic') as Licensing)
+    ? (p.get('lic') as Licensing)
+    : base.licensing
   const mediaRaw = (p.get('media') || '').split(',').map((m) => m.trim()) as Medium[]
   const media = MEDIA_ORDER.filter((m) => mediaRaw.includes(m))
   const deadline = /^\d{4}-\d{2}-\d{2}$/.test(p.get('deadline') || '') ? p.get('deadline')! : undefined
@@ -81,10 +78,9 @@ function specFromParams(qs: string): EstimateSpec {
     widths: clampInt(p.get('d'), WIDTHS_MIN, WIDTHS_MAX, base.widths),
     slant,
     charset,
-    exclusivity,
     size,
     media: media.includes('desktop') ? media : (['desktop', ...media] as Medium[]),
-    license,
+    licensing,
     ...(deadline ? { deadline } : {}),
   }
 }
@@ -95,10 +91,9 @@ function paramsFromSpec(spec: EstimateSpec): string {
   p.set('d', String(spec.widths))
   p.set('slant', spec.slant)
   p.set('cs', spec.charset)
-  p.set('excl', spec.exclusivity)
   p.set('size', spec.size)
   p.set('media', spec.media.join(','))
-  p.set('license', spec.license)
+  p.set('lic', spec.licensing)
   if (spec.deadline) p.set('deadline', spec.deadline)
   return p.toString()
 }
@@ -172,7 +167,8 @@ export default function EstimateCalc() {
   const weeks = estimateWeeks(spec)
   const total = grandTotal(spec)
   const range = estimateRange(total)
-  const yearly = annualYearly(spec)
+  const isAnnual = spec.licensing === 'annual'
+  const yearly = annualRenewal(spec)
 
   const headline = formatEur(total)
   const shareUrl = typeof window !== 'undefined'
@@ -190,12 +186,11 @@ export default function EstimateCalc() {
       `• Masters drawn: ${masters} (${instances} styles${slantLabel})`,
       `• Slant: ${SLANTS.find((s) => s.value === spec.slant)?.label}`,
       `• Character set: ${CHARSET_LABELS[spec.charset]}`,
-      `• Exclusivity: ${EXCLUSIVITY_LABELS[spec.exclusivity]}`,
       `• Company size: ${SIZE_LABELS[spec.size].label} (${SIZE_LABELS[spec.size].hint})`,
       `• Covered media: ${['desktop' as const, ...covered].map((m) => MEDIA_LABELS[m]).join(', ')}${bundleOn ? ' (bundle — all included)' : ''}`,
-      `• License: ${spec.license === 'perpetual' ? 'Perpetual' : 'Annual'}`,
+      `• Licensing: ${LICENSING_LABELS[spec.licensing].label} (${LICENSING_LABELS[spec.licensing].hint})`,
       `• Deadline: ${spec.deadline || 'flexible'}${rush ? ' (rush)' : ''}`,
-      `• Indicative estimate: ${headline}${spec.license === 'annual' ? ` first year, then ${formatEur(yearly)}/year` : ''}`,
+      `• Indicative estimate: ${headline}${isAnnual ? ` first year, then ${formatEur(yearly)}/year` : ''}`,
       '',
       `Full spec: ${shareUrl}`,
     ]
@@ -295,28 +290,18 @@ export default function EstimateCalc() {
         )}
       </div>
 
-      {/* Exclusivity */}
+      {/* Licensing */}
       <div className="quote-block">
-        <p className="quote-label">Exclusivity</p>
-        <div className="quote-toggle">
-          {EXCLUSIVITY_ORDER.map((e) => (
+        <p className="quote-label">Licensing</p>
+        <div className="est-pillwrap">
+          {LICENSING_ORDER.map((l) => (
             <button
-              key={e}
+              key={l}
               type="button"
-              className={`pill${spec.exclusivity === e ? ' is-selected' : ''}`}
-              onClick={() => set('exclusivity', e)}
-            >{EXCLUSIVITY_LABELS[e]}</button>
+              className={`pill${spec.licensing === l ? ' is-selected' : ''}`}
+              onClick={() => set('licensing', l)}
+            >{LICENSING_LABELS[l].label}<span className="est-pill-hint">{LICENSING_LABELS[l].hint}</span></button>
           ))}
-        </div>
-        <p className="est-hint">Full exclusive means the typeface is yours alone; non-exclusive lets it be licensed elsewhere, for less.</p>
-      </div>
-
-      {/* License model */}
-      <div className="quote-block">
-        <p className="quote-label">License model</p>
-        <div className="quote-toggle">
-          <button type="button" className={`pill${spec.license === 'perpetual' ? ' is-selected' : ''}`} onClick={() => set('license', 'perpetual')}>Perpetual</button>
-          <button type="button" className={`pill${spec.license === 'annual' ? ' is-selected' : ''}`} onClick={() => set('license', 'annual')}>Annual</button>
         </div>
       </div>
 
@@ -339,14 +324,22 @@ export default function EstimateCalc() {
       {/* Total */}
       <div className="quote-block">
         <div className="quote-total-row">
-          <div className="quote-cell">{spec.license === 'annual' ? 'Indicative first year, excl. VAT' : 'Indicative total, excl. VAT'}</div>
+          <div className="quote-cell">
+            {spec.licensing === 'annual'
+              ? 'Indicative first year, excl. VAT'
+              : spec.licensing === 'term2y'
+              ? 'Indicative 2-year fee, excl. VAT'
+              : 'Indicative buyout, excl. VAT'}
+          </div>
           <div className="quote-cell quote-total-amount">{headline}</div>
         </div>
         <p className="quote-foot">
           Indicative only — roughly {formatEur(range.low)}–{formatEur(range.high)}.
-          {spec.license === 'annual'
-            ? ` The first year of full usage rights (print, digital, environmental) is included. Thereafter it renews at ${formatEur(yearly)} per year, and can be converted to a perpetual, all-inclusive license at any time — previously paid annual fees are credited up to ${formatEur(creditMax(spec))}.`
-            : ' A perpetual, all-inclusive license (design cost plus a one-time 50% license fee) grants full, unlimited usage rights across print, digital, and environmental applications.'}
+          {spec.licensing === 'buyout'
+            ? ' A one-time exclusive buyout — the typeface is yours alone, used in perpetuity across print, digital and environmental applications. Comprises the design cost plus a one-time license fee.'
+            : spec.licensing === 'term2y'
+            ? ' A term fee for two years of exclusive use (about two-thirds of the buyout). After two years the typeface may be licensed non-exclusively elsewhere, and you keep using it.'
+            : ` A non-exclusive annual license — the first year as shown, renewing at ${formatEur(yearly)} per year. The same typeface may also be licensed to others.`}
           {rush ? ' Includes a rush surcharge for the requested deadline.' : ''}
           {' '}All prices exclude VAT. This is not a binding quote.
         </p>
