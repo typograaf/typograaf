@@ -23,14 +23,15 @@ export const CONFIG = {
   // Oblique is a mechanical slant, standard-included at no cost. Only a true
   // (separately drawn) italic set adds to the design cost.
   SLANT_MULT: { none: 1, oblique: 1, italic: 1.8 } as Record<Slant, number>,
-  // small = the baseline (×1); gentle steps so the license doesn't compound.
-  SIZE_TIER: { solo: 0.9, small: 1, mid: 1.25, large: 1.6, enterprise: 2.0 } as Record<CompanySize, number>,
-  // Desktop is the included base (scope starts at 1); each extra medium adds a
-  // modest increment. Kept gentle + capped (SCOPE_CAP) so stacking media can't
-  // balloon the price.
-  MEDIA_INCREMENT: { desktop: 0, web: 0.15, app: 0.2, broadcast: 0.35, logo: 0.25 } as Record<Medium, number>,
-  SCOPE_CAP: 1.6, // media scope ceiling (1 + Σ increments, capped)
-  MULT_CAP: 3.0, // overall license-multiplier ceiling (size × scope)
+  // small = the baseline (×1); shallow steps so a large company pays a
+  // reasonable premium, not multiples of the price.
+  SIZE_TIER: { solo: 0.9, small: 1, mid: 1.15, large: 1.3, enterprise: 1.5 } as Record<CompanySize, number>,
+  // Desktop is the included base (scope starts at 1); each extra medium is just
+  // a small surcharge (a few % each), capped by SCOPE_CAP so covered media
+  // never ramps the price up hard.
+  MEDIA_INCREMENT: { desktop: 0, web: 0.05, app: 0.07, broadcast: 0.12, logo: 0.08 } as Record<Medium, number>,
+  SCOPE_CAP: 1.35, // media scope ceiling (1 + Σ increments, capped)
+  MULT_CAP: 2.0, // overall license-multiplier ceiling (size × scope)
   PERPETUAL_MULT: 1.5, // one-time buyout = D × 1.5
   ANNUAL_YEARLY_DIVISOR: 6, // yearly renewal after year one = D / 6
   CREDIT_FRACTION: 2 / 3, // max annual fees credited toward a perpetual conversion
