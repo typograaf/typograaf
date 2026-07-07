@@ -45,7 +45,10 @@ export const CONFIG = {
   LICENSE_BUYOUT_MULT: 1.5, // exclusive buyout, one-time = D × 1.5
   LICENSE_TERM2Y_MULT: 1.0, // 2-year exclusive term, one-time (~2/3 of the buyout)
   LICENSE_ANNUAL_FIRST: 0.8, // non-exclusive annual, first year = D × 0.8
-  ANNUAL_YEARLY_DIVISOR: 10, // yearly renewal = D / 10 (~10%/yr) — for the annual option and the 2-year term after it expires
+  // Yearly renewal = D / divisor (for the annual option and the 2-year term
+  // after it expires). Smaller clients get a gentler rate (D/12 ≈ 8%/yr);
+  // large/enterprise D/10 (~10%/yr).
+  ANNUAL_YEARLY_DIVISOR: { solo: 12, small: 12, mid: 12, large: 10, enterprise: 10 } as Record<CompanySize, number>,
   DAYS_PER_MASTER: 8,
   DAYS_PER_INSTANCE: 1.5,
   WORKDAYS_PER_WEEK: 5,
@@ -224,7 +227,7 @@ export function licensingTotal(spec: EstimateSpec): number {
 // Non-exclusive annual: cost of each year after the first (D / 6). Only
 // meaningful when licensing === 'annual'.
 export function annualRenewal(spec: EstimateSpec): number {
-  return effectiveDesignCost(spec) / CONFIG.ANNUAL_YEARLY_DIVISOR
+  return effectiveDesignCost(spec) / (CONFIG.ANNUAL_YEARLY_DIVISOR[spec.size] ?? 10)
 }
 
 // Estimated production effort, in workdays, from masters + extra instances.
