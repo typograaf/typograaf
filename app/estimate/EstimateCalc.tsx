@@ -271,8 +271,14 @@ export default function EstimateCalc() {
         <div className="est-pillwrap">
           {MEDIA_ORDER.map((m) => {
             const locked = m === 'desktop'
-            // Once the bulk deal kicks in, every medium lights up as included.
-            const on = locked || bundleOn || spec.media.includes(m)
+            const selected = spec.media.includes(m)
+            // Only actually-clicked media highlight. When the bundle is active,
+            // the extras it throws in for free are labelled "included" rather
+            // than made to look clicked — so you can always tell which picks to
+            // click off to go back to desktop-only.
+            const on = locked || selected
+            const includedFree = bundleOn && !locked && !selected
+            const hint = locked ? 'always' : includedFree ? 'included' : ''
             return (
               <button
                 key={m}
@@ -281,7 +287,7 @@ export default function EstimateCalc() {
                 onClick={() => toggleMedium(m)}
                 disabled={locked}
                 aria-pressed={on}
-              >{MEDIA_LABELS[m]}{locked ? <span className="est-pill-hint">always</span> : null}</button>
+              >{MEDIA_LABELS[m]}{hint ? <span className="est-pill-hint">{hint}</span> : null}</button>
             )
           })}
         </div>
