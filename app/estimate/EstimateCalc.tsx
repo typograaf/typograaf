@@ -18,9 +18,8 @@ import {
   defaultSpec,
   computeMasters,
   computeInstances,
-  perpetualTotal,
-  annualFirstYear,
   annualYearly,
+  creditMax,
   grandTotal,
   estimateRange,
   estimateWeeks,
@@ -215,7 +214,7 @@ export default function EstimateCalc() {
             >{s.label}</button>
           ))}
         </div>
-        <p className="est-hint">Oblique is a mechanical slant; italic is a separately drawn cursive set.</p>
+        <p className="est-hint">Oblique is a mechanical slant, standard-included at no extra cost; italic is a separately drawn cursive set.</p>
       </div>
 
       {/* Company size */}
@@ -287,7 +286,9 @@ export default function EstimateCalc() {
         </div>
         <p className="quote-foot">
           Indicative only — roughly {formatEur(range.low)}–{formatEur(range.high)}.
-          {spec.license === 'annual' ? ` Renews at ${formatEur(yearly)} per year after the first.` : ''}
+          {spec.license === 'annual'
+            ? ` The first year of full usage rights (print, digital, environmental) is included. Thereafter it renews at ${formatEur(yearly)} per year, and can be converted to a perpetual, all-inclusive license at any time — previously paid annual fees are credited up to ${formatEur(creditMax(spec))}.`
+            : ' A perpetual, all-inclusive license (design cost plus a one-time 50% license fee) grants full, unlimited usage rights across print, digital, and environmental applications.'}
           {rush ? ' Includes a rush surcharge for the requested deadline.' : ''}
           {' '}All prices exclude VAT. This is not a binding quote.
         </p>

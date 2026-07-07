@@ -8,15 +8,25 @@
 // figures — calibrate them against real past quotes; that's the point of
 // keeping them in one place.
 
+// Calibrated so a baseline spec (small company, desktop) lands near the real
+// package prices on an actual quote (mirrormirror: €5,400 single style →
+// €15,000 full 2-axis family). Base design cost D drives the license math
+// exactly as lib/quote.tsx does: perpetual = 1.5·D, annual first year = D,
+// renews at D/6, convert for D crediting up to 2/3·D.
 export const CONFIG = {
-  MASTER_RATE: 3000, // per drawn corner master (EUR, design work)
-  INSTANCE_RATE: 400, // per extra interpolated weight×width instance
-  SLANT_MULT: { none: 1, oblique: 1.15, italic: 1.8 } as Record<Slant, number>,
-  SIZE_TIER: { solo: 1, small: 1.4, mid: 2, large: 3, enterprise: 4.5 } as Record<CompanySize, number>,
-  // Desktop is always included; scope multiplier is floored at 1 (see licenseMultiplier).
-  MEDIA: { desktop: 1, web: 0.5, app: 0.75, broadcast: 1, logo: 0.6 } as Record<Medium, number>,
-  PERP_LICENSE_RATE: 0.5, // perpetual license fee = designWork × 0.5 × licenseMultiplier
-  ANNUAL_LICENSE_RATE: 0.2, // annual recurring = designWork × 0.2 × licenseMultiplier
+  BASE_DESIGN: 3000, // studio baseline / first master (EUR)
+  MASTER_RATE: 2200, // per drawn corner master
+  INSTANCE_RATE: 220, // per extra interpolated weight×width instance
+  // Oblique is a mechanical slant, standard-included at no cost. Only a true
+  // (separately drawn) italic set adds to the design cost.
+  SLANT_MULT: { none: 1, oblique: 1, italic: 1.8 } as Record<Slant, number>,
+  // small = the baseline (×1); others scale the license up/down.
+  SIZE_TIER: { solo: 0.85, small: 1, mid: 1.5, large: 2.4, enterprise: 3.6 } as Record<CompanySize, number>,
+  // Desktop is the included base (scope starts at 1); each extra medium adds.
+  MEDIA_INCREMENT: { desktop: 0, web: 0.25, app: 0.35, broadcast: 0.6, logo: 0.4 } as Record<Medium, number>,
+  PERPETUAL_MULT: 1.5, // one-time buyout = D × 1.5
+  ANNUAL_YEARLY_DIVISOR: 6, // yearly renewal after year one = D / 6
+  CREDIT_FRACTION: 2 / 3, // max annual fees credited toward a perpetual conversion
   DAYS_PER_MASTER: 8,
   DAYS_PER_INSTANCE: 1.5,
   WORKDAYS_PER_WEEK: 5,
@@ -64,7 +74,7 @@ export const MEDIA_LABELS: Record<Medium, string> = {
 }
 
 export function defaultSpec(): EstimateSpec {
-  return { weights: 3, widths: 1, slant: 'none', size: 'small', media: ['desktop'], license: 'perpetual' }
+  return { weights: 3, widths: 1, slant: 'none', size: 'small', media: ['desktop'], license: 'annual' }
 }
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -88,48 +98,59 @@ export function computeInstances(weights: number, widths: number): number {
   return w * d
 }
 
-// Production/design work: drawn corner masters at the full rate, every extra
-// interpolated instance at the cheaper per-instance rate, then scaled by the
-// slant multiplier (a true italic is a second set of drawings; oblique is a
-// mechanical slant with light cleanup).
+// Pure production/design work before any license scaling: studio baseline +
+// drawn corner masters at the full rate + every extra interpolated instance
+// at the cheaper per-instance rate, then scaled by the slant multiplier (a
+// true italic is a second set of drawings; oblique is free).
 export function designWork(spec: EstimateSpec): number {
   const masters = computeMasters(spec.weights, spec.widths)
   const instances = computeInstances(spec.weights, spec.widths)
   const extra = Math.max(0, instances - masters)
-  const base = CONFIG.MASTER_RATE * masters + CONFIG.INSTANCE_RATE * extra
+  const base = CONFIG.BASE_DESIGN + CONFIG.MASTER_RATE * masters + CONFIG.INSTANCE_RATE * extra
   return base * (CONFIG.SLANT_MULT[spec.slant] ?? 1)
 }
 
-// License scaling from who's using it and where. Media scope is floored at 1
-// (desktop-only baseline) so a narrow selection never discounts below base.
+// License scaling from who's using it and where. Company size sets the tier;
+// covered media adds scope on top of the desktop-included base (×1).
 export function licenseMultiplier(spec: EstimateSpec): number {
   const tier = CONFIG.SIZE_TIER[spec.size] ?? 1
-  const scope = spec.media.reduce((s, m) => s + (CONFIG.MEDIA[m] ?? 0), 0)
-  return tier * Math.max(1, scope)
+  const scope = 1 + spec.media.reduce((s, m) => s + (CONFIG.MEDIA_INCREMENT[m] ?? 0), 0)
+  return tier * scope
 }
 
-// One-time buyout: design work plus a license fee scaled by company + media.
+// The effective design cost D that the license formulas run on: the raw
+// design work scaled by company + media. Mirrors the role of design cost in
+// lib/quote.tsx, extended with the two new pricing axes.
+export function effectiveDesignCost(spec: EstimateSpec): number {
+  return designWork(spec) * licenseMultiplier(spec)
+}
+
+// One-time buyout: D × 1.5 (matches lib/quote.tsx perpetualTotal).
 export function perpetualTotal(spec: EstimateSpec): number {
-  const d = designWork(spec)
-  return d * (1 + CONFIG.PERP_LICENSE_RATE * licenseMultiplier(spec))
+  return effectiveDesignCost(spec) * CONFIG.PERPETUAL_MULT
 }
 
-// Annual, first year: design work (paid once) plus the first year's license.
+// Annual, first year of use included = D.
 export function annualFirstYear(spec: EstimateSpec): number {
-  const d = designWork(spec)
-  return d + d * CONFIG.ANNUAL_LICENSE_RATE * licenseMultiplier(spec)
+  return effectiveDesignCost(spec)
 }
 
-// Annual, each following year: the recurring license only.
+// Annual, each following year: D / 6.
 export function annualYearly(spec: EstimateSpec): number {
-  return designWork(spec) * CONFIG.ANNUAL_LICENSE_RATE * licenseMultiplier(spec)
+  return effectiveDesignCost(spec) / CONFIG.ANNUAL_YEARLY_DIVISOR
+}
+
+// Max annual fees credited when converting annual → perpetual: 2/3 of D.
+export function creditMax(spec: EstimateSpec): number {
+  return effectiveDesignCost(spec) * CONFIG.CREDIT_FRACTION
 }
 
 // Estimated production effort, in workdays, from masters + extra instances.
 export function estimateWorkdays(spec: EstimateSpec): number {
   const masters = computeMasters(spec.weights, spec.widths)
   const extra = Math.max(0, computeInstances(spec.weights, spec.widths) - masters)
-  const slantFactor = spec.slant === 'italic' ? 1.8 : spec.slant === 'oblique' ? 1.1 : 1
+  // Oblique adds no time (auto-generated); a true italic ~doubles the work.
+  const slantFactor = spec.slant === 'italic' ? 1.8 : 1
   return Math.ceil((masters * CONFIG.DAYS_PER_MASTER + extra * CONFIG.DAYS_PER_INSTANCE) * slantFactor)
 }
 
