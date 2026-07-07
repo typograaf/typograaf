@@ -190,7 +190,7 @@ export default function EstimateCalc() {
       `• Covered media: ${['desktop' as const, ...covered].map((m) => MEDIA_LABELS[m]).join(', ')}${bundleOn ? ' (bundle — all included)' : ''}`,
       `• Licensing: ${LICENSING_LABELS[spec.licensing].label} (${LICENSING_LABELS[spec.licensing].hint})`,
       `• Deadline: ${spec.deadline || 'flexible'}${rush ? ' (rush)' : ''}`,
-      `• Indicative estimate: ${headline}${isAnnual ? ` first year, then ${formatEur(yearly)}/year` : ''}`,
+      `• Indicative estimate: ${headline}${isAnnual ? ` first year, then ${formatEur(yearly)}/year` : spec.licensing === 'term2y' ? ` for 2 years exclusive, then ${formatEur(yearly)}/year` : ''}`,
       '',
       `Full spec: ${shareUrl}`,
     ]
@@ -338,7 +338,7 @@ export default function EstimateCalc() {
           {spec.licensing === 'buyout'
             ? ' A one-time exclusive buyout — the typeface is yours alone, used in perpetuity across print, digital and environmental applications. Comprises the design cost plus a one-time license fee.'
             : spec.licensing === 'term2y'
-            ? ' A term fee for two years of exclusive use (about two-thirds of the buyout). After two years the typeface may be licensed non-exclusively elsewhere, and you keep using it.'
+            ? ` A term fee for two years of exclusive use (about two-thirds of the buyout). After the two years it continues as a non-exclusive annual license at ${formatEur(yearly)} per year, and the typeface may also be licensed elsewhere.`
             : ` A non-exclusive annual license — the first year as shown, renewing at ${formatEur(yearly)} per year. The same typeface may also be licensed to others.`}
           {rush ? ' Includes a rush surcharge for the requested deadline.' : ''}
           {' '}All prices exclude VAT. This is not a binding quote.
