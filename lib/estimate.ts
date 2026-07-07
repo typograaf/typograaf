@@ -30,6 +30,9 @@ export const CONFIG = {
   // a small surcharge (a few % each), capped by SCOPE_CAP so covered media
   // never ramps the price up hard.
   MEDIA_INCREMENT: { desktop: 0, web: 0.05, app: 0.07, broadcast: 0.12, logo: 0.08 } as Record<Medium, number>,
+  // Bulk media deal: pick this many blocks and ALL media are included, charged
+  // for only this many (the priciest) blocks — so the rest come free.
+  MEDIA_BUNDLE_THRESHOLD: 3,
   SCOPE_CAP: 1.35, // media scope ceiling (1 + Σ increments, capped)
   MULT_CAP: 2.0, // overall license-multiplier ceiling (size × scope)
   PERPETUAL_MULT: 1.5, // one-time buyout = D × 1.5
@@ -126,14 +129,41 @@ export function designWork(spec: EstimateSpec): number {
   return base * (CONFIG.SLANT_MULT[spec.slant] ?? 1)
 }
 
+// The optional (chargeable) media — everything except the always-included
+// desktop base.
+const OPTIONAL_MEDIA: Medium[] = MEDIA_ORDER.filter((m) => m !== 'desktop')
+
+// True once enough media are picked to trigger the bulk deal.
+export function mediaBundleActive(media: Medium[]): boolean {
+  return media.filter((m) => m !== 'desktop').length >= CONFIG.MEDIA_BUNDLE_THRESHOLD
+}
+
+// The media actually covered by the license: the picks, or ALL media once the
+// bulk threshold is hit (that's the "everything lights up" behaviour).
+export function coveredMedia(media: Medium[]): Medium[] {
+  return mediaBundleActive(media) ? [...OPTIONAL_MEDIA] : OPTIONAL_MEDIA.filter((m) => media.includes(m))
+}
+
+// Scope increment from covered media. Under the threshold it's the sum of the
+// picked increments; at/over it, all media are included but only the priciest
+// N (= threshold) blocks are charged, so the rest are free.
+export function mediaScopeIncrement(media: Medium[]): number {
+  if (mediaBundleActive(media)) {
+    const top = OPTIONAL_MEDIA.map((m) => CONFIG.MEDIA_INCREMENT[m])
+      .sort((a, b) => b - a)
+      .slice(0, CONFIG.MEDIA_BUNDLE_THRESHOLD)
+    return top.reduce((s, x) => s + x, 0)
+  }
+  return OPTIONAL_MEDIA.filter((m) => media.includes(m)).reduce((s, m) => s + CONFIG.MEDIA_INCREMENT[m], 0)
+}
+
 // License scaling from who's using it and where. Company size sets the tier;
 // covered media adds scope on top of the desktop-included base (×1). Both the
 // media scope and the size×scope product are capped so the license can't
 // compound out of control.
 export function licenseMultiplier(spec: EstimateSpec): number {
   const tier = CONFIG.SIZE_TIER[spec.size] ?? 1
-  const rawScope = 1 + spec.media.reduce((s, m) => s + (CONFIG.MEDIA_INCREMENT[m] ?? 0), 0)
-  const scope = Math.min(CONFIG.SCOPE_CAP, rawScope)
+  const scope = Math.min(CONFIG.SCOPE_CAP, 1 + mediaScopeIncrement(spec.media))
   return Math.min(CONFIG.MULT_CAP, tier * scope)
 }
 

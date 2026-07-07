@@ -21,6 +21,8 @@ import {
   annualYearly,
   creditMax,
   grandTotal,
+  coveredMedia,
+  mediaBundleActive,
   estimateRange,
   estimateWeeks,
   isRush,
@@ -147,6 +149,8 @@ export default function EstimateCalc() {
 
   const masters = computeMasters(spec.weights, spec.widths)
   const instances = computeInstances(spec.weights, spec.widths)
+  const bundleOn = mediaBundleActive(spec.media)
+  const covered = coveredMedia(spec.media)
   const slantLabel = spec.slant === 'italic' ? ' + italics' : spec.slant === 'oblique' ? ' + obliques' : ''
   const rush = isRush(spec)
   const weeks = estimateWeeks(spec)
@@ -170,7 +174,7 @@ export default function EstimateCalc() {
       `• Masters drawn: ${masters} (${instances} styles${slantLabel})`,
       `• Slant: ${SLANTS.find((s) => s.value === spec.slant)?.label}`,
       `• Company size: ${SIZE_LABELS[spec.size].label} (${SIZE_LABELS[spec.size].hint})`,
-      `• Covered media: ${spec.media.map((m) => MEDIA_LABELS[m]).join(', ')}`,
+      `• Covered media: ${['desktop' as const, ...covered].map((m) => MEDIA_LABELS[m]).join(', ')}${bundleOn ? ' (bundle — all included)' : ''}`,
       `• License: ${spec.license === 'perpetual' ? 'Perpetual' : 'Annual'}`,
       `• Deadline: ${spec.deadline || 'flexible'}${rush ? ' (rush)' : ''}`,
       `• Indicative estimate: ${headline}${spec.license === 'annual' ? ` first year, then ${formatEur(yearly)}/year` : ''}`,
@@ -237,8 +241,9 @@ export default function EstimateCalc() {
         <p className="quote-label">Covered media</p>
         <div className="est-pillwrap">
           {MEDIA_ORDER.map((m) => {
-            const on = spec.media.includes(m)
             const locked = m === 'desktop'
+            // Once the bulk deal kicks in, every medium lights up as included.
+            const on = locked || bundleOn || spec.media.includes(m)
             return (
               <button
                 key={m}
@@ -251,6 +256,11 @@ export default function EstimateCalc() {
             )
           })}
         </div>
+        <p className="est-hint">
+          {bundleOn
+            ? 'Bundle deal — all media included for the price of three blocks.'
+            : 'Pick any three media and the rest come free (all usage included).'}
+        </p>
       </div>
 
       {/* License model */}
