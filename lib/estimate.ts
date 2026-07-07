@@ -68,8 +68,8 @@ export const SIZE_LABELS: Record<CompanySize, { label: string; hint: string }> =
   solo: { label: 'Solo', hint: '1 person' },
   small: { label: 'Small', hint: '2–10' },
   mid: { label: 'Mid', hint: '11–50' },
-  large: { label: 'Large', hint: '51–250' },
-  enterprise: { label: 'Enterprise', hint: '250+' },
+  large: { label: 'Large', hint: '51–1000' },
+  enterprise: { label: 'Enterprise', hint: '1000+' },
 }
 
 export const MEDIA_ORDER: Medium[] = ['desktop', 'web', 'app', 'broadcast', 'logo']
