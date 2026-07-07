@@ -8,7 +8,7 @@ import { usePathname, useRouter } from 'next/navigation'
 // they stay mounted across same-domain navigations (no flicker between
 // /work and /about). Page content renders as `children` below the menu
 // overlay (which sits z-index 90 over the page when open).
-const ROUTES = ['/work', '/calendar', '/about'] as const
+const ROUTES = ['/work', '/calendar', '/estimate', '/about'] as const
 
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -50,7 +50,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
         <aside className="menu">
           <div className="menu-inner">
             <p className="menu-block">
-              <Link href="/work" prefetch>Work</Link>&nbsp;&nbsp;<Link href="/calendar" prefetch>Calendar</Link>&nbsp;&nbsp;<Link href="/about" prefetch>About</Link><br />
+              <Link href="/work" prefetch>Work</Link>&nbsp;&nbsp;<Link href="/calendar" prefetch>Calendar</Link>&nbsp;&nbsp;<Link href="/estimate" prefetch>Estimate</Link>&nbsp;&nbsp;<Link href="/about" prefetch>About</Link><br />
               t. +32 (0) 493 45 92 96<br />
               m. <a href="mailto:hello@typografie.be">hello@typografie.be</a><br />
               i. <a href="https://instagram.com/typograaf" target="_blank" rel="noopener noreferrer">@typograaf</a><br />

@@ -799,6 +799,33 @@ body {
 .quote-terms p { margin: 0; line-height: 1.4; }
 .quote-terms a { color: inherit; text-decoration: underline; text-underline-offset: 2px; -webkit-user-select: text; user-select: text; }
 
+/* =====================================================================
+   Estimate calculator (/estimate) — reuses the quote block/pill/cell
+   language above; only the stepper, pill-wrap, and hints are new.
+   ===================================================================== */
+.est-hint { margin: 0; opacity: 0.5; line-height: 1.4; }
+.est-derived { margin: 0; opacity: 0.6; font-variant-numeric: tabular-nums; }
+
+.est-steppers { display: flex; gap: 12px; }
+.est-stepper { flex: 1 0 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.est-stepper-label { display: flex; flex-direction: column; gap: 2px; }
+.est-stepper-controls { display: flex; gap: 12px; align-items: stretch; }
+.est-step-btn { flex: 0 0 44px; background: rgba(0,0,0,0.03); font-size: 18px; line-height: 1; }
+.est-step-value { flex: 1 0 0; min-width: 0; text-align: center; font-variant-numeric: tabular-nums; }
+
+.est-pillwrap { display: flex; flex-wrap: wrap; gap: 12px; }
+.est-pillwrap .pill { flex: 1 0 auto; gap: 6px; background: rgba(0,0,0,0.03); }
+.est-pillwrap .pill.is-selected { background: #fff; }
+.est-pillwrap .pill:disabled { opacity: 1; cursor: default; }
+.est-pill-hint { opacity: 0.45; }
+
+.est-cta { width: 100%; background: #000; color: #fff; padding: 16px; }
+.est-cta:hover { filter: invert(12%); background: #000; }
+
+@media (max-width: 700px) {
+  .est-steppers { flex-direction: column; }
+}
+
 .quote-plan { display: flex; flex-direction: column; gap: 8px; }
 .quote-plan-row { display: grid; grid-template-columns: minmax(120px, 180px) 1fr minmax(120px, max-content); gap: 16px; align-items: center; }
 .quote-plan-label { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
