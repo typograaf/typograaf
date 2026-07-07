@@ -3,48 +3,53 @@
 // (lib/quote.tsx): this produces an *indicative* figure from a handful of
 // spec choices, nothing is stored, and it never mints a binding quote.
 //
-// All rates live in CONFIG below and are meant to be tuned. The model is a
-// creation fee (design labour, in real days at the day rate — a hard floor)
-// times a rights factor (licence/ownership premium, the only part company size
-// and covered media touch). See CONFIG for the full note.
+// All rates live in CONFIG below and are meant to be tuned. A tapered design
+// cost, scaled by company size + media, then the licensing option — with a
+// design floor under the one-time options so the work is never sold below the
+// labour it costs. See CONFIG for the full note.
 
-// Two-part model (mirrors how the market actually prices custom type):
-//   1. CREATION FEE  — the design labour, priced in real days at the day rate.
-//      Never discounted by who's licensing it, so a quote can't fall below the
-//      work it costs to make.
-//   2. RIGHTS FACTOR — a multiple of the creation fee for the licence/ownership
-//      (buyout ≈ 2× the non-exclusive rate — "double to own"), scaled by
-//      company size and covered media. This is the only part size/media touch.
-//   total = creationFee × rightsFactor      (annual total = first year)
+// Pricing model. A tapered design cost D (weights/widths interpolate, so a
+// family plateaus) scaled by company size + covered media, then the licensing
+// option: buyout = D × 1.5, 2-year term = D × 1.0, non-exclusive annual first
+// year = D × 0.8 (renews at D / divisor). Underneath everything sits a DESIGN
+// FLOOR: the one-time options (buyout, 2-year term) can never be quoted below
+// the labour cost (estimated days × day rate), so the work is never sold under
+// cost even when the size/exclusivity discounts stack low.
 export const CONFIG = {
-  DAY_RATE: 600, // €/day, excl. VAT — the creation fee is grounded in this
-  STUDIO_BASE: 1500, // fixed per-project overhead (kickoff, proofs, spacing/test setup)
-  DAYS_PER_MASTER: 8, // drawn corner master
-  DAYS_PER_INSTANCE: 1.5, // each extra interpolated style
-  WORKDAYS_PER_WEEK: 5,
-  // Time multipliers. Oblique is free (mechanical); a true italic ~doubles the
-  // work. Uppercase-only is far fewer glyphs, so less time (and less cost).
-  SLANT_TIME: { none: 1, oblique: 1, italic: 1.8 } as Record<Slant, number>,
+  BASE_DESIGN: 3700, // studio baseline / first style (EUR)
+  MASTER_RATE: 1800, // per effective (tapered) style-unit of the design space
+  WEIGHT_DECAY: 0.72, // each extra weight adds ~72% of the previous one (interpolation is cheap)
+  WIDTH_DECAY: 0.85, // widths taper slower (each ~ a fresh master set)
+  // Oblique is free (mechanical slant); a true italic set adds to the design
+  // cost. Uppercase-only is far fewer glyphs, so cheaper.
+  SLANT_MULT: { none: 1, oblique: 1, italic: 1.8 } as Record<Slant, number>,
   CHARSET_MULT: { uppercase: 0.65, full: 1 } as Record<CharacterSet, number>,
-  // Rights premium as a multiple of the creation fee, at the reference (mid
-  // company, desktop). Non-exclusive annual barely above cost; buyout ≈ 2× the
-  // non-exclusive rate (ownership premium, per Bruno Maag / Elder ladder).
-  LICENSE_PREMIUM: { annual: 1.1, term2y: 1.6, buyout: 2.2 } as Record<Licensing, number>,
-  // Company size scales the RIGHTS premium only (never the creation fee), so
-  // smaller clients pay a smaller premium but the design labour is always met.
+  // Company-size tiers scale the design cost. Solo/small/mid below the mid
+  // reference; large/enterprise a premium.
   SIZE_TIER: { solo: 0.5, small: 0.8, mid: 1.0, large: 1.3, enterprise: 2.5 } as Record<CompanySize, number>,
-  // Desktop is the included base (scope starts at 1); each extra medium is a
-  // small surcharge on the premium, capped by SCOPE_CAP.
+  // Desktop is the included base (scope starts at 1); each extra medium a small
+  // surcharge, capped by SCOPE_CAP.
   MEDIA_INCREMENT: { desktop: 0, web: 0.05, app: 0.07, broadcast: 0.12, logo: 0.08 } as Record<Medium, number>,
   // Bulk media deal: select this many blocks (the always-on desktop counts as
   // one) and ALL media are included, charged only for the priciest optional
   // blocks among the three (desktop is free) — so the rest come free.
   MEDIA_BUNDLE_THRESHOLD: 3,
   SCOPE_CAP: 1.35, // media scope ceiling (1 + Σ increments, capped)
-  RIGHTS_FACTOR_CAP: 4.0, // ceiling on the total creation multiple (bounds enterprise buyouts)
-  // Yearly renewal (annual option, and the 2-year term after it expires) as a
-  // fraction of the creation fee — a gentle ongoing rate that scales with size.
-  RENEWAL_RATE: { solo: 0.06, small: 0.08, mid: 0.10, large: 0.12, enterprise: 0.15 } as Record<CompanySize, number>,
+  MULT_CAP: 3.25, // overall license-multiplier ceiling (size × scope)
+  // Licensing options (exclusivity + duration merged):
+  LICENSE_BUYOUT_MULT: 1.5, // exclusive buyout, one-time = D × 1.5
+  LICENSE_TERM2Y_MULT: 1.0, // 2-year exclusive term, one-time (~2/3 of the buyout)
+  LICENSE_ANNUAL_FIRST: 0.8, // non-exclusive annual, first year = D × 0.8
+  // Yearly renewal = D / divisor (annual option, and the 2-year term after it
+  // expires). Smaller clients get a gentler rate.
+  ANNUAL_YEARLY_DIVISOR: { solo: 12, small: 12, mid: 12, large: 10, enterprise: 10 } as Record<CompanySize, number>,
+  // Design floor — the one-time options never quote below labour. Lean day
+  // counts (efficient, not padded) so the floor only catches deep-discount
+  // cases and doesn't inflate normal quotes.
+  DAY_RATE: 600, // €/day, excl. VAT
+  DAYS_PER_MASTER: 5, // drawn corner master
+  DAYS_PER_INSTANCE: 1.0, // each extra interpolated style
+  WORKDAYS_PER_WEEK: 5,
   RUSH_SURCHARGE: 0.25, // added to the total when the deadline beats estimated production
   RANGE_SPREAD: 0.15, // ± band shown around the indicative figure
 }
@@ -139,7 +144,7 @@ export function computeInstances(weights: number, widths: number): number {
 export function estimateWorkdays(spec: EstimateSpec): number {
   const masters = computeMasters(spec.weights, spec.widths)
   const extra = Math.max(0, computeInstances(spec.weights, spec.widths) - masters)
-  const slant = CONFIG.SLANT_TIME[spec.slant] ?? 1
+  const slant = CONFIG.SLANT_MULT[spec.slant] ?? 1
   const charset = CONFIG.CHARSET_MULT[spec.charset] ?? 1
   return Math.ceil((masters * CONFIG.DAYS_PER_MASTER + extra * CONFIG.DAYS_PER_INSTANCE) * slant * charset)
 }
@@ -148,11 +153,28 @@ export function estimateWeeks(spec: EstimateSpec): number {
   return Math.ceil(estimateWorkdays(spec) / CONFIG.WORKDAYS_PER_WEEK)
 }
 
-// Creation fee — the design labour, in euros. Grounded in real days at the day
-// rate (plus fixed project overhead), so it is a hard floor: no licensing
-// choice can price the work below what it costs to make.
-export function creationFee(spec: EstimateSpec): number {
-  return CONFIG.STUDIO_BASE + estimateWorkdays(spec) * CONFIG.DAY_RATE
+// Design floor — the labour cost (estimated days × day rate). The one-time
+// licensing options never quote below this, so the work is never sold under
+// cost even when the size/exclusivity discounts stack low.
+export function designFloor(spec: EstimateSpec): number {
+  return estimateWorkdays(spec) * CONFIG.DAY_RATE
+}
+
+// Diminishing geometric sum: 1 + decay + … + decay^(n-1). Asymptotes to
+// 1/(1-decay), so a bigger family plateaus rather than running away.
+export function taperedUnits(n: number, decay: number): number {
+  const count = Math.max(0, Math.floor(n))
+  if (count <= 0) return 0
+  if (decay >= 1) return count
+  return (1 - Math.pow(decay, count)) / (1 - decay)
+}
+
+// Design cost before license scaling: a studio baseline plus a tapered 2-D
+// design space (weights × widths), scaled by slant (italic ~1.8×) and charset.
+export function designWork(spec: EstimateSpec): number {
+  const units = taperedUnits(spec.weights, CONFIG.WEIGHT_DECAY) * taperedUnits(spec.widths, CONFIG.WIDTH_DECAY)
+  const base = CONFIG.BASE_DESIGN + CONFIG.MASTER_RATE * units
+  return base * (CONFIG.SLANT_MULT[spec.slant] ?? 1) * (CONFIG.CHARSET_MULT[spec.charset] ?? 1)
 }
 
 // The optional (chargeable) media — everything except the always-included
@@ -189,30 +211,38 @@ export function mediaScopeIncrement(media: Medium[]): number {
   return OPTIONAL_MEDIA.filter((m) => media.includes(m)).reduce((s, m) => s + CONFIG.MEDIA_INCREMENT[m], 0)
 }
 
-// The rights premium as a multiple of the creation fee. At the reference (mid
-// company, desktop) it equals LICENSE_PREMIUM for the chosen option. Company
-// size and covered media scale ONLY the premium above 1× — so the factor never
-// drops below 1 and the creation fee is always fully met. Capped so an
-// enterprise buyout can't run away.
-export function rightsFactor(spec: EstimateSpec): number {
-  const premium = CONFIG.LICENSE_PREMIUM[spec.licensing] ?? 1
-  const size = CONFIG.SIZE_TIER[spec.size] ?? 1
+// License scaling from who's using it and where. Company size sets the tier;
+// covered media adds scope on top of the desktop-included base (×1). Both the
+// media scope and the size×scope product are capped.
+export function licenseMultiplier(spec: EstimateSpec): number {
+  const tier = CONFIG.SIZE_TIER[spec.size] ?? 1
   const scope = Math.min(CONFIG.SCOPE_CAP, 1 + mediaScopeIncrement(spec.media))
-  const factor = 1 + (premium - 1) * size * scope
-  return Math.min(CONFIG.RIGHTS_FACTOR_CAP, factor)
+  return Math.min(CONFIG.MULT_CAP, tier * scope)
 }
 
-// Headline figure for the chosen licensing option, before any rush surcharge:
-// the creation fee times the rights factor. Buyout and 2-year term are
-// one-time; annual is the first-year figure (renewal is separate).
+// The effective design cost D the license formulas run on: the tapered design
+// work scaled by company + media.
+export function effectiveDesignCost(spec: EstimateSpec): number {
+  return designWork(spec) * licenseMultiplier(spec)
+}
+
+// Headline figure for the chosen licensing option, before any rush surcharge.
+// Buyout and 2-year term are one-time and floored at the design labour (never
+// sold below cost); annual is the first-year figure of a non-exclusive licence
+// (amortised over renewals, so not floored).
 export function licensingTotal(spec: EstimateSpec): number {
-  return creationFee(spec) * rightsFactor(spec)
+  const d = effectiveDesignCost(spec)
+  switch (spec.licensing) {
+    case 'buyout': return Math.max(d * CONFIG.LICENSE_BUYOUT_MULT, designFloor(spec))
+    case 'term2y': return Math.max(d * CONFIG.LICENSE_TERM2Y_MULT, designFloor(spec))
+    case 'annual': return d * CONFIG.LICENSE_ANNUAL_FIRST
+  }
 }
 
-// Yearly renewal (annual option, and the 2-year term after it expires): a
-// gentle fraction of the creation fee, scaled by company size.
+// Non-exclusive annual: cost of each year after the first (D / divisor). Also
+// the rate the 2-year term renews at once it expires.
 export function annualRenewal(spec: EstimateSpec): number {
-  return creationFee(spec) * (CONFIG.RENEWAL_RATE[spec.size] ?? 0.1)
+  return effectiveDesignCost(spec) / (CONFIG.ANNUAL_YEARLY_DIVISOR[spec.size] ?? 10)
 }
 
 function parseISO(iso: string): Date | null {
