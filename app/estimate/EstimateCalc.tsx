@@ -256,11 +256,9 @@ export default function EstimateCalc() {
             )
           })}
         </div>
-        <p className="est-hint">
-          {bundleOn
-            ? 'Bundle deal — all media included for the price of three blocks.'
-            : 'Pick any three media and the rest come free (all usage included).'}
-        </p>
+        {bundleOn && (
+          <p className="est-hint">Bundle deal — all media included for the price of three blocks.</p>
+        )}
       </div>
 
       {/* License model */}

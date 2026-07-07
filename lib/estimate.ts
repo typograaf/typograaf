@@ -30,8 +30,9 @@ export const CONFIG = {
   // a small surcharge (a few % each), capped by SCOPE_CAP so covered media
   // never ramps the price up hard.
   MEDIA_INCREMENT: { desktop: 0, web: 0.05, app: 0.07, broadcast: 0.12, logo: 0.08 } as Record<Medium, number>,
-  // Bulk media deal: pick this many blocks and ALL media are included, charged
-  // for only this many (the priciest) blocks — so the rest come free.
+  // Bulk media deal: select this many blocks (the always-on desktop counts as
+  // one) and ALL media are included, charged only for the priciest optional
+  // blocks among the three (desktop is free) — so the rest come free.
   MEDIA_BUNDLE_THRESHOLD: 3,
   SCOPE_CAP: 1.35, // media scope ceiling (1 + Σ increments, capped)
   MULT_CAP: 2.0, // overall license-multiplier ceiling (size × scope)
@@ -133,9 +134,12 @@ export function designWork(spec: EstimateSpec): number {
 // desktop base.
 const OPTIONAL_MEDIA: Medium[] = MEDIA_ORDER.filter((m) => m !== 'desktop')
 
-// True once enough media are picked to trigger the bulk deal.
+// True once enough blocks are picked to trigger the bulk deal. Desktop is
+// always on and counts as one of the blocks, so the threshold is reached with
+// (threshold − 1) optional media selected.
 export function mediaBundleActive(media: Medium[]): boolean {
-  return media.filter((m) => m !== 'desktop').length >= CONFIG.MEDIA_BUNDLE_THRESHOLD
+  const optional = media.filter((m) => m !== 'desktop').length
+  return optional + 1 >= CONFIG.MEDIA_BUNDLE_THRESHOLD
 }
 
 // The media actually covered by the license: the picks, or ALL media once the
@@ -149,9 +153,12 @@ export function coveredMedia(media: Medium[]): Medium[] {
 // N (= threshold) blocks are charged, so the rest are free.
 export function mediaScopeIncrement(media: Medium[]): number {
   if (mediaBundleActive(media)) {
+    // Desktop fills one of the three slots for free; charge the priciest
+    // optional blocks that fill the rest.
+    const paid = Math.max(0, CONFIG.MEDIA_BUNDLE_THRESHOLD - 1)
     const top = OPTIONAL_MEDIA.map((m) => CONFIG.MEDIA_INCREMENT[m])
       .sort((a, b) => b - a)
-      .slice(0, CONFIG.MEDIA_BUNDLE_THRESHOLD)
+      .slice(0, paid)
     return top.reduce((s, x) => s + x, 0)
   }
   return OPTIONAL_MEDIA.filter((m) => media.includes(m)).reduce((s, m) => s + CONFIG.MEDIA_INCREMENT[m], 0)
