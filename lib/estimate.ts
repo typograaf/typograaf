@@ -45,7 +45,7 @@ export const CONFIG = {
   LICENSE_BUYOUT_MULT: 1.5, // exclusive buyout, one-time = D × 1.5
   LICENSE_TERM2Y_MULT: 1.0, // 2-year exclusive term, one-time (~2/3 of the buyout)
   LICENSE_ANNUAL_FIRST: 0.8, // non-exclusive annual, first year = D × 0.8
-  ANNUAL_YEARLY_DIVISOR: 6, // non-exclusive annual renewal after year one = D / 6
+  ANNUAL_YEARLY_DIVISOR: 10, // yearly renewal = D / 10 (~10%/yr) — for the annual option and the 2-year term after it expires
   DAYS_PER_MASTER: 8,
   DAYS_PER_INSTANCE: 1.5,
   WORKDAYS_PER_WEEK: 5,
