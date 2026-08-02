@@ -28,10 +28,23 @@ import { type Axis, parseVariationAxes, parseCharSet, glyphSafeText } from '../.
 
 type Tab = 'work' | 'about' | 'images' | 'quotes' | 'sentences'
 
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'work', label: 'Work' },
+  { key: 'about', label: 'About' },
+  { key: 'images', label: 'Images' },
+  { key: 'quotes', label: 'Quotes' },
+  { key: 'sentences', label: 'Type' },
+]
+
 // Keep the textarea's raw text while editing (preserve spaces / blank
 // lines so typing works). Lines are trimmed and emptied out at save
 // time by normalizeQuote.
 const rawLines = (v: string) => v.split('\n')
+
+// Everything the Save button persists, serialised. Comparing the current
+// snapshot against the last-saved one is what drives the unsaved-changes
+// state (dirty Save button + a beforeunload guard).
+const snapshotOf = (v: unknown) => JSON.stringify(v)
 
 interface AdminImage {
   id: string
@@ -57,7 +70,9 @@ export default function Admin() {
   const [images, setImages] = useState<AdminImage[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [savedAt, setSavedAt] = useState<number | null>(null)
+  const [justSaved, setJustSaved] = useState(false)
+  const [savedSnapshot, setSavedSnapshot] = useState('')
+  const [stuck, setStuck] = useState(false)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
   const [projectFilter, setProjectFilter] = useState<string>('')
@@ -78,20 +93,60 @@ export default function Admin() {
       return
     }
     const data = await res.json()
-    setOrder(data.order || [])
-    setAbout(data.about || '')
-    setQuotes(Array.isArray(data.quotes) ? data.quotes : [])
-    setSentences(Array.isArray(data.sentences) ? data.sentences : [])
+    const nextOrder = data.order || []
+    const nextAbout = data.about || ''
+    const nextQuotes = Array.isArray(data.quotes) ? data.quotes : []
+    const nextSentences = Array.isArray(data.sentences) ? data.sentences : []
+    const nextAxes = data.previewAxes && typeof data.previewAxes === 'object' ? data.previewAxes : {}
+    setOrder(nextOrder)
+    setAbout(nextAbout)
+    setQuotes(nextQuotes)
+    setSentences(nextSentences)
     setBlockedDays(Array.isArray(data.blockedDays) ? data.blockedDays : [])
     setFonts(Array.isArray(data.fonts) ? data.fonts : [])
-    setPreviewAxes(data.previewAxes && typeof data.previewAxes === 'object' ? data.previewAxes : {})
+    setPreviewAxes(nextAxes)
     setImages(data.images || [])
+    setSavedSnapshot(snapshotOf({
+      order: nextOrder, about: nextAbout, quotes: nextQuotes,
+      sentences: nextSentences, previewAxes: nextAxes,
+    }))
     setAuthed(true)
     setLoading(false)
   }
 
   useEffect(() => {
     load()
+  }, [])
+
+  // Unsaved-changes state: the Save button goes solid, and leaving the page
+  // asks for confirmation.
+  const snapshot = useMemo(
+    () => snapshotOf({ order, about, quotes, sentences, previewAxes }),
+    [order, about, quotes, sentences, previewAxes],
+  )
+  const dirty = authed === true && !loading && snapshot !== savedSnapshot
+
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
+
+  // "Saved" confirmation is time-boxed by a timer rather than a timestamp
+  // comparison, so it actually disappears without a further render.
+  useEffect(() => {
+    if (!justSaved) return
+    const t = window.setTimeout(() => setJustSaved(false), 2400)
+    return () => window.clearTimeout(t)
+  }, [justSaved])
+
+  // Drop a hairline under the sticky header once the page scrolls.
+  useEffect(() => {
+    const onScroll = () => setStuck(window.scrollY > 4)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
   const submitLogin = async (e: React.FormEvent) => {
@@ -128,15 +183,20 @@ export default function Admin() {
     })
     // Re-read what actually persisted so dropped/invalid quotes surface
     // instead of looking saved only in local state.
+    let persistedQuotes = quotes
     try {
       const res = await fetch('/api/admin', { cache: 'no-store' })
       if (res.ok) {
         const data = await res.json()
-        setQuotes(Array.isArray(data.quotes) ? data.quotes : [])
+        persistedQuotes = Array.isArray(data.quotes) ? data.quotes : []
+        setQuotes(persistedQuotes)
       }
     } catch {}
+    // Baseline against what came back, so a quote the API dropped still
+    // reads as an unsaved change rather than silently looking saved.
+    setSavedSnapshot(snapshotOf({ order, about, quotes: persistedQuotes, sentences, previewAxes }))
     setSaving(false)
-    setSavedAt(Date.now())
+    setJustSaved(true)
   }
 
   const updateQuote = (qi: number, patch: Partial<Quote>) => {
@@ -327,48 +387,35 @@ export default function Admin() {
     <>
       <AdminStyles />
       <main className="admin-page">
-        <div className="admin-header">
-          <div className="admin-tabs">
-            <button
-              className={`admin-tab${tab === 'work' ? ' is-active' : ''}`}
-              onClick={() => setTab('work')}
-              type="button"
-            >Work</button>
-            <button
-              className={`admin-tab${tab === 'about' ? ' is-active' : ''}`}
-              onClick={() => setTab('about')}
-              type="button"
-            >About</button>
-            <button
-              className={`admin-tab${tab === 'images' ? ' is-active' : ''}`}
-              onClick={() => setTab('images')}
-              type="button"
-            >Images</button>
-            <button
-              className={`admin-tab${tab === 'quotes' ? ' is-active' : ''}`}
-              onClick={() => setTab('quotes')}
-              type="button"
-            >Quotes</button>
-            <button
-              className={`admin-tab${tab === 'sentences' ? ' is-active' : ''}`}
-              onClick={() => setTab('sentences')}
-              type="button"
-            >Type</button>
-          </div>
-          {tab !== 'images' && (
-            <div className="admin-save-row">
-              {savedAt && Date.now() - savedAt < 3000 && (
-                <span className="admin-muted">Saved</span>
-              )}
+        <header className={`admin-header${stuck ? ' is-stuck' : ''}`}>
+          <div className="admin-tabs" role="tablist" aria-label="Sections">
+            {TABS.map((t) => (
               <button
-                className="admin-tab is-primary"
-                onClick={save}
-                disabled={saving}
+                key={t.key}
+                role="tab"
+                aria-selected={tab === t.key}
+                className={`admin-tab${tab === t.key ? ' is-active' : ''}`}
+                onClick={() => setTab(t.key)}
                 type="button"
-              >{saving ? 'Saving…' : 'Save'}</button>
-            </div>
-          )}
-        </div>
+              >{t.label}</button>
+            ))}
+          </div>
+          <div className="admin-save-row">
+            {tab === 'images' ? (
+              <span className="admin-muted admin-autosave">Saves instantly</span>
+            ) : (
+              <>
+                {justSaved && !dirty && <span className="admin-muted admin-saved">Saved</span>}
+                <button
+                  className={`admin-tab is-primary${dirty ? ' is-dirty' : ''}`}
+                  onClick={save}
+                  disabled={saving}
+                  type="button"
+                >{saving ? 'Saving…' : 'Save'}</button>
+              </>
+            )}
+          </div>
+        </header>
 
         {tab === 'work' && (
           <div className="admin-list">
@@ -581,32 +628,43 @@ export default function Admin() {
                         <div className="admin-assets">
                           {o.assets.map((a, ai) => (
                             <div key={ai} className="admin-asset">
-                              <div className="admin-asset-row">
-                                <input
-                                  className="admin-input"
-                                  value={a.name}
-                                  placeholder="Display Typeface"
-                                  onChange={(e) => updateAsset(qi, oi, ai, { name: e.target.value })}
-                                />
-                                <input
-                                  className="admin-input"
-                                  value={a.variable}
-                                  placeholder="1 Axis"
-                                  onChange={(e) => updateAsset(qi, oi, ai, { variable: e.target.value })}
-                                />
-                                <input
-                                  className="admin-input admin-input-num"
-                                  type="number"
-                                  value={a.price || ''}
-                                  placeholder="3600"
-                                  onChange={(e) => updateAsset(qi, oi, ai, { price: Number(e.target.value) || 0 })}
-                                />
+                              <div className="admin-asset-grid">
+                                <label className="admin-field af-name">
+                                  <span>Asset</span>
+                                  <input
+                                    className="admin-input"
+                                    value={a.name}
+                                    placeholder="Display Typeface"
+                                    onChange={(e) => updateAsset(qi, oi, ai, { name: e.target.value })}
+                                  />
+                                </label>
+                                <label className="admin-field af-variable">
+                                  <span>Variable</span>
+                                  <input
+                                    className="admin-input"
+                                    value={a.variable}
+                                    placeholder="1 Axis"
+                                    onChange={(e) => updateAsset(qi, oi, ai, { variable: e.target.value })}
+                                  />
+                                </label>
+                                <label className="admin-field af-price">
+                                  <span>Price</span>
+                                  <input
+                                    className="admin-input admin-input-num"
+                                    type="number"
+                                    inputMode="numeric"
+                                    value={a.price || ''}
+                                    placeholder="3600"
+                                    onChange={(e) => updateAsset(qi, oi, ai, { price: Number(e.target.value) || 0 })}
+                                  />
+                                </label>
                                 <button
-                                  className="admin-arrow admin-danger"
+                                  className="admin-arrow admin-danger af-del"
                                   type="button"
                                   onClick={() => removeAsset(qi, oi, ai)}
                                   disabled={o.assets.length === 1 && (o.items || []).length === 0}
                                   aria-label="Remove asset"
+                                  title="Remove asset"
                                 >×</button>
                               </div>
                               <div className="admin-asset-row admin-asset-row-two">
@@ -665,56 +723,89 @@ export default function Admin() {
                                 setItemDragOver(null)
                               }}
                             >
-                              <div className="admin-asset-row">
+                              <div className="admin-item-grid">
+                                <div className="admin-item-tools">
+                                  <button
+                                    className="admin-item-handle"
+                                    type="button"
+                                    draggable
+                                    onDragStart={(e) => {
+                                      itemDragRef.current = { oi, from: ii }
+                                      setItemDragOver({ oi, over: ii })
+                                      e.dataTransfer.effectAllowed = 'move'
+                                      e.dataTransfer.setData('text/plain', String(ii))
+                                    }}
+                                    onDragEnd={() => {
+                                      itemDragRef.current = null
+                                      setItemDragOver(null)
+                                    }}
+                                    aria-label="Drag to reorder"
+                                    title="Drag to reorder"
+                                  >⋮⋮</button>
+                                  {/* Arrow fallback — HTML5 drag never fires on touch,
+                                      so reordering has to work without it on phones. */}
+                                  <button
+                                    className="admin-arrow"
+                                    type="button"
+                                    onClick={() => reorderItem(qi, oi, ii, ii - 1)}
+                                    disabled={ii === 0}
+                                    aria-label="Move item up"
+                                  >↑</button>
+                                  <button
+                                    className="admin-arrow"
+                                    type="button"
+                                    onClick={() => reorderItem(qi, oi, ii, ii + 1)}
+                                    disabled={ii === (o.items || []).length - 1}
+                                    aria-label="Move item down"
+                                  >↓</button>
+                                </div>
+                                <label className="admin-field ai-name">
+                                  <span>Item</span>
+                                  <input
+                                    className="admin-input"
+                                    value={it.name}
+                                    placeholder="Motionlogo"
+                                    onChange={(e) => updateItem(qi, oi, ii, { name: e.target.value })}
+                                  />
+                                </label>
+                                <label className="admin-field ai-unit">
+                                  <span>Unit</span>
+                                  <input
+                                    className="admin-input"
+                                    value={it.unit}
+                                    placeholder="per video"
+                                    onChange={(e) => updateItem(qi, oi, ii, { unit: e.target.value })}
+                                  />
+                                </label>
+                                <label className="admin-field ai-qty">
+                                  <span>Qty / days</span>
+                                  <input
+                                    className="admin-input admin-input-num"
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={1}
+                                    value={it.quantity || ''}
+                                    placeholder="1"
+                                    onChange={(e) => updateItem(qi, oi, ii, { quantity: Number(e.target.value) || 0 })}
+                                  />
+                                </label>
+                                <label className="admin-field ai-price">
+                                  <span>Unit price</span>
+                                  <input
+                                    className="admin-input admin-input-num"
+                                    type="number"
+                                    inputMode="numeric"
+                                    value={it.unitPrice || ''}
+                                    placeholder="2500"
+                                    onChange={(e) => updateItem(qi, oi, ii, { unitPrice: Number(e.target.value) || 0 })}
+                                  />
+                                </label>
                                 <button
-                                  className="admin-item-handle"
-                                  type="button"
-                                  draggable
-                                  onDragStart={(e) => {
-                                    itemDragRef.current = { oi, from: ii }
-                                    setItemDragOver({ oi, over: ii })
-                                    e.dataTransfer.effectAllowed = 'move'
-                                    e.dataTransfer.setData('text/plain', String(ii))
-                                  }}
-                                  onDragEnd={() => {
-                                    itemDragRef.current = null
-                                    setItemDragOver(null)
-                                  }}
-                                  aria-label="Drag to reorder"
-                                  title="Drag to reorder"
-                                >⋮⋮</button>
-                                <input
-                                  className="admin-input"
-                                  value={it.name}
-                                  placeholder="Motionlogo"
-                                  onChange={(e) => updateItem(qi, oi, ii, { name: e.target.value })}
-                                />
-                                <input
-                                  className="admin-input"
-                                  value={it.unit}
-                                  placeholder="per video"
-                                  onChange={(e) => updateItem(qi, oi, ii, { unit: e.target.value })}
-                                />
-                                <input
-                                  className="admin-input admin-input-num"
-                                  type="number"
-                                  min={1}
-                                  value={it.quantity || ''}
-                                  placeholder="1"
-                                  onChange={(e) => updateItem(qi, oi, ii, { quantity: Number(e.target.value) || 0 })}
-                                />
-                                <input
-                                  className="admin-input admin-input-num"
-                                  type="number"
-                                  value={it.unitPrice || ''}
-                                  placeholder="2500"
-                                  onChange={(e) => updateItem(qi, oi, ii, { unitPrice: Number(e.target.value) || 0 })}
-                                />
-                                <button
-                                  className="admin-arrow admin-danger"
+                                  className="admin-arrow admin-danger ai-del"
                                   type="button"
                                   onClick={() => removeItem(qi, oi, ii)}
                                   aria-label="Remove item"
+                                  title="Remove item"
                                 >×</button>
                               </div>
                               <div className="admin-qfield">
@@ -1195,6 +1286,7 @@ function PlanEditor({
     return new Date(t.getFullYear(), t.getMonth(), 1)
   })()
   const [month, setMonth] = useState<Date>(initialMonth)
+  const [armedKey, setArmedKey] = useState<string | null>(null)
 
   const placedByDate = useMemo(() => {
     const map = new Map<string, PlanBlock[]>()
@@ -1239,10 +1331,33 @@ function PlanEditor({
   // busy on his calendar as feedback time too. Items + presentation still
   // reject on blocked days. Weekends still reject everything.
   const dragKindRef = useRef<PlanBlockKind | null>(null)
-  const canDropOn = (iso: string): boolean => {
+  const canPlace = (iso: string, kind: PlanBlockKind | null): boolean => {
     if (isWeekend(iso)) return false
     if (!blockedDays.has(iso)) return true
-    return dragKindRef.current === 'feedback'
+    return kind === 'feedback'
+  }
+  const canDropOn = (iso: string): boolean => canPlace(iso, dragKindRef.current)
+
+  const addBlock = (kind: PlanBlockKind, itemIndex: number | undefined, iso: string) => {
+    const block: PlanBlock = {
+      id: `pb-${Math.random().toString(36).slice(2, 10)}`,
+      kind,
+      date: iso,
+      ...(kind === 'item' && typeof itemIndex === 'number' ? { itemIndex } : {}),
+    }
+    onChange({ planBlocks: [...placed, block] })
+  }
+
+  // Tap-to-place. HTML5 drag events never fire on touch, so on a phone this
+  // is the only way to plan — and with a mouse it's still quicker for laying
+  // down a run of days. Tap a source to arm it, then tap days.
+  const armed = armedKey ? sources.find((s) => s.key === armedKey) || null : null
+  const handleDayTap = (iso: string) => {
+    if (!armed) return
+    if (armed.total > 0 && armed.placed >= armed.total) { setArmedKey(null); return }
+    if (!canPlace(iso, armed.kind)) return
+    addBlock(armed.kind, armed.itemIndex, iso)
+    if (armed.total > 0 && armed.placed + 1 >= armed.total) setArmedKey(null)
   }
 
   const handleSourceDragStart = (e: React.DragEvent<HTMLButtonElement>, src: PlanSource) => {
@@ -1277,13 +1392,7 @@ function PlanEditor({
     let payload: { mode: 'new' | 'move'; kind?: PlanBlockKind; itemIndex?: number; id?: string }
     try { payload = JSON.parse(raw) } catch { clearDragKind(); return }
     if (payload.mode === 'new' && payload.kind) {
-      const block: PlanBlock = {
-        id: `pb-${Math.random().toString(36).slice(2, 10)}`,
-        kind: payload.kind,
-        date: iso,
-        ...(payload.kind === 'item' && typeof payload.itemIndex === 'number' ? { itemIndex: payload.itemIndex } : {}),
-      }
-      onChange({ planBlocks: [...placed, block] })
+      addBlock(payload.kind, payload.itemIndex, iso)
     } else if (payload.mode === 'move' && payload.id) {
       onChange({ planBlocks: placed.map((b) => b.id === payload.id ? { ...b, date: iso } : b) })
     }
@@ -1311,7 +1420,7 @@ function PlanEditor({
           />
         </div>
       </div>
-      <span className="admin-hint">Drag blocks below onto days. Weekends, Belgian holidays, and busy days from your calendar are greyed out. Typeface phases, presentation, and feedback are unlimited — drag as many as you need.</span>
+      <span className="admin-hint">Tap a block to pick it up, then tap the days it should land on — or drag it across on a desktop. Tap a placed block to remove it. Weekends, Belgian holidays, and busy days from your calendar are greyed out. Typeface phases, presentation, and feedback are unlimited.</span>
 
       {sources.length > 0 && (
         <>
@@ -1320,15 +1429,19 @@ function PlanEditor({
               const unlimited = src.total === 0
               const remaining = unlimited ? Infinity : src.total - src.placed
               const done = !unlimited && remaining === 0
+              const isArmed = armedKey === src.key
               return (
                 <button
                   key={src.key}
                   type="button"
-                  className={`plan-source plan-source-${src.kind}${done ? ' is-done' : ''}`}
+                  className={`plan-source plan-source-${src.kind}${done ? ' is-done' : ''}${isArmed ? ' is-armed' : ''}`}
                   draggable={!done}
+                  disabled={done}
+                  aria-pressed={isArmed}
+                  onClick={() => setArmedKey(isArmed ? null : src.key)}
                   onDragStart={(e) => handleSourceDragStart(e, src)}
                   onDragEnd={clearDragKind}
-                  title={done ? `${src.label} fully placed` : unlimited ? `Drag onto a day (${src.placed} placed)` : `Drag onto a day (${remaining} left)`}
+                  title={done ? `${src.label} fully placed` : unlimited ? `Tap, then tap days (${src.placed} placed)` : `Tap, then tap days (${remaining} left)`}
                 >
                   <span className="plan-source-label">{src.label}</span>
                   <span className="plan-source-count">{unlimited ? src.placed : `${src.placed}/${src.total}`}</span>
@@ -1337,54 +1450,68 @@ function PlanEditor({
             })}
           </div>
 
-          <div className="plan-cal">
+          {armed && (
+            <p className="plan-armed-hint">
+              <span><strong>{armed.label}</strong> picked up — tap the days it should land on.</span>
+              <button type="button" className="admin-arrow" onClick={() => setArmedKey(null)}>Cancel</button>
+            </p>
+          )}
+
+          <div className={`plan-cal${armed ? ' is-placing' : ''}`}>
             <div className="plan-cal-head">
               <button type="button" className="admin-arrow" onClick={() => goMonth(-1)} aria-label="Previous month">‹</button>
               <span className="plan-cal-month">{monthLabel}</span>
               <button type="button" className="admin-arrow" onClick={() => goMonth(1)} aria-label="Next month">›</button>
             </div>
-            <div className="plan-cal-dows">
-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => <span key={d}>{d}</span>)}
-            </div>
-            <div className="plan-cal-grid">
-              {gridDays.map((cell) => {
-                const blocks = placedByDate.get(cell.date) || []
-                const weekend = isWeekend(cell.date)
-                const blocked = blockedDays.has(cell.date)
-                const classes = ['plan-cal-day']
-                if (!cell.inMonth) classes.push('is-out')
-                if (weekend) classes.push('is-weekend')
-                if (blocked) classes.push('is-blocked')
-                if (cell.isToday) classes.push('is-today')
-                return (
-                  <div
-                    key={cell.date}
-                    className={classes.join(' ')}
-                    onDragOver={(e) => handleDayDragOver(e, cell.date)}
-                    onDrop={(e) => handleDayDrop(e, cell.date)}
-                  >
-                    <span className="plan-cal-daynum">{cell.date.slice(8, 10).replace(/^0/, '')}</span>
-                    <div className="plan-cal-blocks">
-                      {blocks.map((b) => {
-                        const label = b.kind === 'item'
-                          ? (option.items[b.itemIndex ?? -1]?.name || 'Item')
-                          : planKindLabel(b.kind, true)
-                        return (
-                          <div
-                            key={b.id}
-                            className={`plan-cal-block plan-cal-block-${b.kind}`}
-                            draggable
-                            onDragStart={(e) => handleBlockDragStart(e, b)}
-                            onDragEnd={clearDragKind}
-                            onClick={() => removeBlock(b.id)}
-                            title={`${label} — click to remove`}
-                          >{label}</div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
+            <div className="plan-cal-scroll">
+              <div className="plan-cal-body">
+                <div className="plan-cal-dows">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => <span key={d}>{d}</span>)}
+                </div>
+                <div className="plan-cal-grid">
+                  {gridDays.map((cell) => {
+                    const blocks = placedByDate.get(cell.date) || []
+                    const weekend = isWeekend(cell.date)
+                    const blocked = blockedDays.has(cell.date)
+                    const targetable = !!armed && canPlace(cell.date, armed.kind)
+                    const classes = ['plan-cal-day']
+                    if (!cell.inMonth) classes.push('is-out')
+                    if (weekend) classes.push('is-weekend')
+                    if (blocked) classes.push('is-blocked')
+                    if (cell.isToday) classes.push('is-today')
+                    if (targetable) classes.push('is-target')
+                    return (
+                      <div
+                        key={cell.date}
+                        className={classes.join(' ')}
+                        onDragOver={(e) => handleDayDragOver(e, cell.date)}
+                        onDrop={(e) => handleDayDrop(e, cell.date)}
+                        onClick={() => handleDayTap(cell.date)}
+                      >
+                        <span className="plan-cal-daynum">{cell.date.slice(8, 10).replace(/^0/, '')}</span>
+                        <div className="plan-cal-blocks">
+                          {blocks.map((b) => {
+                            const label = b.kind === 'item'
+                              ? (option.items[b.itemIndex ?? -1]?.name || 'Item')
+                              : planKindLabel(b.kind, true)
+                            return (
+                              <div
+                                key={b.id}
+                                className={`plan-cal-block plan-cal-block-${b.kind}`}
+                                draggable
+                                onDragStart={(e) => handleBlockDragStart(e, b)}
+                                onDragEnd={clearDragKind}
+                                onClick={(e) => { e.stopPropagation(); removeBlock(b.id) }}
+                                title={`${label} — tap to remove`}
+                              >{label}</div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </>
@@ -1396,24 +1523,44 @@ function PlanEditor({
 function AdminStyles() {
   return (
     <style dangerouslySetInnerHTML={{ __html: `
-.admin-page { max-width: 960px; margin: 0 auto; padding: 96px 32px 96px; display: flex; flex-direction: column; gap: 24px; }
+.admin-page { max-width: 960px; margin: 0 auto; padding: 0 32px 96px; display: flex; flex-direction: column; gap: 24px; }
 .admin-login { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #fff; z-index: 50; }
-.admin-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.admin-tabs { display: flex; gap: 4px; }
-.admin-save-row { display: flex; align-items: center; gap: 12px; }
-.admin-tab { background: transparent; border: 0; padding: 12px; border-radius: 12px; font: inherit; color: #000; cursor: pointer; transition: background 0.12s, opacity 0.12s; }
-.admin-tab:hover:not(:disabled):not(.is-active):not(.is-primary) { background: rgba(0,0,0,0.04); }
+/* Sticky toolbar. Full-bleed inside the page's own horizontal padding, with
+   the left inset reserved for the fixed site logo so the tabs never slide
+   underneath it. The hairline only appears once the page has scrolled. */
+.admin-header {
+  position: sticky; top: 0; z-index: 40;
+  margin: 0 -32px;
+  padding: 24px 32px 16px 80px;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  background: rgba(248,248,248,0.86);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: 0 1px 0 rgba(0,0,0,0);
+  transition: box-shadow 0.2s;
+}
+.admin-header.is-stuck { box-shadow: 0 1px 0 rgba(0,0,0,0.08); }
+.admin-tabs { display: flex; gap: 4px; flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
+.admin-tabs::-webkit-scrollbar { display: none; }
+/* min-height matches the Save button, so the tabs sit at the same height
+   whether the right side holds the button or the Images tab's plain text —
+   on mobile that row height is what keeps the tabs clear of the logo. */
+.admin-save-row { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; min-height: 38px; }
+.admin-saved, .admin-autosave { font-size: 13px; white-space: nowrap; }
+.admin-tab { flex: 0 0 auto; white-space: nowrap; background: transparent; border: 0; padding: 10px 14px; border-radius: 12px; font: inherit; color: #000; cursor: pointer; transition: background 0.12s, opacity 0.12s, color 0.12s; }
+.admin-tab:hover:not(:disabled):not(.is-active):not(.is-primary) { background: rgba(0,0,0,0.05); }
 .admin-tab.is-active { background: #fff; }
 .admin-tab.is-primary { background: #fff; }
+.admin-tab.is-primary.is-dirty { background: #000; color: #fff; }
 .admin-tab:disabled { opacity: 0.3; cursor: not-allowed; }
 .admin-list { display: flex; flex-direction: column; gap: 4px; max-width: 640px; }
-.admin-row { background: #fff; border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 12px; cursor: grab; }
+.admin-row { background: #fff; border-radius: 12px; padding: 10px 12px; min-height: 48px; display: flex; align-items: center; gap: 12px; cursor: grab; }
 .admin-row.is-drag-over { box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
 .admin-row:active { cursor: grabbing; }
 .admin-handle { opacity: 0.3; user-select: none; }
 .admin-name { flex: 1; -webkit-user-select: text; user-select: text; }
-.admin-arrow { background: transparent; border: 0; padding: 4px 8px; font: inherit; color: #000; cursor: pointer; border-radius: 8px; transition: background 0.12s, opacity 0.12s; }
-.admin-arrow:hover:not(:disabled) { background: rgba(0,0,0,0.04); }
+.admin-arrow { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; min-height: 34px; background: transparent; border: 0; padding: 6px 10px; font: inherit; color: #000; cursor: pointer; border-radius: 8px; transition: background 0.12s, opacity 0.12s; }
+.admin-arrow:hover:not(:disabled) { background: rgba(0,0,0,0.05); }
 .admin-arrow:disabled { opacity: 0.2; cursor: not-allowed; }
 .admin-textarea { width: 100%; max-width: 640px; background: #fff; border: 0; border-radius: 12px; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif; font-size: 14px; font-weight: 500; color: #000; outline: none; resize: vertical; min-height: 360px; line-height: 1.45; -webkit-user-select: text; user-select: text; }
 .admin-textarea:focus { box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
@@ -1471,12 +1618,25 @@ function AdminStyles() {
 .admin-assets { display: flex; flex-direction: column; gap: 12px; }
 .admin-asset { background: #fff; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; transition: box-shadow 0.12s, transform 0.12s; }
 .admin-asset.is-drag-over { box-shadow: 0 0 0 2px rgba(0,0,0,0.25); transform: translateY(-1px); }
-.admin-item-handle { flex: 0 0 auto; align-self: stretch; display: inline-flex; align-items: center; justify-content: center; width: 22px; background: transparent; border: 0; padding: 0; color: rgba(0,0,0,0.25); cursor: grab; font-size: 14px; letter-spacing: -2px; border-radius: 6px; transition: background 0.12s, color 0.12s; -webkit-user-select: none; user-select: none; }
-.admin-item-handle:hover { background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.7); }
+.admin-item-handle { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 34px; background: transparent; border: 0; padding: 0; color: rgba(0,0,0,0.25); cursor: grab; font-size: 14px; letter-spacing: -2px; border-radius: 6px; transition: background 0.12s, color 0.12s; -webkit-user-select: none; user-select: none; }
+.admin-item-handle:hover { background: rgba(0,0,0,0.05); color: rgba(0,0,0,0.7); }
 .admin-item-handle:active { cursor: grabbing; }
 .admin-asset-row { display: flex; gap: 12px; align-items: flex-start; }
 .admin-asset-row-two { gap: 12px; }
 .admin-asset-row-two .admin-qfield { flex: 1 0 0; }
+/* Asset and item rows are grids so the same markup can reflow from one
+   desktop row into a stacked mobile card without duplicating the fields. */
+.admin-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.admin-field > span { font-size: 12px; opacity: 0.5; }
+.admin-asset-grid, .admin-item-grid { display: grid; gap: 10px 12px; align-items: end; }
+.admin-asset-grid { grid-template-columns: minmax(0,2fr) minmax(0,1fr) 116px auto; grid-template-areas: "name variable price del"; }
+.admin-item-grid { grid-template-columns: auto minmax(0,2fr) minmax(0,1fr) 96px 116px auto; grid-template-areas: "tools name unit qty price del"; }
+.af-name { grid-area: name; } .af-variable { grid-area: variable; } .af-price { grid-area: price; }
+.ai-name { grid-area: name; } .ai-unit { grid-area: unit; } .ai-qty { grid-area: qty; } .ai-price { grid-area: price; }
+.af-del, .ai-del { grid-area: del; height: 40px; }
+.admin-item-tools { grid-area: tools; display: flex; align-items: center; gap: 2px; height: 40px; }
+.admin-item-tools .admin-arrow { min-width: 28px; min-height: 30px; padding: 4px 6px; }
+.admin-asset-grid .admin-input-num, .admin-item-grid .admin-input-num { max-width: none; }
 .admin-price-preview { display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; opacity: 0.55; }
 .admin-hint code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 .admin-subtabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; }
@@ -1501,9 +1661,14 @@ function AdminStyles() {
 .admin-picker-upload { display: flex; flex-direction: column; gap: 12px; padding: 16px 4px; }
 .admin-picker-upload input[type='file'] { font: inherit; }
 .plan-sources { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
-.plan-source { background: #fff; border: 1px solid rgba(0,0,0,0.12); border-radius: 8px; padding: 6px 10px; display: inline-flex; gap: 8px; align-items: center; cursor: grab; font: inherit; font-size: 13px; color: #000; transition: opacity 0.12s, transform 0.12s; }
-.plan-source:active { cursor: grabbing; transform: scale(0.98); }
+.plan-source { background: #fff; border: 1px solid rgba(0,0,0,0.12); border-radius: 8px; padding: 8px 10px; min-height: 36px; display: inline-flex; gap: 8px; align-items: center; cursor: pointer; font: inherit; font-size: 13px; color: #000; transition: opacity 0.12s, transform 0.12s, box-shadow 0.12s; }
+.plan-source:active { transform: scale(0.98); }
 .plan-source.is-done { opacity: 0.35; cursor: not-allowed; }
+.plan-source.is-armed { box-shadow: 0 0 0 2px #000; }
+.plan-armed-hint { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 6px 6px 6px 12px; border-radius: 10px; background: rgba(0,0,0,0.05); font-size: 13px; line-height: 1.35; }
+.plan-armed-hint > span { flex: 1 1 auto; min-width: 0; }
+.plan-armed-hint strong { font-weight: 600; }
+.plan-armed-hint .admin-arrow { flex: 0 0 auto; background: #fff; }
 .plan-source-label { font-weight: 500; }
 .plan-source-count { font-variant-numeric: tabular-nums; font-size: 12px; opacity: 0.55; }
 .plan-source-item { border-left: 4px solid #000; }
@@ -1516,6 +1681,11 @@ function AdminStyles() {
 .plan-cal { background: #fff; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .plan-cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .plan-cal-month { font-weight: 500; font-size: 14px; }
+/* The 7-column grid stops being usable below ~380px, so it keeps its width
+   and scrolls sideways inside the card rather than crushing the day cells. */
+.plan-cal-scroll { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
+.plan-cal-scroll::-webkit-scrollbar { display: none; }
+.plan-cal-body { display: flex; flex-direction: column; gap: 8px; min-width: 100%; }
 .plan-cal-dows { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; font-size: 11px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.04em; }
 .plan-cal-dows span { padding: 0 4px; }
 .plan-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
@@ -1525,6 +1695,8 @@ function AdminStyles() {
 .plan-cal-day.is-weekend .plan-cal-daynum { opacity: 0.4; }
 .plan-cal-day.is-blocked { background-color: rgba(0,0,0,0.07); background-image: repeating-linear-gradient(135deg, rgba(0,0,0,0.05) 0 6px, transparent 6px 12px); }
 .plan-cal-day.is-blocked .plan-cal-daynum { text-decoration: line-through; opacity: 0.5; }
+.plan-cal-day.is-target { cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2); }
+.plan-cal-day.is-target:hover { background-color: rgba(0,0,0,0.08); }
 .plan-cal-day.is-today { box-shadow: inset 0 0 0 2px #000; }
 .plan-cal-daynum { font-size: 11px; opacity: 0.65; font-variant-numeric: tabular-nums; }
 .plan-cal-blocks { display: flex; flex-direction: column; gap: 2px; flex: 1 0 auto; min-height: 0; min-width: 0; }
@@ -1537,16 +1709,70 @@ function AdminStyles() {
 .plan-cal-block-refinement { background: #6b46c1; }
 .plan-cal-block-spacing-kerning { background: #2c7a7b; }
 .plan-cal-block-testing-output { background: #c05621; }
+@keyframes admin-sheet-up { from { transform: translateY(20px); } to { transform: none; } }
+
+/* Touch devices: HTML5 drag never fires, so drop the grab affordances and
+   lean on the arrow buttons and tap-to-place instead. */
+@media (hover: none) and (pointer: coarse) {
+  .admin-item-handle { display: none; }
+  .admin-row, .admin-row:active { cursor: default; }
+  .admin-tile-meta, .admin-tile-btn { opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  .admin-page { padding: 0 24px 80px; }
+  .admin-header { margin: 0 -24px; padding: 20px 24px 14px 68px; }
+}
+
 @media (max-width: 700px) {
-  .admin-page { padding: 88px 24px 64px; }
+  .admin-page { padding: 0 16px 64px; gap: 20px; }
+  /* Two rows on a phone: the logo shares the first line with Save, and the
+     tabs take the full width underneath rather than a ~220px scroll sliver.
+     The negative left margin reclaims the logo inset on the second row,
+     which sits clear of the logo vertically. */
+  .admin-header { margin: 0 -16px; padding: 14px 16px 10px 64px; flex-wrap: wrap; row-gap: 10px; }
+  .admin-save-row { order: 1; margin-left: auto; }
+  .admin-tabs { order: 2; flex: 1 0 100%; margin-left: -48px; }
+  .admin-tab { padding: 8px 12px; font-size: 13px; }
+  /* 16px keeps iOS Safari from zooming the viewport on focus. */
+  .admin-input, .admin-textarea, .admin-select { font-size: 16px; }
+  .admin-textarea { min-height: 240px; padding: 14px; }
+  .admin-arrow { min-height: 40px; padding: 8px 12px; }
+  .admin-checkbox input { width: 18px; height: 18px; }
   .admin-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
   .admin-tile-meta, .admin-tile-btn { opacity: 1; }
+  .admin-tile-btn { width: 32px; height: 32px; border-radius: 16px; }
+  .admin-hide { right: 44px; }
+  .admin-quote { padding: 12px; gap: 14px; }
   .admin-quote-top { flex-direction: column; }
+  .admin-quote-meta { flex-wrap: wrap; }
+  .admin-qfield-sm { flex: 1 0 0; }
+  .admin-option { padding: 12px; }
+  .admin-asset { padding: 10px; }
   .admin-asset-row, .admin-asset-row-two { flex-direction: column; }
   .admin-input-num { max-width: none; }
-  .admin-picker { padding: 12px; }
-  .plan-cal-day { min-height: 40px; }
-  .plan-cal-block { font-size: 10px; padding: 1px 4px; }
+  .admin-subtabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; margin-bottom: 10px; }
+  .admin-subtabs::-webkit-scrollbar { display: none; }
+  .admin-subtab { flex: 0 0 auto; padding: 9px 12px; }
+  /* One row per field instead of six columns squeezed into 300px. */
+  .admin-asset-grid { grid-template-columns: minmax(0,1fr) auto; grid-template-areas: "name del" "variable variable" "price price"; }
+  .admin-item-grid { grid-template-columns: minmax(0,1fr) minmax(0,1fr); grid-template-areas: "tools del" "name name" "unit unit" "qty price"; }
+  .admin-item-tools { justify-self: start; height: auto; }
+  .ai-del { justify-self: end; }
+  .admin-typeface { flex-direction: column; align-items: stretch; gap: 12px; }
+  .admin-typeface-tile { width: 100%; height: 140px; }
+  .admin-typeface-controls { max-width: none; }
+  .admin-picture, .admin-picture-add { width: 64px; height: 64px; }
+  .admin-picture.is-md, .admin-picture-add.is-md { width: 88px; height: 88px; }
+  /* Picker becomes a bottom sheet — thumb-reachable and full-width. */
+  .admin-picker-backdrop { padding: 0; align-items: flex-end; }
+  .admin-picker { max-width: none; border-radius: 18px 18px 0 0; max-height: 88vh; padding: 12px 12px 20px; animation: admin-sheet-up 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+  .admin-picker-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+  .plan-cal { padding: 10px; }
+  .plan-cal-body { min-width: 380px; }
+  .plan-cal-day { min-height: 52px; }
+  .plan-cal-block { font-size: 10px; padding: 2px 4px; }
+  .plan-source { font-size: 12px; }
 }
     `.trim() }} />
   )
