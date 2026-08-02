@@ -1725,14 +1725,15 @@ function AdminStyles() {
 }
 
 @media (max-width: 700px) {
-  .admin-page { padding: 0 16px 64px; gap: 20px; }
+  .admin-page { padding: 0 20px 72px; gap: 20px; }
   /* Two rows on a phone: the logo shares the first line with Save, and the
      tabs take the full width underneath rather than a ~220px scroll sliver.
      The negative left margin reclaims the logo inset on the second row,
-     which sits clear of the logo vertically. */
-  .admin-header { margin: 0 -16px; padding: 14px 16px 10px 64px; flex-wrap: wrap; row-gap: 10px; }
+     which sits clear of the logo vertically. Tabs wrap rather than scroll —
+     a sideways-swipeable strip reads as the page itself moving. */
+  .admin-header { margin: 0 -20px; padding: 20px 20px 12px 64px; flex-wrap: wrap; row-gap: 10px; }
   .admin-save-row { order: 1; margin-left: auto; }
-  .admin-tabs { order: 2; flex: 1 0 100%; margin-left: -48px; }
+  .admin-tabs { order: 2; flex: 1 0 100%; margin-left: -44px; flex-wrap: wrap; row-gap: 4px; }
   .admin-tab { padding: 8px 12px; font-size: 13px; }
   /* 16px keeps iOS Safari from zooming the viewport on focus. */
   .admin-input, .admin-textarea, .admin-select { font-size: 16px; }
@@ -1751,9 +1752,8 @@ function AdminStyles() {
   .admin-asset { padding: 10px; }
   .admin-asset-row, .admin-asset-row-two { flex-direction: column; }
   .admin-input-num { max-width: none; }
-  .admin-subtabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; margin-bottom: 10px; }
-  .admin-subtabs::-webkit-scrollbar { display: none; }
-  .admin-subtab { flex: 0 0 auto; padding: 9px 12px; }
+  .admin-subtabs { flex-wrap: wrap; margin-bottom: 10px; }
+  .admin-subtab { max-width: 100%; padding: 9px 12px; }
   /* One row per field instead of six columns squeezed into 300px. */
   .admin-asset-grid { grid-template-columns: minmax(0,1fr) auto; grid-template-areas: "name del" "variable variable" "price price"; }
   .admin-item-grid { grid-template-columns: minmax(0,1fr) minmax(0,1fr); grid-template-areas: "tools del" "name name" "unit unit" "qty price"; }
@@ -1769,9 +1769,18 @@ function AdminStyles() {
   .admin-picker { max-width: none; border-radius: 18px 18px 0 0; max-height: 88vh; padding: 12px 12px 20px; animation: admin-sheet-up 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
   .admin-picker-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
   .plan-cal { padding: 10px; }
-  .plan-cal-body { min-width: 380px; }
-  .plan-cal-day { min-height: 52px; }
-  .plan-cal-block { font-size: 10px; padding: 2px 4px; }
+  /* Weekdays only on a phone. Weekends never accept a block anyway, so
+     dropping those two columns removes the sideways scroll entirely and
+     gives the five real columns room — same Mon-Fri grid the public quote
+     calendar already uses. */
+  .plan-cal-dows, .plan-cal-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .plan-cal-dows > :nth-child(n+6),
+  .plan-cal-grid > :nth-child(7n+6),
+  .plan-cal-grid > :nth-child(7n+7) { display: none; }
+  /* aspect-ratio must go: once min-height wins, the ratio back-computes a
+     width wider than the grid column and pushes the calendar out of its box. */
+  .plan-cal-day { aspect-ratio: auto; min-height: 56px; }
+  .plan-cal-block { font-size: 11px; padding: 2px 4px; }
   .plan-source { font-size: 12px; }
 }
     `.trim() }} />
