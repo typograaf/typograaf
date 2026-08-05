@@ -2,9 +2,10 @@
 // Body: { items: [{date: 'YYYY-MM-DD', slot: 'am'|'pm'|'full'}, ...],
 //         name, email, street, number, postcode, city, country,
 //         location: 'office'|'remote', description, tosAccepted, tosVersion }
-// Returns: { ok: true, uids: [...] }
+// Returns: { ok: true, uids: [...], emailed, notified }
 
-import { requireEnv, brusselsToUtc, fetchEvents, buildEventIcal, putEvent, SLOT_HOURS } from "@/lib/caldav";
+import { requireEnv, brusselsToUtc, fetchEvents, buildEventIcal, buildCalendarIcal, putEvent, SLOT_HOURS } from "@/lib/caldav";
+import { sendBookingEmails } from "@/lib/email";
 
 export const runtime = "edge";
 
@@ -115,6 +116,7 @@ export async function POST(request) {
     const groupId = randomHex(6);
     const dtstamp = new Date();
     const uids = [];
+    const bookedEvents = [];
     const grandTotal = items.reduce((acc, it) => acc + SLOT_TOTAL[it.slot], 0);
 
     for (let i = 0; i < ranges.length; i++) {
@@ -138,10 +140,12 @@ export async function POST(request) {
       ].filter(Boolean).join("\n");
 
       const uid = `booking-${r.date}-${r.slot}-${groupId}@typografie.be`;
-      const ical = buildEventIcal({ uid, summary, description: descBody, startUtc: r.startUtc, endUtc: r.endUtc, dtstamp, location: calendarLocation });
+      const event = { uid, summary, description: descBody, startUtc: r.startUtc, endUtc: r.endUtc, dtstamp, location: calendarLocation };
+      const ical = buildEventIcal(event);
       try {
         await putEvent(cfg, uid, ical);
         uids.push(uid);
+        bookedEvents.push({ ...event, slot: r.slot, price: SLOT_TOTAL[r.slot] });
       } catch (err) {
         console.error("booking event PUT failed", r.date, err);
         return json(207, {
@@ -151,7 +155,23 @@ export async function POST(request) {
       }
     }
 
-    return json(200, { ok: true, uids });
+    // Every event is in the calendar at this point, so the booking has
+    // succeeded no matter what happens next. sendBookingEmails never throws;
+    // a mail failure is reported, not raised.
+    const mail = await sendBookingEmails({
+      name: cleanName,
+      email: cleanEmail,
+      address: fullAddress,
+      location,
+      locationLabel: locLabel,
+      description: cleanDesc,
+      sessions: bookedEvents,
+      total: grandTotal,
+      groupId: items.length > 1 ? groupId : "",
+      ics: buildCalendarIcal(bookedEvents),
+    });
+
+    return json(200, { ok: true, uids, emailed: mail.client, notified: mail.owner });
   } catch (err) {
     console.error("booking error", err);
     return json(500, { error: err.message || "Internal error" });

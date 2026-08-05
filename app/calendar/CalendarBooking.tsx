@@ -73,6 +73,7 @@ export default function CalendarBooking({ initialBusy }: { initialBusy: Busy[] |
 
   const [view, setView] = useState<View>('booking')
   const [confirmBody, setConfirmBody] = useState('')
+  const [confirmEmail, setConfirmEmail] = useState('')
   const [errorBody, setErrorBody] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
@@ -242,6 +243,9 @@ export default function CalendarBooking({ initialBusy }: { initialBusy: Busy[] |
         return `${prettyDate(date)} — ${s.name.toLowerCase()} (${s.range})`
       })
       setConfirmBody(`Booked: ${lines.join(' · ')}. Added to my calendar.`)
+      // Only promise a confirmation email if one actually went out — the
+      // booking stands either way, so the API reports mail separately.
+      setConfirmEmail(data.emailed ? email.trim() : '')
 
       // Optimistic local update
       setBusy((prev) => {
@@ -473,6 +477,7 @@ export default function CalendarBooking({ initialBusy }: { initialBusy: Busy[] |
         <section className="confirm">
           <h2>Booked.</h2>
           <p>{confirmBody}</p>
+          {confirmEmail && <p>A confirmation is on its way to {confirmEmail}, with the session attached so you can drop it straight into your calendar.</p>}
           <p>I&rsquo;ll follow up by email within a working day with the invoice and any logistics. If you don&rsquo;t hear back, mail me at <a href="mailto:martijn@aboutcontact.com">martijn@aboutcontact.com</a>.</p>
         </section>
       )}
