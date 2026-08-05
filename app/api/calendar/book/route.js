@@ -4,7 +4,7 @@
 //         location: 'office'|'remote', description, tosAccepted, tosVersion }
 // Returns: { ok: true, uids: [...], emailed, notified }
 
-import { requireEnv, brusselsToUtc, fetchEvents, buildEventIcal, buildCalendarIcal, putEvent, SLOT_HOURS } from "@/lib/caldav";
+import { requireEnv, brusselsToUtc, fetchEvents, buildEventIcal, buildCalendarIcal, putEvent, isSlotTakenError, SLOT_HOURS } from "@/lib/caldav";
 import { sendBookingEmails } from "@/lib/email";
 
 export const runtime = "edge";
@@ -139,7 +139,12 @@ export async function POST(request) {
         cleanDesc,
       ].filter(Boolean).join("\n");
 
-      const uid = `booking-${r.date}-${r.slot}-${groupId}@typografie.be`;
+      // Derived from date + slot only, so a second attempt on the same slot
+      // collides on the server and is rejected outright. The overlap check
+      // above still runs, but it reads from iCloud and iCloud lags its own
+      // writes — two bookings seconds apart can both read the slot as free.
+      // This is the guard that actually holds.
+      const uid = `booking-${r.date}-${r.slot}@typografie.be`;
       const event = { uid, summary, description: descBody, startUtc: r.startUtc, endUtc: r.endUtc, dtstamp, location: calendarLocation };
       const ical = buildEventIcal(event);
       try {
@@ -147,6 +152,15 @@ export async function POST(request) {
         uids.push(uid);
         bookedEvents.push({ ...event, slot: r.slot, price: SLOT_TOTAL[r.slot] });
       } catch (err) {
+        if (isSlotTakenError(err)) {
+          const created = uids.length
+            ? ` The ${uids.length} earlier date${uids.length === 1 ? "" : "s"} in this request ${uids.length === 1 ? "is" : "are"} booked — mail me if you'd rather drop ${uids.length === 1 ? "it" : "them"}.`
+            : "";
+          return json(409, {
+            error: `${r.date} (${slotName}): that slot was just taken. Please pick another.${created}`,
+            uids,
+          });
+        }
         console.error("booking event PUT failed", r.date, err);
         return json(207, {
           error: `Partial booking — ${uids.length} of ${ranges.length} events created. Failed on ${r.date} (${r.slot}): ${err.message}.`,
