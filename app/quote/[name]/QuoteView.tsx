@@ -8,6 +8,11 @@ import {
   type PlanBlock,
   type PlanBlockKind,
   type LicenseModel,
+  optionSpec,
+  quoteAsOf,
+  typefaceTotal,
+  typefaceSpecRows,
+  typefaceFootnote,
   effectiveDesignCost,
   assetEffectivePrice,
   perpetualTotal,
@@ -204,6 +209,43 @@ function PictureStrip({ pictures, variant }: { pictures: QuotePicture[] | undefi
 
 function licenseAmount(model: LicenseModel, d: number): number {
   return model === 'annual' ? annualFirstYear(d) : perpetualTotal(d)
+}
+
+// A typeface option, priced from the estimate link stored on it. Read-only by
+// design: the spec is what was quoted, so there's nothing here to toggle —
+// unlike /estimate, where the client is still configuring.
+function TypefaceBlock({ option, asOf }: { option: QuoteOption; asOf: Date }) {
+  const spec = optionSpec(option)
+  if (!spec) return null
+  const rows = typefaceSpecRows(spec)
+  const [family, styles, ...rest] = rows
+  return (
+    <div className="quote-block">
+      <div className="quote-row">
+        <div className="quote-col col-asset">
+          <p className="quote-colhead">Typeface</p>
+          <div className="quote-cell">{family.value}</div>
+        </div>
+        <div className="quote-col">
+          <p className="quote-colhead">Styles</p>
+          <div className="quote-cell">{styles.value}</div>
+        </div>
+        <div className="quote-col">
+          <p className="quote-colhead">Price</p>
+          <div className="quote-cell">{formatEur(typefaceTotal(spec, asOf))}</div>
+        </div>
+      </div>
+      <p className="quote-subhead">Specification</p>
+      <div className="quote-spec">
+        {rest.map((r) => (
+          <div key={r.label} className="quote-cell quote-spec-row">
+            <span className="quote-spec-label">{r.label}</span>
+            <span className="quote-spec-value">{r.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 const MONTHS_SHORT_VIEW = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -455,7 +497,7 @@ function PlanningBlock({ option, blockedDays }: { option: QuoteOption; blockedDa
   }
 }
 
-function OptionBlock({ option, blockedDays }: { option: QuoteOption; blockedDays: Set<string> }) {
+function OptionBlock({ option, blockedDays, asOf }: { option: QuoteOption; blockedDays: Set<string>; asOf: Date }) {
   const assets = option.assets.filter(
     (a) => a.name.trim() || a.variable.trim() || (Number(a.price) || 0) > 0 || a.styles.length > 0,
   )
@@ -464,24 +506,29 @@ function OptionBlock({ option, blockedDays }: { option: QuoteOption; blockedDays
     (it) => it.name.trim() || it.description.trim() || it.unit.trim() || (Number(it.unitPrice) || 0) > 0,
   )
   const hasItems = items.length > 0
+  const spec = optionSpec(option)
   const [model, setModel] = useState<LicenseModel>('annual')
   const [italic, setItalic] = useState<boolean[]>(() => assets.map(() => false))
   const setAssetItalic = (i: number, on: boolean) =>
     setItalic((prev) => prev.map((v, j) => (j === i ? on : v)))
   const d = hasAssets ? effectiveDesignCost({ ...option, assets }, italic) : 0
   const licensePortion = hasAssets ? licenseAmount(model, d) : 0
+  const typefacePortion = spec ? typefaceTotal(spec, asOf) : 0
   const itemsPortion = items.reduce((s, it) => s + itemLineTotal(it), 0)
-  const combined = licensePortion + itemsPortion
+  const combined = licensePortion + typefacePortion + itemsPortion
   const amount = formatEur(combined)
-  const headlineLabel = hasAssets && model === 'annual' && !hasItems
-    ? `${amount} first year`
-    : amount
-  const footnote = hasAssets
-    ? fillTokens(
-        model === 'annual' ? DEFAULT_FOOTNOTE_ANNUAL : DEFAULT_FOOTNOTE_PERPETUAL,
-        d,
-      )
-    : ''
+  // "first year" only reads right when the whole figure is that first year —
+  // i.e. nothing flat-fee is bundled into it.
+  const firstYearOnly = !hasItems && (
+    (hasAssets && model === 'annual' && !spec) || (!!spec && spec.licensing === 'annual' && !hasAssets)
+  )
+  const headlineLabel = firstYearOnly ? `${amount} first year` : amount
+  const footnote = [
+    hasAssets
+      ? fillTokens(model === 'annual' ? DEFAULT_FOOTNOTE_ANNUAL : DEFAULT_FOOTNOTE_PERPETUAL, d)
+      : '',
+    spec ? typefaceFootnote(spec, asOf) : '',
+  ].filter(Boolean).join('\n')
 
   return (
     <section className="quote-option">
@@ -497,6 +544,8 @@ function OptionBlock({ option, blockedDays }: { option: QuoteOption; blockedDays
       </div>
 
       <PictureStrip pictures={option.pictures} variant="option" />
+
+      <TypefaceBlock option={option} asOf={asOf} />
 
       {hasAssets && (
         <div className="quote-block">
@@ -599,6 +648,10 @@ function OptionBlock({ option, blockedDays }: { option: QuoteOption; blockedDays
 
 export default function QuoteView({ quote, blockedDays = [] }: { quote: Quote; blockedDays?: string[] }) {
   const blockedSet = new Set(blockedDays)
+  // Typeface pricing is frozen against the quote's own date, so the figure
+  // never moves under the client between the day it was sent and the day
+  // they open it.
+  const asOf = quoteAsOf(quote.date)
   return (
     <main className="page">
       <section className="quote-head">
@@ -615,7 +668,7 @@ export default function QuoteView({ quote, blockedDays = [] }: { quote: Quote; b
       <PictureStrip pictures={quote.pictures} variant="hero" />
 
       {quote.options.map((o, i) => (
-        <OptionBlock key={i} option={o} blockedDays={blockedSet} />
+        <OptionBlock key={i} option={o} blockedDays={blockedSet} asOf={asOf} />
       ))}
 
       <section className="quote-terms">

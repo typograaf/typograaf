@@ -9,6 +9,7 @@ import {
   type QuotePicture,
   type PlanBlock,
   type PlanBlockKind,
+  type OptionKind,
   TYPEFACE_PHASES,
   planKindLabel,
   emptyQuote,
@@ -22,7 +23,16 @@ import {
   annualFirstYear,
   annualYearly,
   formatEur,
+  optionKind,
+  optionSpec,
+  optionEstimateLink,
+  quoteAsOf,
+  typefaceTotal,
+  typefaceRenewal,
+  typefaceTotalLabel,
+  typefaceSpecRows,
 } from '../../lib/quote'
+import { parseEstimateLink } from '../../lib/estimate'
 import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING, DEFAULT_PREVIEW_SIZE } from '../../lib/tiles'
 import { type Axis, parseVariationAxes, parseCharSet, glyphSafeText } from '../../lib/fontmeta'
 
@@ -232,8 +242,8 @@ export default function Admin() {
       return next
     })
   }
-  const addOption = (qi: number) => setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
-    ...q, options: [...q.options, emptyOption(q.options.length + 1)],
+  const addOption = (qi: number, kind: OptionKind) => setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
+    ...q, options: [...q.options, emptyOption(q.options.length + 1, kind)],
   }))
   const removeOption = (qi: number, oi: number) => setQuotes(prev => prev.map((q, i) => i !== qi ? q : {
     ...q, options: q.options.filter((_, j) => j !== oi),
@@ -589,16 +599,33 @@ export default function Admin() {
 
                   {q.options.map((o, oi) => {
                     const d = designCost(o)
+                    const kind = optionKind(o)
+                    const spec = optionSpec(o)
                     return (
                       <div key={oi} className="admin-option">
-                        <div className="admin-qfield">
-                          <label>Option title</label>
-                          <input
-                            className="admin-input"
-                            value={o.title}
-                            placeholder={`Option ${oi + 1}`}
-                            onChange={(e) => updateOption(qi, oi, { title: e.target.value })}
-                          />
+                        <div className="admin-asset-row admin-asset-row-two">
+                          <div className="admin-qfield">
+                            <label>Option title</label>
+                            <input
+                              className="admin-input"
+                              value={o.title}
+                              placeholder={`Option ${oi + 1}`}
+                              onChange={(e) => updateOption(qi, oi, { title: e.target.value })}
+                            />
+                          </div>
+                          <div className="admin-qfield">
+                            <label>Type</label>
+                            <div className="admin-kind">
+                              {(['branding', 'typeface'] as OptionKind[]).map((k) => (
+                                <button
+                                  key={k}
+                                  type="button"
+                                  className={`admin-subtab${kind === k ? ' is-active' : ''}`}
+                                  onClick={() => updateOption(qi, oi, { kind: k })}
+                                >{k === 'branding' ? 'Branding' : 'Typeface'}</button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                         <div className="admin-qfield">
                           <label>Description</label>
@@ -610,6 +637,14 @@ export default function Admin() {
                           />
                           <span className="admin-hint">Supports <code>**bold**</code>, <code>*italic*</code>, <code>[link](url)</code>, <code>- bullets</code>, <code>1. numbered</code></span>
                         </div>
+
+                        {kind === 'typeface' && (
+                          <EstimateField
+                            option={o}
+                            quoteDate={q.date}
+                            onChange={(patch) => updateOption(qi, oi, patch)}
+                          />
+                        )}
 
                         <PlanEditor
                           option={o}
@@ -625,7 +660,12 @@ export default function Admin() {
                           label="Option pictures"
                         />
 
+                        {/* Hand-priced typeface assets predate the estimate link.
+                            Only options that already carry them show this — new
+                            typeface options price themselves from the link above. */}
+                        {o.assets.length > 0 && (
                         <div className="admin-assets">
+                          <label className="admin-hint admin-muted">Hand-priced assets (legacy)</label>
                           {o.assets.map((a, ai) => (
                             <div key={ai} className="admin-asset">
                               <div className="admin-asset-grid">
@@ -699,8 +739,9 @@ export default function Admin() {
                               />
                             </div>
                           ))}
-                          <button className="admin-arrow" type="button" onClick={() => addAsset(qi, oi)}>+ Add asset (typeface)</button>
+                          <button className="admin-arrow" type="button" onClick={() => addAsset(qi, oi)}>+ Add asset</button>
                         </div>
+                        )}
 
                         <div className="admin-assets">
                           {(o.items || []).map((it, ii) => {
@@ -833,8 +874,17 @@ export default function Admin() {
                         </div>
 
                         <div className="admin-price-preview">
+                          {spec && (
+                            <>
+                              <span>Typeface {formatEur(typefaceTotal(spec, quoteAsOf(q.date)))}</span>
+                              {spec.licensing !== 'buyout' && (
+                                <span>then {formatEur(typefaceRenewal(spec))} / yr</span>
+                              )}
+                            </>
+                          )}
                           {o.assets.length > 0 && (
                             <>
+                              {spec && <span>·</span>}
                               <span>Design cost {formatEur(d)}</span>
                               <span>·</span>
                               <span>Perpetual {formatEur(perpetualTotal(d))} one-time</span>
@@ -844,7 +894,7 @@ export default function Admin() {
                           )}
                           {(o.items || []).length > 0 && (
                             <>
-                              {o.assets.length > 0 && <span>·</span>}
+                              {(o.assets.length > 0 || spec) && <span>·</span>}
                               <span>Items {formatEur(itemsTotal(o))} flat</span>
                             </>
                           )}
@@ -859,7 +909,10 @@ export default function Admin() {
                       </div>
                     )
                   })}
-                  <button className="admin-arrow" type="button" onClick={() => addOption(qi)}>+ Add option</button>
+                  <div className="admin-add-options">
+                    <button className="admin-arrow" type="button" onClick={() => addOption(qi, 'branding')}>+ Branding option</button>
+                    <button className="admin-arrow" type="button" onClick={() => addOption(qi, 'typeface')}>+ Typeface option</button>
+                  </div>
                 </div>
               )
             })}
@@ -930,7 +983,7 @@ export default function Admin() {
           {tab === 'about' && 'One paragraph per line. Empty lines are ignored.'}
           {tab === 'sentences' && 'Size sets the type size on each typeface tile; weight, width and leading set how it renders. Weight and width show only for fonts that have those axes. The preview updates live — click it for another sample string. Sentences are the sample texts, one per line. Changes go live on Save.'}
           {tab === 'images' && 'Click ◎ to hide an image from the public site (file stays in Dropbox). Click × to delete it from Dropbox — your Mac will sync the deletion within seconds. Deletion cannot be undone.'}
-          {tab === 'quotes' && 'You enter the design price per asset. Perpetual = one-time design + 50%. Annual = first year at the design price, then 1/6 of design per year. Footnotes are fixed and shown automatically on the quote. Changes go live on Save.'}
+          {tab === 'quotes' && 'Branding options are flat-fee items you price yourself. Typeface options are priced from a link pasted out of /estimate — build the family there, paste the URL, and the quote shows that spec and figure, locked (the client cannot change it). Both take planning and pictures. Footnotes are written automatically from the licensing you chose. Changes go live on Save.'}
         </p>
       </main>
     </>
@@ -1065,6 +1118,68 @@ function FontAxisRow({
           <span className="admin-axis-value">{leading.toFixed(2)}</span>
         </label>
       </div>
+    </div>
+  )
+}
+
+// Typeface options are priced from a link pasted out of /estimate: configure
+// the family there, paste the URL here, and the quote reads its price from the
+// same engine the public calculator uses. Parses as you type so a bad paste
+// shows up before saving, and the figure is previewed against the quote's date
+// (which is what the public page prices against).
+function EstimateField({
+  option,
+  quoteDate,
+  onChange,
+}: {
+  option: QuoteOption
+  quoteDate: string
+  onChange: (patch: Partial<QuoteOption>) => void
+}) {
+  const raw = option.estimateUrl || ''
+  const spec = raw.trim() ? parseEstimateLink(raw) : null
+  const asOf = quoteAsOf(quoteDate)
+  return (
+    <div className="admin-qfield">
+      <label>Estimate link</label>
+      <input
+        className="admin-input"
+        value={raw}
+        placeholder="https://www.typografie.be/estimate?w=3&d=2&slant=none&cs=full&size=mid&media=desktop,web&lic=buyout"
+        onChange={(e) => onChange({ estimateUrl: e.target.value })}
+        spellCheck={false}
+      />
+      {!raw.trim() && (
+        <span className="admin-hint admin-muted">
+          Build the typeface on <a className="admin-link" href="/estimate" target="_blank" rel="noreferrer">/estimate</a>, then paste the URL here. The quote prices itself from it.
+        </span>
+      )}
+      {raw.trim() && !spec && (
+        <span className="admin-hint admin-danger">Not an estimate link — copy the whole URL from the address bar on /estimate.</span>
+      )}
+      {spec && (
+        <>
+          <div className="admin-estimate">
+            {typefaceSpecRows(spec).map((r) => (
+              <div key={r.label} className="admin-estimate-row">
+                <span className="admin-estimate-label">{r.label}</span>
+                <span>{r.value}</span>
+              </div>
+            ))}
+          </div>
+          <div className="admin-price-preview">
+            <span>{typefaceTotalLabel(spec.licensing)} {formatEur(typefaceTotal(spec, asOf))}</span>
+            {spec.licensing !== 'buyout' && (
+              <>
+                <span>·</span>
+                <span>renews at {formatEur(typefaceRenewal(spec))} / yr</span>
+              </>
+            )}
+            <span>·</span>
+            <a className="admin-link" href={optionEstimateLink(spec)} target="_blank" rel="noreferrer">Open in estimate ↗</a>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -1237,9 +1352,10 @@ function planSources(option: QuoteOption): PlanSource[] {
     const used = placed.filter((b) => b.kind === 'item' && b.itemIndex === i).length
     out.push({ key: `i-${i}`, kind: 'item', itemIndex: i, label: it.name || `Item ${i + 1}`, total, placed: used })
   })
-  // Typeface phases — unlimited pools, only for options with a typeface (asset).
-  // They let a typeface project be planned day-by-day the way items already are.
-  if ((option.assets || []).length > 0) {
+  // Typeface phases — unlimited pools, only on typeface options (priced from an
+  // estimate link, or carrying legacy hand-priced assets). They let a typeface
+  // project be planned day-by-day the way items already are.
+  if (optionKind(option) === 'typeface' || (option.assets || []).length > 0) {
     TYPEFACE_PHASES.forEach((p) => {
       out.push({
         key: `ph-${p.kind}`, kind: p.kind, label: p.label, total: 0,
@@ -1638,6 +1754,14 @@ function AdminStyles() {
 .admin-item-tools .admin-arrow { min-width: 28px; min-height: 30px; padding: 4px 6px; }
 .admin-asset-grid .admin-input-num, .admin-item-grid .admin-input-num { max-width: none; }
 .admin-price-preview { display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; opacity: 0.55; }
+.admin-kind { display: flex; gap: 4px; padding: 3px 0; }
+.admin-kind .admin-subtab { background: rgba(0,0,0,0.04); }
+.admin-kind .admin-subtab.is-active { background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.12); }
+.admin-estimate { background: #fff; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.admin-estimate-row { display: flex; gap: 12px; align-items: baseline; }
+.admin-estimate-label { flex: 0 0 130px; opacity: 0.45; }
+.admin-estimate-row > span:last-child { flex: 1 1 auto; min-width: 0; }
+.admin-add-options { display: flex; flex-wrap: wrap; gap: 4px; }
 .admin-hint code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 .admin-subtabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; }
 .admin-subtab { background: transparent; border: 0; padding: 6px 10px; border-radius: 8px; font: inherit; font-size: 13px; color: #000; opacity: 0.5; cursor: pointer; transition: background 0.12s, opacity 0.12s; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1751,6 +1875,8 @@ function AdminStyles() {
   .admin-option { padding: 12px; }
   .admin-asset { padding: 10px; }
   .admin-asset-row, .admin-asset-row-two { flex-direction: column; }
+  .admin-estimate-row { flex-direction: column; gap: 2px; }
+  .admin-estimate-label { flex: none; }
   .admin-input-num { max-width: none; }
   .admin-subtabs { flex-wrap: wrap; margin-bottom: 10px; }
   .admin-subtab { max-width: 100%; padding: 9px 12px; }

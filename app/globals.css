@@ -791,6 +791,14 @@ body {
 .quote-chips { display: flex; flex-wrap: wrap; gap: 12px; }
 .quote-chips .quote-chip { flex: 1 0 0; min-width: 200px; white-space: nowrap; }
 
+/* Typeface option spec sheet — one white cell per line, label left, value
+   right. Values (covered media especially) run long, so they wrap inside the
+   cell instead of being clipped like the fixed-width style chips. */
+.quote-spec { display: flex; flex-direction: column; gap: 12px; }
+.quote-spec-row { display: flex; gap: 12px; align-items: baseline; }
+.quote-spec-label { flex: 0 0 180px; opacity: 0.5; }
+.quote-spec-value { flex: 1 0 0; min-width: 0; }
+
 .quote-total-row { display: flex; gap: 12px; }
 .quote-total-row .quote-cell:first-child { flex: 1 0 0; min-width: 0; }
 .quote-total-amount { flex: 0 0 205px; }
@@ -909,6 +917,10 @@ body {
   /* One chip per row on mobile — flex:1 0 0 + nowrap squashed them
      into shared rows and the text overlapped. Calendar-style stack. */
   .quote-chips .quote-chip { flex: 1 0 100%; min-width: 0; white-space: normal; }
+  /* Spec label above its value — a 180px label column leaves nothing for the
+     value on a phone. */
+  .quote-spec-row { flex-direction: column; gap: 4px; }
+  .quote-spec-label { flex: none; }
   .quote-total-amount { flex: 0 0 40%; }
   .quote-pictures-hero img { max-height: 240px; }
   .quote-pictures-option img { max-height: 180px; }

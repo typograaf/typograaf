@@ -3,11 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   type EstimateSpec,
-  type Slant,
-  type CompanySize,
   type Medium,
-  type CharacterSet,
-  type Licensing,
   WEIGHTS_MIN,
   WEIGHTS_MAX,
   WIDTHS_MIN,
@@ -16,11 +12,15 @@ import {
   SIZE_LABELS,
   MEDIA_ORDER,
   MEDIA_LABELS,
+  SLANT_ORDER,
+  SLANT_LABELS,
   CHARSET_ORDER,
   CHARSET_LABELS,
   LICENSING_ORDER,
   LICENSING_LABELS,
   defaultSpec,
+  specFromQuery,
+  paramsFromSpec,
   computeMasters,
   computeInstances,
   annualRenewal,
@@ -34,69 +34,8 @@ import {
   CONFIG,
 } from '@/lib/estimate'
 
-const SLANTS: { value: Slant; label: string }[] = [
-  { value: 'none', label: 'Upright only' },
-  { value: 'oblique', label: 'Oblique' },
-  { value: 'italic', label: 'Italic' },
-]
-
-// ---- URL <-> spec ---------------------------------------------------------
-// The whole spec lives in the query string so a client can share the exact
-// configuration. Values are clamped on the way in so a hand-edited URL can't
-// produce an out-of-range spec.
-
-function clampInt(raw: string | null, lo: number, hi: number, fallback: number): number {
-  if (raw === null) return fallback
-  const n = Number(raw)
-  if (!Number.isFinite(n)) return fallback
-  return Math.min(hi, Math.max(lo, Math.round(n)))
-}
-
-function specFromParams(qs: string): EstimateSpec {
-  const p = new URLSearchParams(qs)
-  const base = defaultSpec()
-  if (!qs) return base
-
-  const slant = (['none', 'oblique', 'italic'] as Slant[]).includes(p.get('slant') as Slant)
-    ? (p.get('slant') as Slant)
-    : base.slant
-  const charset = CHARSET_ORDER.includes(p.get('cs') as CharacterSet)
-    ? (p.get('cs') as CharacterSet)
-    : base.charset
-  const size = SIZE_ORDER.includes(p.get('size') as CompanySize)
-    ? (p.get('size') as CompanySize)
-    : base.size
-  const licensing = LICENSING_ORDER.includes(p.get('lic') as Licensing)
-    ? (p.get('lic') as Licensing)
-    : base.licensing
-  const mediaRaw = (p.get('media') || '').split(',').map((m) => m.trim()) as Medium[]
-  const media = MEDIA_ORDER.filter((m) => mediaRaw.includes(m))
-  const deadline = /^\d{4}-\d{2}-\d{2}$/.test(p.get('deadline') || '') ? p.get('deadline')! : undefined
-
-  return {
-    weights: clampInt(p.get('w'), WEIGHTS_MIN, WEIGHTS_MAX, base.weights),
-    widths: clampInt(p.get('d'), WIDTHS_MIN, WIDTHS_MAX, base.widths),
-    slant,
-    charset,
-    size,
-    media: media.includes('desktop') ? media : (['desktop', ...media] as Medium[]),
-    licensing,
-    ...(deadline ? { deadline } : {}),
-  }
-}
-
-function paramsFromSpec(spec: EstimateSpec): string {
-  const p = new URLSearchParams()
-  p.set('w', String(spec.weights))
-  p.set('d', String(spec.widths))
-  p.set('slant', spec.slant)
-  p.set('cs', spec.charset)
-  p.set('size', spec.size)
-  p.set('media', spec.media.join(','))
-  p.set('lic', spec.licensing)
-  if (spec.deadline) p.set('deadline', spec.deadline)
-  return p.toString()
-}
+// URL <-> spec lives in lib/estimate: the quote system parses the same links
+// when an estimate is pasted into a quote option.
 
 // ---- small UI atoms -------------------------------------------------------
 
@@ -135,7 +74,7 @@ export default function EstimateCalc() {
 
   // Seed from the URL once on mount (deterministic first render = SSR default).
   useEffect(() => {
-    const fromUrl = specFromParams(window.location.search.replace(/^\?/, ''))
+    const fromUrl = specFromQuery(window.location.search)
     setSpec(fromUrl)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -184,7 +123,7 @@ export default function EstimateCalc() {
       `• Weights: ${spec.weights}`,
       `• Widths: ${spec.widths}`,
       `• Masters drawn: ${masters} (${instances} styles${slantLabel})`,
-      `• Slant: ${SLANTS.find((s) => s.value === spec.slant)?.label}`,
+      `• Slant: ${SLANT_LABELS[spec.slant]}`,
       `• Character set: ${CHARSET_LABELS[spec.charset]}`,
       `• Company size: ${SIZE_LABELS[spec.size].label} (${SIZE_LABELS[spec.size].hint})`,
       `• Covered media: ${['desktop' as const, ...covered].map((m) => MEDIA_LABELS[m]).join(', ')}${bundleOn ? ' (bundle — all included)' : ''}`,
@@ -222,13 +161,13 @@ export default function EstimateCalc() {
       <div className="quote-block">
         <p className="quote-label">Slanted styles</p>
         <div className="quote-toggle">
-          {SLANTS.map((s) => (
+          {SLANT_ORDER.map((s) => (
             <button
-              key={s.value}
+              key={s}
               type="button"
-              className={`pill${spec.slant === s.value ? ' is-selected' : ''}`}
-              onClick={() => set('slant', s.value)}
-            >{s.label}</button>
+              className={`pill${spec.slant === s ? ' is-selected' : ''}`}
+              onClick={() => set('slant', s)}
+            >{SLANT_LABELS[s]}</button>
           ))}
         </div>
         <p className="est-hint">Oblique is a mechanical slant, standard-included at no extra cost; italic is a separately drawn cursive set.</p>

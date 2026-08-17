@@ -1,15 +1,51 @@
 import type { ReactNode } from 'react'
+import {
+  type EstimateSpec,
+  type Licensing,
+  LICENSING_LABELS,
+  SIZE_LABELS,
+  MEDIA_LABELS,
+  CHARSET_LABELS,
+  SLANT_LABELS,
+  parseEstimateLink,
+  estimateLinkFor,
+  computeMasters,
+  computeInstances,
+  coveredMedia,
+  mediaBundleActive,
+  grandTotal,
+  annualRenewal,
+  isRush,
+  roundEur,
+} from './estimate'
 
 // Quote feature — shared types and pricing logic.
 // Used by the admin editor, the public /quote/[name] page, and the API.
 //
-// Pricing model (per option):
+// An option is one of two kinds:
+//
+//   BRANDING — flat-fee line items (motionlogo, guidelines, identity…).
+//              Line total = quantity × unitPrice, no license multipliers.
+//
+//   TYPEFACE — priced from a /estimate link pasted into the CMS. The spec
+//              lives in the URL; lib/estimate does the pricing, so a quote and
+//              the public calculator can never disagree. Frozen against the
+//              quote's own date, so the figure a client sees never drifts.
+//
+// Legacy: options predating the estimate link carry hand-entered `assets`,
+// still priced with the old per-asset model below and still rendered. New
+// typeface options don't use them.
+//
 //   design cost  D  = sum of all asset prices entered in the CMS
 //   PERPETUAL    = one-time D + 50% = D * 1.5
 //   ANNUAL       = first year of use included (D upfront),
 //                  then 1/3 of D per year after the first year
 
 export type LicenseModel = 'annual' | 'perpetual'
+
+// What an option sells. Drives which editor the CMS shows and which pricing
+// path the public page takes.
+export type OptionKind = 'branding' | 'typeface'
 
 export interface QuotePicture {
   src: string
@@ -99,7 +135,9 @@ export function planKindLabel(kind: PlanBlockKind, short = false): string {
 
 export interface QuoteOption {
   title: string // "Option 1"
+  kind?: OptionKind // absent = inferred from the content (legacy quotes)
   description: string
+  estimateUrl?: string // typeface options: a pasted /estimate link, the price source
   assets: QuoteAsset[]
   items: QuoteItem[]
   pictures: QuotePicture[]
@@ -161,6 +199,91 @@ export function annualYearly(d: number): number {
 // yearly rate.
 export function creditMax(d: number): number {
   return Math.round((d * 2) / 3)
+}
+
+// ---- Typeface options, priced from an /estimate link ----------------------
+// The spec lives in the pasted URL and lib/estimate does the arithmetic, so a
+// quote states exactly what the calculator states for the same configuration.
+
+// An option's kind. Older quotes have none stored: anything carrying
+// hand-entered assets was a typeface option, everything else branding.
+export function optionKind(opt: QuoteOption): OptionKind {
+  if (opt.kind === 'typeface' || opt.kind === 'branding') return opt.kind
+  return (opt.assets || []).length > 0 ? 'typeface' : 'branding'
+}
+
+// The parsed estimate spec for a typeface option, or null when the option
+// isn't a typeface one / the stored link doesn't parse.
+export function optionSpec(opt: QuoteOption): EstimateSpec | null {
+  if (optionKind(opt) !== 'typeface') return null
+  if (!opt.estimateUrl) return null
+  return parseEstimateLink(opt.estimateUrl)
+}
+
+// A quote prices against its own issue date, not "now". That keeps the rush
+// surcharge (deadline vs. realistic production time) fixed at what the client
+// was quoted instead of drifting as the deadline approaches — and keeps server
+// and client renders identical.
+export function quoteAsOf(dateIso: string): Date {
+  return parseISODate(dateIso) || new Date()
+}
+
+// Headline typeface figure, rounded to the nearest €100 the way /estimate
+// presents it, so quote and calculator show the same number.
+export function typefaceTotal(spec: EstimateSpec, asOf: Date): number {
+  return roundEur(grandTotal(spec, asOf))
+}
+
+// Per-year renewal — the annual option's recurring rate, and what a 2-year
+// term continues at once it expires.
+export function typefaceRenewal(spec: EstimateSpec): number {
+  return roundEur(annualRenewal(spec))
+}
+
+// Spec rows shown on the quote: what the client is buying, in their terms.
+export function typefaceSpecRows(spec: EstimateSpec): { label: string; value: string }[] {
+  const masters = computeMasters(spec.weights, spec.widths)
+  const instances = computeInstances(spec.weights, spec.widths)
+  const slantSuffix = spec.slant === 'italic' ? ' + italics' : spec.slant === 'oblique' ? ' + obliques' : ''
+  const media = ['desktop' as const, ...coveredMedia(spec.media)].map((m) => MEDIA_LABELS[m])
+  return [
+    { label: 'Family', value: `${spec.weights} weight${spec.weights === 1 ? '' : 's'} × ${spec.widths} width${spec.widths === 1 ? '' : 's'}` },
+    { label: 'Styles', value: `${instances} style${instances === 1 ? '' : 's'}${slantSuffix}` },
+    { label: 'Masters drawn', value: String(masters) },
+    { label: 'Slanted styles', value: SLANT_LABELS[spec.slant] },
+    { label: 'Character set', value: CHARSET_LABELS[spec.charset] },
+    { label: 'Licensed to', value: `${SIZE_LABELS[spec.size].label} company (${SIZE_LABELS[spec.size].hint})` },
+    { label: 'Covered media', value: media.join(', ') + (mediaBundleActive(spec.media) ? ' — all media bundled' : '') },
+    { label: 'Licensing', value: `${LICENSING_LABELS[spec.licensing].label} — ${LICENSING_LABELS[spec.licensing].hint}` },
+  ]
+}
+
+// Short label for the license line, e.g. "Exclusive buyout, excl. VAT".
+export function typefaceTotalLabel(licensing: Licensing): string {
+  if (licensing === 'annual') return 'First year, excl. VAT'
+  if (licensing === 'term2y') return 'Two-year exclusive fee, excl. VAT'
+  return 'One-time exclusive buyout, excl. VAT'
+}
+
+// Footnote under a typeface option's total. States the license the client is
+// actually buying — firm terms, not the calculator's indicative hedging.
+export function typefaceFootnote(spec: EstimateSpec, asOf: Date): string {
+  const yearly = formatEur(typefaceRenewal(spec))
+  const rush = isRush(spec, asOf)
+    ? ' Includes a rush surcharge for the requested delivery date.'
+    : ''
+  if (spec.licensing === 'annual') {
+    return `*A non-exclusive annual license. The amount shown covers the first year and renews at ${yearly} per year. The same typeface may also be licensed to others.${rush} All prices exclude VAT.`
+  }
+  if (spec.licensing === 'term2y') {
+    return `*A one-time fee covering two years of exclusive use. After those two years the license continues non-exclusively at ${yearly} per year, and the typeface may also be licensed elsewhere.${rush} All prices exclude VAT.`
+  }
+  return `*A one-time exclusive buyout: the typeface is yours alone, used in perpetuity across print, digital, and environmental applications. It comprises the design cost plus a one-time license fee.${rush} All prices exclude VAT.`
+}
+
+// Link back to the calculator with this spec loaded, for the CMS.
+export function optionEstimateLink(spec: EstimateSpec): string {
+  return estimateLinkFor(spec)
 }
 
 // Weight ladder. A typed style is matched by its name (any leading
@@ -556,9 +679,10 @@ export const DEFAULT_FOOTNOTE_ANNUAL =
 export const DEFAULT_FOOTNOTE_PERPETUAL =
   '*The perpetual license grants the client full, unlimited usage rights across print, digital, and environmental applications. It comprises the design cost plus a one-time license fee of 50% of the design cost, totalling {perpetual}. All prices exclude VAT.'
 
-export function emptyOption(n: number): QuoteOption {
+export function emptyOption(n: number, kind: OptionKind = 'branding'): QuoteOption {
   return {
     title: `Option ${n}`,
+    kind,
     description: '',
     assets: [],
     items: [],
@@ -649,10 +773,24 @@ export function normalizeQuote(raw: unknown): Quote | null {
       const itemIndex = typeof bb.itemIndex === 'number' && bb.itemIndex >= 0 ? bb.itemIndex : undefined
       return [{ id, kind, date, ...(itemIndex !== undefined ? { itemIndex } : {}) }]
     })
+    // Kind: stored explicitly on anything authored since the estimate link
+    // landed; inferred for older quotes from what the option actually holds.
+    // The raw link is kept even when it doesn't parse, so a mistyped paste can
+    // be fixed in the CMS rather than retyped from scratch.
+    const keptAssets = assets.filter((a) => !assetIsEmpty(a))
+    const estimateUrl = typeof oo.estimateUrl === 'string' && oo.estimateUrl.trim()
+      ? oo.estimateUrl.trim().slice(0, 500)
+      : undefined
+    const kindRaw = typeof oo.kind === 'string' ? oo.kind.trim() : ''
+    const kind: OptionKind = kindRaw === 'typeface' || kindRaw === 'branding'
+      ? kindRaw
+      : (keptAssets.length > 0 || estimateUrl ? 'typeface' : 'branding')
     return {
       title: String(oo.title || ''),
+      kind,
       description: String(oo.description || ''),
-      assets: assets.filter((a) => !assetIsEmpty(a)),
+      ...(estimateUrl ? { estimateUrl } : {}),
+      assets: keptAssets,
       items: items.filter((it) => !itemIsEmpty(it)),
       pictures: normalizePictures(oo.pictures),
       ...(optStartDate ? { startDate: optStartDate } : {}),

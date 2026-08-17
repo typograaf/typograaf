@@ -96,6 +96,13 @@ export const MEDIA_LABELS: Record<Medium, string> = {
   logo: 'Logo / wordmark',
 }
 
+export const SLANT_ORDER: Slant[] = ['none', 'oblique', 'italic']
+export const SLANT_LABELS: Record<Slant, string> = {
+  none: 'Upright only',
+  oblique: 'Oblique',
+  italic: 'Italic',
+}
+
 export const CHARSET_ORDER: CharacterSet[] = ['full', 'uppercase']
 export const CHARSET_LABELS: Record<CharacterSet, string> = {
   full: 'Full Western European',
@@ -119,6 +126,90 @@ export function defaultSpec(): EstimateSpec {
 function clamp(n: number, lo: number, hi: number): number {
   if (!Number.isFinite(n)) return lo
   return Math.min(hi, Math.max(lo, Math.round(n)))
+}
+
+// ---- URL <-> spec ---------------------------------------------------------
+// The whole spec fits in a query string, so an estimate is shareable as a link
+// — and a hand-authored quote can be built from one by pasting that link into
+// the CMS (lib/quote.tsx). Values are clamped on the way in, so a hand-edited
+// or truncated URL can never produce an out-of-range spec.
+
+// Query keys the calculator writes. A pasted link must carry at least one of
+// them to count as an estimate link at all.
+const SPEC_KEYS = ['w', 'd', 'slant', 'cs', 'size', 'media', 'lic', 'deadline']
+
+function clampParam(raw: string | null, lo: number, hi: number, fallback: number): number {
+  if (raw === null) return fallback
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return fallback
+  return clamp(n, lo, hi)
+}
+
+export function specFromQuery(qs: string): EstimateSpec {
+  const p = new URLSearchParams(qs.replace(/^\?/, ''))
+  const base = defaultSpec()
+
+  const slant = SLANT_ORDER.includes(p.get('slant') as Slant)
+    ? (p.get('slant') as Slant)
+    : base.slant
+  const charset = CHARSET_ORDER.includes(p.get('cs') as CharacterSet)
+    ? (p.get('cs') as CharacterSet)
+    : base.charset
+  const size = SIZE_ORDER.includes(p.get('size') as CompanySize)
+    ? (p.get('size') as CompanySize)
+    : base.size
+  const licensing = LICENSING_ORDER.includes(p.get('lic') as Licensing)
+    ? (p.get('lic') as Licensing)
+    : base.licensing
+  const mediaRaw = (p.get('media') || '').split(',').map((m) => m.trim()) as Medium[]
+  const media = MEDIA_ORDER.filter((m) => mediaRaw.includes(m))
+  const deadline = /^\d{4}-\d{2}-\d{2}$/.test(p.get('deadline') || '') ? p.get('deadline')! : undefined
+
+  return {
+    weights: clampParam(p.get('w'), WEIGHTS_MIN, WEIGHTS_MAX, base.weights),
+    widths: clampParam(p.get('d'), WIDTHS_MIN, WIDTHS_MAX, base.widths),
+    slant,
+    charset,
+    size,
+    // Desktop is the always-included base, so it's implied even if absent.
+    media: media.includes('desktop') ? media : (['desktop', ...media] as Medium[]),
+    licensing,
+    ...(deadline ? { deadline } : {}),
+  }
+}
+
+export function paramsFromSpec(spec: EstimateSpec): string {
+  const p = new URLSearchParams()
+  p.set('w', String(spec.weights))
+  p.set('d', String(spec.widths))
+  p.set('slant', spec.slant)
+  p.set('cs', spec.charset)
+  p.set('size', spec.size)
+  p.set('media', spec.media.join(','))
+  p.set('lic', spec.licensing)
+  if (spec.deadline) p.set('deadline', spec.deadline)
+  return p.toString()
+}
+
+// Parse a pasted estimate link into a spec. Accepts a full URL
+// ("https://www.typografie.be/estimate?w=3&…"), a bare path ("/estimate?w=3…")
+// or just the query string. Returns null when the input carries none of the
+// spec keys — so a mistyped paste reads as an error rather than silently
+// pricing the default spec.
+export function parseEstimateLink(input: string): EstimateSpec | null {
+  const raw = (input || '').trim()
+  if (!raw) return null
+  const qs = raw.includes('?') ? raw.slice(raw.indexOf('?') + 1) : raw
+  if (!qs.includes('=')) return null
+  const p = new URLSearchParams(qs)
+  if (!SPEC_KEYS.some((k) => p.has(k))) return null
+  return specFromQuery(qs)
+}
+
+// Canonical link back to the calculator for a spec, so a quote can offer
+// "open in the estimate" to re-tune it.
+export function estimateLinkFor(spec: EstimateSpec): string {
+  return `/estimate?${paramsFromSpec(spec)}`
 }
 
 // Corner-master model: a variable design space is drawn at its extremes and
