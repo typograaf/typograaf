@@ -240,6 +240,16 @@ export function typefaceRenewal(spec: EstimateSpec): number {
   return roundEur(annualRenewal(spec))
 }
 
+// Font files delivered. The static formats always ship; a variable font only
+// exists once the family is drawn at two or more masters — a single master has
+// no design space to interpolate across.
+export const STATIC_FORMATS = 'TTF, OTF, WOFF, WOFF2'
+
+export function deliveredFormats(spec: EstimateSpec): string {
+  const masters = computeMasters(spec.weights, spec.widths)
+  return masters >= 2 ? `${STATIC_FORMATS} + Variable Font` : STATIC_FORMATS
+}
+
 // Spec rows shown on the quote: what the client is buying, in their terms.
 export function typefaceSpecRows(spec: EstimateSpec): { label: string; value: string }[] {
   const masters = computeMasters(spec.weights, spec.widths)
@@ -252,6 +262,7 @@ export function typefaceSpecRows(spec: EstimateSpec): { label: string; value: st
     { label: 'Masters drawn', value: String(masters) },
     { label: 'Slanted styles', value: SLANT_LABELS[spec.slant] },
     { label: 'Character set', value: CHARSET_LABELS[spec.charset] },
+    { label: 'Formats delivered', value: deliveredFormats(spec) },
     { label: 'Licensed to', value: `${SIZE_LABELS[spec.size].label} company (${SIZE_LABELS[spec.size].hint})` },
     { label: 'Covered media', value: media.join(', ') + (mediaBundleActive(spec.media) ? ' — all media bundled' : '') },
     { label: 'Licensing', value: `${LICENSING_LABELS[spec.licensing].label} — ${LICENSING_LABELS[spec.licensing].hint}` },
