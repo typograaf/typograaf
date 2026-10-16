@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { r2GetJson } from './r2-json'
 import bundledProjectOrder from '../project-order.json'
 import { type Quote, normalizeQuote } from './quote'
 
@@ -82,6 +83,16 @@ export async function getHiddenImageIds(): Promise<string[]> {
   } catch {
     return []
   }
+}
+
+// Strict variant for code that mutates state from the answer (the Are.na
+// mirror): null when the list can't be read, instead of "nothing hidden" —
+// a failed read must not push every hidden image onto the board.
+export async function getHiddenImageIdsStrict(): Promise<string[] | null> {
+  const read = await r2GetJson(HIDDEN_KEY)
+  if (!read.ok) return null
+  if (read.data === null) return []
+  return Array.isArray(read.data) ? read.data.filter((p): p is string => typeof p === 'string') : null
 }
 
 export async function saveHiddenImageIds(ids: string[]): Promise<void> {

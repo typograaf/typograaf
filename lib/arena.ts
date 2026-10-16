@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import sharp from 'sharp'
 import type { ManifestImage } from './sync'
+import { r2GetJson } from './r2-json'
 
 // Mirrors the public portfolio to an Are.na channel as a *pure ordered
 // mirror*: the channel ends up containing exactly the site's visible
@@ -70,15 +71,17 @@ function getS3() {
   })
 }
 
-async function getArenaMap(): Promise<ArenaMap> {
-  try {
-    const res = await fetch(`${PUBLIC_URL}/${ARENA_MAP_KEY}?t=${Date.now()}`, { cache: 'no-store' })
-    if (!res.ok) return {}
-    const data = await res.json()
-    return data && typeof data === 'object' ? (data as ArenaMap) : {}
-  } catch {
-    return {}
-  }
+// Read straight from the bucket, never via the public r2.dev URL: that URL
+// is edge-cached and rate-limited, and on 2026-10-16 one failed read of the
+// map was taken for "no map yet" — the reconcile then re-added the whole
+// board and overwrote the real map with the duplicates. A read that fails
+// now returns null and the caller aborts; only a genuinely missing object
+// counts as an empty map.
+async function getArenaMap(): Promise<ArenaMap | null> {
+  const read = await r2GetJson(ARENA_MAP_KEY)
+  if (!read.ok) return null
+  if (read.data === null) return {}
+  return read.data && typeof read.data === 'object' ? (read.data as ArenaMap) : null
 }
 
 async function saveArenaMap(map: ArenaMap): Promise<void> {
@@ -97,18 +100,15 @@ async function saveArenaMap(map: ArenaMap): Promise<void> {
 // up with duplicate blocks. The lock keeps reconciles strictly sequential.
 type ArenaLock = { heldBy: string; expiresAt: number }
 
-async function readArenaLock(): Promise<ArenaLock | null> {
-  try {
-    const res = await fetch(`${PUBLIC_URL}/${ARENA_LOCK_KEY}?t=${Date.now()}`, { cache: 'no-store' })
-    if (!res.ok) return null
-    const data = await res.json()
-    if (data && typeof data.heldBy === 'string' && typeof data.expiresAt === 'number') {
-      return data as ArenaLock
-    }
-    return null
-  } catch {
-    return null
+// `undefined` = the lock could not be read at all; callers fail closed.
+async function readArenaLock(): Promise<ArenaLock | null | undefined> {
+  const read = await r2GetJson(ARENA_LOCK_KEY)
+  if (!read.ok) return undefined
+  const data = read.data as { heldBy?: unknown; expiresAt?: unknown } | null
+  if (data && typeof data.heldBy === 'string' && typeof data.expiresAt === 'number') {
+    return data as ArenaLock
   }
+  return null
 }
 
 async function writeArenaLock(lock: ArenaLock): Promise<void> {
@@ -134,6 +134,7 @@ async function deleteArenaLock(): Promise<void> {
 // another run already holds it. A stale lock past its TTL is overwritten.
 async function tryAcquireArenaLock(): Promise<string | null> {
   const existing = await readArenaLock()
+  if (existing === undefined) return null
   if (existing && existing.expiresAt > Date.now()) return null
   const heldBy = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
   try {
@@ -177,6 +178,18 @@ async function resolveChannelId(slug: string, token: string): Promise<number | n
 
 function safeId(id: string): string {
   return id.replace(':', '_')
+}
+
+// Inverse of the URL layout arenaSource() produces (plus the legacy
+// images/<safeId>.<ext> fallback older code baked): which image a channel
+// block was built from and with which strategy version. This is what makes
+// the map recoverable from the channel itself.
+const SOURCE_RE = /^(?:arena\/v(\d+)|images)\/(id_[^/]+?)\.(?:w\.png|a\.png|png|gif|jpg|avif|webp)$/
+function imageIdFromSource(src: string): { id: string; v: number } | null {
+  if (!PUBLIC_URL || !src.startsWith(`${PUBLIC_URL}/`)) return null
+  const m = SOURCE_RE.exec(src.slice(PUBLIC_URL.length + 1))
+  if (!m) return null
+  return { id: m[2].replace(/^id_/, 'id:'), v: m[1] ? Number(m[1]) : 0 }
 }
 
 async function r2Exists(key: string): Promise<boolean> {
@@ -241,6 +254,14 @@ async function arenaSource(img: ManifestImage): Promise<string | null> {
         await r2Put(key, gif, 'image/gif')
       }
     } else if (ext === 'avif') {
+      // A transcode may already exist: from an earlier run, or made locally
+      // for a source this sharp build can't decode ("Bitstream not
+      // supported"). Adopt it without touching the source.
+      const existing = (await r2Exists(`${base}.w.png`)) ? `${base}.w.png`
+        : (await r2Exists(`${base}.jpg`)) ? `${base}.jpg` : null
+      if (existing !== null) {
+        key = existing
+      } else {
       const buf = Buffer.from(await (await fetch(img.blobUrl)).arrayBuffer())
       const hasAlpha = (await sharp(buf).metadata()).hasAlpha
       if (hasAlpha) {
@@ -260,6 +281,7 @@ async function arenaSource(img: ManifestImage): Promise<string | null> {
           const jpg = await sharp(buf).jpeg({ quality: 90 }).toBuffer()
           await r2Put(key, jpg, 'image/jpeg')
         }
+      }
       }
     } else {
       return null
@@ -314,6 +336,7 @@ async function moveConnection(connectionId: number, token: string, position: num
 
 type ChannelState = {
   byBlock: Map<number, number>      // block id -> connection id
+  srcByBlock: Map<number, string>   // block id -> the URL it ingested
   ordered: number[]                 // block ids in channel position order
   failed: Set<number>               // block ids Are.na failed to ingest
   complete: boolean
@@ -324,6 +347,7 @@ type ChannelState = {
 // page failed, so callers don't drop tracking off a truncated walk.
 async function getChannelState(slug: string, token: string): Promise<ChannelState> {
   const byBlock = new Map<number, number>()
+  const srcByBlock = new Map<number, string>()
   const positioned: Array<{ block: number; pos: number }> = []
   const failed = new Set<number>()
   let complete = true
@@ -343,9 +367,11 @@ async function getChannelState(slug: string, token: string): Promise<ChannelStat
       if (!res || !res.ok) { complete = false; break }
       const body = await res.json()
       const data: unknown[] = Array.isArray(body?.data) ? body.data : []
-      for (const item of data as Array<{ id?: number; state?: string; connection?: { id?: number; position?: number } }>) {
+      for (const item of data as Array<{ id?: number; state?: string; source?: { url?: string } | string | null; connection?: { id?: number; position?: number } }>) {
         if (typeof item?.id === 'number' && typeof item?.connection?.id === 'number') {
           byBlock.set(item.id, item.connection.id)
+          const src = typeof item.source === 'string' ? item.source : item.source?.url
+          if (typeof src === 'string') srcByBlock.set(item.id, src)
           positioned.push({ block: item.id, pos: item.connection.position ?? 0 })
           if (item.state === 'failed') failed.add(item.id)
         }
@@ -358,7 +384,7 @@ async function getChannelState(slug: string, token: string): Promise<ChannelStat
     complete = false
   }
   positioned.sort((a, b) => a.pos - b.pos)
-  return { byBlock, ordered: positioned.map(p => p.block), failed, complete }
+  return { byBlock, srcByBlock, ordered: positioned.map(p => p.block), failed, complete }
 }
 
 async function pooled<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
@@ -376,20 +402,32 @@ async function pooled<T>(items: T[], limit: number, worker: (item: T) => Promise
  * finish in one run resumes on the next; the order pass only runs once the
  * set is fully converged so moves aren't wasted. Never throws.
  */
-export async function reconcileArena(desired: ManifestImage[]): Promise<{ added: number; replaced: number; removed: number; reordered: number }> {
-  const result = { added: 0, replaced: 0, removed: 0, reordered: 0 }
+export type ArenaResult = { added: number; replaced: number; removed: number; reordered: number; adopted: number }
+
+export async function reconcileArena(desired: ManifestImage[]): Promise<ArenaResult> {
+  const result: ArenaResult = { added: 0, replaced: 0, removed: 0, reordered: 0, adopted: 0 }
   const config = arenaConfig()
   if (!config) return result
   const { token, slug } = config
 
   const lockToken = await tryAcquireArenaLock()
-  if (lockToken === null) return result
+  if (lockToken === null) {
+    console.log('arena: lock held or unreadable, skipping this run')
+    return result
+  }
 
   try {
     const channelId = await resolveChannelId(slug, token)
-    if (channelId === null) return result
+    if (channelId === null) {
+      console.warn('arena: could not resolve the channel, skipping this run')
+      return result
+    }
 
     const map = await getArenaMap()
+    if (map === null) {
+      console.warn('arena: could not read arena-map.json, skipping this run')
+      return result
+    }
     const desiredIds = new Set(desired.map(img => img.id))
 
     let saveChain: Promise<void> = Promise.resolve()
@@ -400,6 +438,29 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
 
     const state = await getChannelState(slug, token)
     let deferred = false
+
+    // Self-heal before classifying: a channel block whose source names a
+    // desired image the map doesn't track (or tracks under a block that has
+    // vanished) is adopted — oldest block wins — rather than re-added. A
+    // lost, stale or truncated map therefore converges back onto the blocks
+    // already on the board instead of duplicating it.
+    const adoptable = new Map<string, Entry>()
+    for (const [block, src] of state.srcByBlock) {
+      const parsed = imageIdFromSource(src)
+      if (!parsed || !desiredIds.has(parsed.id)) continue
+      const tracked = map[parsed.id]
+      if (tracked !== undefined) {
+        if (state.byBlock.has(blockId(tracked))) continue // healthy, keep it
+        if (!state.complete) continue // can't tell whether it vanished
+      }
+      const prev = adoptable.get(parsed.id)
+      if (!prev || block < prev.block) adoptable.set(parsed.id, { block, src, v: parsed.v })
+    }
+    for (const [id, entry] of adoptable) map[id] = entry
+    if (adoptable.size > 0) {
+      result.adopted = adoptable.size
+      await persist()
+    }
 
     const toAdd: ManifestImage[] = []
     const toReplace: ManifestImage[] = []
@@ -502,7 +563,6 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
     // images may be permanently un-transcodable (undecodable source, etc.)
     // and must not block ordering the rest forever. Missing blocks are just
     // skipped below.
-    void deferred
     if (!mutated && state.complete) {
       const blockToConn = state.byBlock
       // Reversed: Are.na shows position 1 at the top, and the board should
@@ -530,8 +590,10 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<{ added:
       }
     }
 
+    console.log(`arena: ${JSON.stringify({ ...result, deferred, desired: desired.length, channel: state.byBlock.size })}`)
     return result
-  } catch {
+  } catch (err) {
+    console.warn('arena: reconcile aborted', err instanceof Error ? err.message : err)
     return result
   } finally {
     await releaseArenaLock(lockToken)

@@ -1,8 +1,8 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { getDropboxImageFiles, getDropboxTempLink, deleteDropboxFile } from './dropbox'
 import bundledProjectOrder from '../project-order.json'
-import { getProjectOrderOverride, getHiddenImageIds } from './cms'
-import { reconcileArena } from './arena'
+import { getProjectOrderOverride, getHiddenImageIdsStrict } from './cms'
+import { reconcileArena, type ArenaResult } from './arena'
 import { type ManifestImage, isFontFile } from './tiles'
 
 export type { ManifestImage }
@@ -10,6 +10,12 @@ export type { ManifestImage }
 // Are.na can't render font files, so the mirror only ever sees images.
 function imagesOnly(entries: ManifestImage[]): ManifestImage[] {
   return entries.filter(e => !isFontFile(e.name))
+}
+
+// The mirror must only ever act on a hidden-image list it actually read.
+function skippedArena(reason: string): ArenaResult {
+  console.warn(`arena: skipped, ${reason}`)
+  return { added: 0, replaced: 0, removed: 0, reordered: 0, adopted: 0 }
 }
 
 // R2 stores fonts with a correct content type so they're still valid if
@@ -152,7 +158,7 @@ async function updateRecentProjects(manifest: ManifestImage[]): Promise<void> {
   await saveRecentProjects(newRecent)
 }
 
-export async function syncWithDropbox(): Promise<{ added: number; deleted: number; arena: { added: number; replaced: number; removed: number; reordered: number } }> {
+export async function syncWithDropbox(): Promise<{ added: number; deleted: number; arena: ArenaResult }> {
   const [dropboxFiles, manifest] = await Promise.all([
     getDropboxImageFiles(),
     getManifest(),
@@ -209,8 +215,10 @@ export async function syncWithDropbox(): Promise<{ added: number; deleted: numbe
   // Mirror to Are.na (best-effort; no-op unless ARENA_* env is set). The
   // desired set is the canonical ordered, visible portfolio so the board is
   // an exact mirror of the site.
-  const [projectOrder, hidden] = await Promise.all([getProjectOrder(), getHiddenImageIds()])
-  const arena = await reconcileArena(imagesOnly(orderedVisible(newManifest, projectOrder, hidden)))
+  const [projectOrder, hidden] = await Promise.all([getProjectOrder(), getHiddenImageIdsStrict()])
+  const arena = hidden === null
+    ? skippedArena('could not read the hidden-image list')
+    : await reconcileArena(imagesOnly(orderedVisible(newManifest, projectOrder, hidden)))
 
   return { added: added.length, deleted: toDelete.length, arena }
 }
@@ -233,8 +241,9 @@ export async function deleteImage(id: string): Promise<{ deleted: boolean }> {
   await updateRecentProjects(newManifest)
 
   // Drop the matching Are.na block so the board mirrors the deletion.
-  const [projectOrder, hidden] = await Promise.all([getProjectOrder(), getHiddenImageIds()])
-  await reconcileArena(imagesOnly(orderedVisible(newManifest, projectOrder, hidden)))
+  const [projectOrder, hidden] = await Promise.all([getProjectOrder(), getHiddenImageIdsStrict()])
+  if (hidden === null) skippedArena('could not read the hidden-image list')
+  else await reconcileArena(imagesOnly(orderedVisible(newManifest, projectOrder, hidden)))
 
   return { deleted: true }
 }
