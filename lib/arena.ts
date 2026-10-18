@@ -550,30 +550,36 @@ export async function reconcileArena(desired: ManifestImage[]): Promise<ArenaRes
     // above. The lock should now prevent that race, but the lock isn't
     // strongly consistent — this catches the rare slip-through.
     const fresh = await getChannelState(slug, token)
+    let freshStale = false
     for (const [block, conn] of fresh.byBlock) {
       if (!ours.has(block) && !state.byBlock.has(block)) {
-        if (await removeConnection(conn, token)) result.removed++
+        if (await removeConnection(conn, token)) { result.removed++; freshStale = true }
       }
     }
 
     await saveChain
 
     const mutated = result.added + result.replaced + result.removed > 0
-    // Order once nothing changed this run. Don't gate on `deferred`: a few
+    // Order pass, every run. Are.na appends a new block at the top of the
+    // channel, so a run that added anything (an unhidden image, a new
+    // upload) must sort in the same run or the newcomer leads the board
+    // until the next reconcile. After mutations the start-of-run snapshot
+    // is stale, so sort from a fresh walk. Don't gate on `deferred`: a few
     // images may be permanently un-transcodable (undecodable source, etc.)
     // and must not block ordering the rest forever. Missing blocks are just
     // skipped below.
-    if (!mutated && state.complete) {
-      const blockToConn = state.byBlock
-      // Reversed: Are.na shows position 1 at the top, and the board should
-      // lead with the newest work (the end of the canonical site order),
-      // not the oldest.
+    const orderState = !mutated ? state : freshStale ? await getChannelState(slug, token) : fresh
+    if (orderState.complete) {
+      const blockToConn = orderState.byBlock
+      // Reversed: Are.na displays the highest position at the top, so the
+      // site's first project (the newest work) must get the highest
+      // position. Pushing the site order back to front does exactly that.
       const want = [...desired]
         .reverse()
         .filter(img => map[img.id] !== undefined)
         .map(img => blockId(map[img.id]))
         .filter(b => blockToConn.has(b))
-      const current = state.ordered.filter(b => blockToConn.has(b))
+      const current = orderState.ordered.filter(b => blockToConn.has(b))
       // Walk target positions; move any block that isn't already there and
       // keep a local model in sync so later comparisons stay correct.
       for (let i = 0; i < want.length; i++) {
