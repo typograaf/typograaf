@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
+import { waitUntil } from '@vercel/functions'
 import { isAuthed } from '../../../lib/adminAuth'
 import {
   getAboutText,
@@ -14,6 +15,7 @@ import {
   getPreviewAxes,
   savePreviewAxes,
   getBlockedDays,
+  getHiddenImageIdsStrict,
 } from '../../../lib/cms'
 import { getProjectOrder, getManifest, deleteImage, orderedVisible } from '../../../lib/sync'
 import { reconcileArena } from '../../../lib/arena'
@@ -21,6 +23,24 @@ import { isFontFile, buildTiles } from '../../../lib/tiles'
 import type { Quote } from '../../../lib/quote'
 
 export const dynamic = 'force-dynamic'
+
+// The Are.na board is an ordered mirror of the site, so a new project order
+// has to be pushed to it too. Only acts on a hidden-image list it actually
+// read: a failed read must never put hidden images back on the board.
+async function mirrorOrderToArena(): Promise<void> {
+  const [manifest, projectOrder, hidden] = await Promise.all([
+    getManifest(),
+    getProjectOrder(),
+    getHiddenImageIdsStrict(),
+  ])
+  if (hidden === null) {
+    console.warn('arena: skipped after order save, could not read the hidden-image list')
+    return
+  }
+  await reconcileArena(
+    orderedVisible(manifest, projectOrder, hidden).filter(e => !isFontFile(e.name)),
+  )
+}
 
 export async function GET() {
   if (!(await isAuthed())) {
@@ -71,6 +91,9 @@ export async function POST(request: NextRequest) {
       .map((p: string) => p.trim())
       .filter(Boolean)
     await saveProjectOrderOverride(cleaned)
+    // Re-sort the board in the background so Save returns at once; a full
+    // re-sort can take a minute of paced Are.na moves.
+    waitUntil(mirrorOrderToArena())
   }
   if (typeof body.about === 'string') {
     await saveAboutText(body.about)
