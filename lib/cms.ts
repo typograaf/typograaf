@@ -25,7 +25,7 @@ function getS3() {
 
 export async function getProjectOrderOverride(): Promise<string[] | null> {
   try {
-    const res = await fetch(`${PUBLIC_URL}/${ORDER_KEY}`, { cache: 'no-store' })
+    const res = await fetch(`${PUBLIC_URL}/${ORDER_KEY}?t=${Date.now()}`, { cache: 'no-store' })
     if (!res.ok) return null
     const data = await res.json()
     return Array.isArray(data) ? data.filter((p): p is string => typeof p === 'string') : null

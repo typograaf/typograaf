@@ -65,7 +65,7 @@ async function saveManifest(images: ManifestImage[]): Promise<void> {
 
 async function getRecentProjects(): Promise<string[]> {
   try {
-    const res = await fetch(`${PUBLIC_URL}/${RECENT_KEY}`, { cache: 'no-store' })
+    const res = await fetch(`${PUBLIC_URL}/${RECENT_KEY}?t=${Date.now()}`, { cache: 'no-store' })
     if (!res.ok) return []
     const data = await res.json()
     return Array.isArray(data) ? data : []
@@ -87,9 +87,14 @@ async function saveRecentProjects(projects: string[]): Promise<void> {
 export async function getProjectOrder(): Promise<string[]> {
   const [recent, override] = await Promise.all([getRecentProjects(), getProjectOrderOverride()])
   const main = override || bundledProjectOrder
+  // A saved order is the authority for every project it names. Recent
+  // Dropbox projects only auto-prepend while they're still missing from it;
+  // once positioned and saved in the admin, that position sticks.
+  const mainLower = new Set(main.map(p => p.toLowerCase()))
+  const unplaced = recent.filter(p => !mainLower.has(p.toLowerCase()))
   const seen = new Set<string>()
   const out: string[] = []
-  for (const p of [...recent, ...main]) {
+  for (const p of [...unplaced, ...main]) {
     const key = p.toLowerCase()
     if (seen.has(key)) continue
     seen.add(key)
@@ -135,17 +140,21 @@ async function updateRecentProjects(manifest: ManifestImage[]): Promise<void> {
   const projectsInManifest = new Set(
     manifest.map(img => projectFromPath(img.path)).filter(Boolean)
   )
-  const bundledLower = new Set(bundledProjectOrder.map(p => p.toLowerCase()))
-  const previousRecent = await getRecentProjects()
+  // Anything already placed in a saved order (or the bundled default) is no
+  // longer "recent"; only projects absent from both get tracked here.
+  const [previousRecent, override] = await Promise.all([getRecentProjects(), getProjectOrderOverride()])
+  const knownLower = new Set(
+    [...bundledProjectOrder, ...(override || [])].map(p => p.toLowerCase()),
+  )
 
   const keptRecent = previousRecent.filter(p => {
     const lower = p.toLowerCase()
-    return projectsInManifest.has(lower) && !bundledLower.has(lower)
+    return projectsInManifest.has(lower) && !knownLower.has(lower)
   })
   const keptLower = new Set(keptRecent.map(p => p.toLowerCase()))
 
   const brandNew = [...projectsInManifest].filter(
-    p => !bundledLower.has(p) && !keptLower.has(p)
+    p => !knownLower.has(p) && !keptLower.has(p)
   )
 
   const newRecent = [...brandNew, ...keptRecent]
