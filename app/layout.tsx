@@ -1,9 +1,20 @@
+import type { Viewport } from 'next'
 import './globals.css'
 import LayoutShell from './LayoutShell'
 
 export const metadata = {
   title: 'Typografie',
   description: 'A visual portfolio',
+}
+
+// Dark mode follows the browser/system setting. The theme-color pair
+// tints Safari's tab bar to match; values mirror --bg in globals.css.
+export const viewport: Viewport = {
+  colorScheme: 'light dark',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f8f8f8' },
+    { media: '(prefers-color-scheme: dark)', color: '#111111' },
+  ],
 }
 
 export default function RootLayout({
@@ -32,6 +43,8 @@ export default function RootLayout({
 html{overflow:scroll;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none}
 html::-webkit-scrollbar{width:0;height:0;display:none;background:transparent}
 body{background:#f8f8f8;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro',system-ui,sans-serif;font-size:14px;font-weight:500;font-variation-settings:'wdth' 100;line-height:normal;color:#000;-webkit-font-smoothing:antialiased}
+:root{color-scheme:light}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark}body{background:#111;color:#fff}}
 .logo{position:fixed;top:32px;left:32px;width:32px;height:31.6px;z-index:100;cursor:pointer;background:transparent;border:0;padding:0;display:block;-webkit-tap-highlight-color:transparent}
 .logo-layer{position:absolute;left:0;width:100%;background-repeat:no-repeat;background-size:100% 100%;background-position:center;pointer-events:none;will-change:transform}
 .logo-back{bottom:2.87px;height:28.7px;background-image:url(/icon-back.png)}

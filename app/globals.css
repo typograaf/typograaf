@@ -1,3 +1,48 @@
+/* Colour tokens. Light by default; dark follows the browser/system
+   setting via prefers-color-scheme. Every colour in this file and in the
+   admin page's own <style> block reads from these. The critical CSS in
+   app/layout.tsx mirrors body's bg/fg for the first paint, so keep the
+   two in sync. Translucent greys are written rgb(var(--ink-rgb) / a) so
+   only the ink swaps per scheme and the alphas stay as designed. */
+:root {
+  color-scheme: light;
+  --bg-rgb: 248 248 248;
+  --bg: rgb(var(--bg-rgb));   /* page */
+  --surface: #ffffff;         /* pills, cells, inputs */
+  --tile: #f0f0f0;            /* typeface tile */
+  --tile-img: #eeeeee;        /* image placeholder */
+  --chip: #eeeeee;            /* type-tester style button */
+  --chip-hover: #e2e2e2;
+  --fg: #000000;
+  --fill: #000000;            /* solid accent fill (CTA, active pill, bars) */
+  --on-fill: #ffffff;         /* text on --fill */
+  --ink-rgb: 0 0 0;           /* translucent hovers, rings, tracks */
+  --muted: #999999;
+  --rule: #e5e5e5;            /* spinner track */
+  --lightbox: rgb(255 255 255 / 0.95);
+  --error: #ff3b30;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg-rgb: 17 17 17;
+    --surface: #1c1c1c;
+    --tile: #1a1a1a;
+    --tile-img: #1a1a1a;
+    --chip: #1c1c1c;
+    --chip-hover: #262626;
+    --fg: #ffffff;
+    --fill: #ffffff;
+    --on-fill: #000000;
+    --ink-rgb: 255 255 255;
+    --muted: #777777;
+    --rule: #2a2a2a;
+    --lightbox: rgb(17 17 17 / 0.95);
+    --error: #ff453a;
+  }
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -37,14 +82,14 @@ html::-webkit-scrollbar {
 }
 
 body {
-  background: #f8f8f8;
+  background: var(--bg);
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif;
   font-size: 14px;
   font-weight: 500;
   font-variation-settings: 'wdth' 100;
   line-height: normal;
-  color: #000;
+  color: var(--fg);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -131,14 +176,14 @@ body {
   position: fixed;
   inset: 0;
   z-index: 90;
-  background: #f8f8f8;
+  background: var(--bg);
   padding: 32px 32px 32px 96px;   /* 96 left to clear the fixed logo */
   overflow-y: auto;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif;
   font-size: 14px;
   font-weight: 500;
   line-height: normal;
-  color: #000;
+  color: var(--fg);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -182,7 +227,7 @@ body {
   font-size: 14px;
   font-weight: 500;
   line-height: normal;
-  color: #000;
+  color: var(--fg);
   -webkit-font-smoothing: antialiased;
   -webkit-user-select: text;
   user-select: text;
@@ -240,7 +285,7 @@ body {
   cursor: pointer;
   overflow: hidden;
   position: relative;
-  background: #eeeeee;
+  background: var(--tile-img);
 }
 
 /* Image opacity is controlled by React state */
@@ -248,7 +293,7 @@ body {
 .lightbox {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--lightbox);
   z-index: 1000;
   cursor: pointer;
   display: flex;
@@ -270,7 +315,7 @@ body {
    margin: overflowing text spills through it and is clipped at the tile
    edge by .item's overflow:hidden, not at the margin. */
 .font-item {
-  background: #f0f0f0;
+  background: var(--tile);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -283,7 +328,7 @@ body {
   min-width: 0;
   text-align: center;
   overflow-wrap: anywhere;
-  color: #000;
+  color: var(--fg);
   font-synthesis: none;
 }
 
@@ -292,7 +337,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: #f8f8f8;
+  background: var(--bg);
   display: flex;
   flex-direction: column;
   overflow: auto;
@@ -328,7 +373,7 @@ body {
   white-space: nowrap;
   font-size: 13px;
   font-weight: 500;
-  color: #000;
+  color: var(--fg);
   transition: opacity 0.08s;
 }
 
@@ -360,7 +405,7 @@ body {
   outline: none;
   resize: none;
   text-align: center;
-  color: #000;
+  color: var(--fg);
   overflow: hidden;
   /* Em-relative room so ascenders/descenders aren't clipped by the
      auto-grown textarea when leading is tight. */
@@ -381,12 +426,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: var(--surface);
   border: 0;
   border-radius: 12px;
   font-size: 18px;
   line-height: 1;
-  color: #000;
+  color: var(--fg);
   padding: 0;
   cursor: pointer;
 }
@@ -405,23 +450,23 @@ body {
 }
 
 .font-preview-style {
-  background: #eee;
+  background: var(--chip);
   border: 0;
   border-radius: 8px;
   padding: 6px 12px;
   font: inherit;
-  color: #000;
+  color: var(--fg);
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
 }
 
 .font-preview-style:hover {
-  background: #e2e2e2;
+  background: var(--chip-hover);
 }
 
 .font-preview-style.is-active {
-  background: #000;
-  color: #fff;
+  background: var(--fill);
+  color: var(--on-fill);
 }
 
 @media (max-width: 700px) {
@@ -439,8 +484,8 @@ body {
 .spinner {
   width: 24px;
   height: 24px;
-  border: 2px solid #e5e5e5;
-  border-top-color: #999;
+  border: 2px solid var(--rule);
+  border-top-color: var(--muted);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -459,7 +504,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: var(--surface);
   z-index: 50;
 }
 
@@ -471,8 +516,8 @@ body {
   border: none;
   outline: none;
   background: transparent;
-  color: #000;
-  -webkit-text-fill-color: #000;
+  color: var(--fg);
+  -webkit-text-fill-color: var(--fg);
   width: 200px;
   text-align: center;
   -webkit-user-select: text;
@@ -480,8 +525,8 @@ body {
 }
 
 .password-input::placeholder {
-  color: #999;
-  -webkit-text-fill-color: #999;
+  color: var(--muted);
+  -webkit-text-fill-color: var(--muted);
 }
 
 .password-error {
@@ -498,17 +543,6 @@ body {
    Single uniform style: SF Pro Medium 14px black on #f8f8f8.
    Every interactive element is a 12px-padded, 12px-radius white pill.
    ===================================================================== */
-
-:root {
-  --bg-cal: #f8f8f8;
-  --surface: #ffffff;
-  --hover: rgba(0, 0, 0, 0.04);
-  --error: #ff3b30;
-  --disabled: 0.1;
-  --pill-radius: 12px;
-  --pill-pad: 12px;
-  --weight: 500;
-}
 
 /* Vertical trim (Safari 18.2+/Chrome 133+; older browsers ignore). */
 .pill, .cal-day, .cal-nav, .cal-month, .cal-weekday,
@@ -540,7 +574,7 @@ body {
   padding: 12px;
   border-radius: 12px;
   font: inherit;
-  color: #000;
+  color: var(--fg);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -548,9 +582,9 @@ body {
   white-space: nowrap;
   transition: background 0.12s, opacity 0.12s;
 }
-.pill:hover:not(:disabled):not(.is-selected) { background: rgba(0, 0, 0, 0.04); }
-.pill.is-selected { background: #fff; }
-.pill.is-filled   { background: #fff; }
+.pill:hover:not(:disabled):not(.is-selected) { background: rgb(var(--ink-rgb) / 0.04); }
+.pill.is-selected { background: var(--surface); }
+.pill.is-filled   { background: var(--surface); }
 .pill:disabled { opacity: 0.1; cursor: not-allowed; }
 
 /* Header */
@@ -569,12 +603,12 @@ body {
   border: 0;
   padding: 4px 8px;
   font: inherit;
-  color: #000;
+  color: var(--fg);
   cursor: pointer;
   border-radius: 8px;
   transition: background 0.12s, opacity 0.12s;
 }
-.cal-nav:hover:not(:disabled) { background: rgba(0, 0, 0, 0.04); }
+.cal-nav:hover:not(:disabled) { background: rgb(var(--ink-rgb) / 0.04); }
 .cal-nav:disabled { opacity: 0.1; cursor: not-allowed; }
 
 .cal-weekdays { display: flex; gap: 12px; }
@@ -589,7 +623,7 @@ body {
   border: 0;
   padding: 12px 0;
   font: inherit;
-  color: #000;
+  color: var(--fg);
   cursor: pointer;
   border-radius: 12px;
   display: flex;
@@ -597,13 +631,13 @@ body {
   justify-content: center;
   transition: background 0.12s, opacity 0.12s;
 }
-.cal-day:hover:not(:disabled):not(.is-empty):not(.is-selected) { background: rgba(0, 0, 0, 0.04); }
+.cal-day:hover:not(:disabled):not(.is-empty):not(.is-selected) { background: rgb(var(--ink-rgb) / 0.04); }
 .cal-day.is-empty { background: transparent; cursor: default; pointer-events: none; }
 .cal-day:disabled,
 .cal-day.is-blocked,
 .cal-day.is-past,
 .cal-day.is-weekend { opacity: 0.1; cursor: not-allowed; }
-.cal-day.is-selected { background: #fff; }
+.cal-day.is-selected { background: var(--surface); }
 
 .cal-loading { text-align: center; padding: 12px 0; opacity: 0.4; }
 
@@ -641,7 +675,7 @@ body {
 .field textarea {
   flex: 1 0 0;
   min-width: 0;
-  background: #fff;
+  background: var(--surface);
   border: 0;
   border-radius: 12px;
   height: 34px;
@@ -649,13 +683,13 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif;
   font-size: 16px;
   font-weight: 500;
-  color: #000;
+  color: var(--fg);
   outline: none;
   -webkit-appearance: none;
   appearance: none;
 }
 .field input:focus,
-.field textarea:focus { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15); }
+.field textarea:focus { box-shadow: 0 0 0 1px rgb(var(--ink-rgb) / 0.15); }
 .field textarea { height: 51px; min-height: 51px; resize: vertical; }
 
 /* Where */
@@ -669,7 +703,7 @@ body {
 .scope > h2 { font-size: 14px; font-weight: 500; margin: 0; }
 .scope textarea {
   width: 100%;
-  background: #fff;
+  background: var(--surface);
   border: 0;
   border-radius: 12px;
   height: 51px;
@@ -678,19 +712,19 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, sans-serif;
   font-size: 16px;
   font-weight: 500;
-  color: #000;
+  color: var(--fg);
   outline: none;
   resize: vertical;
   -webkit-appearance: none;
   appearance: none;
 }
-.scope textarea:focus { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15); }
+.scope textarea:focus { box-shadow: 0 0 0 1px rgb(var(--ink-rgb) / 0.15); }
 
 /* Footer (agree + submit) */
 .foot { display: flex; flex-direction: column; gap: 12px; }
 .agree-row { display: flex; gap: 12px; align-items: center; }
-.agree-check { width: 38px; height: 38px; flex-shrink: 0; background: #fff; }
-.agree-check:hover { background: #fff; }
+.agree-check { width: 38px; height: 38px; flex-shrink: 0; background: var(--surface); }
+.agree-check:hover { background: var(--surface); }
 .agree-check.is-empty span { visibility: hidden; }
 .agree-text { line-height: normal; }
 .agree-text a { text-decoration: underline; text-underline-offset: 2px; }
@@ -698,12 +732,12 @@ body {
 .submit-row { display: flex; justify-content: space-between; align-items: center; }
 .summary { display: flex; gap: 48px; align-items: center; }
 .summary p { margin: 0; }
-.summary.is-error { color: #ff3b30; }
+.summary.is-error { color: var(--error); }
 
 /* Confirm / error */
 .confirm, .error { display: flex; flex-direction: column; gap: 12px; }
 .confirm h2, .error h2 { font-size: 14px; font-weight: 500; margin: 0; }
-.error h2 { color: #ff3b30; }
+.error h2 { color: var(--error); }
 .confirm p, .error p { margin: 0; }
 
 /* Terms */
@@ -782,7 +816,7 @@ body {
 .quote-colhead { margin: 0; }
 
 .quote-cell {
-  background: #fff;
+  background: var(--surface);
   border-radius: 12px;
   padding: 12px;
   word-break: break-word;
@@ -820,18 +854,18 @@ body {
 .est-stepper { flex: 1 0 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 .est-stepper-label { display: flex; flex-direction: column; gap: 2px; }
 .est-stepper-controls { display: flex; gap: 12px; align-items: stretch; }
-.est-step-btn { flex: 0 0 44px; background: rgba(0,0,0,0.03); font-size: 18px; line-height: 1; }
+.est-step-btn { flex: 0 0 44px; background: rgb(var(--ink-rgb) / 0.03); font-size: 18px; line-height: 1; }
 .est-step-value { flex: 1 0 0; min-width: 0; text-align: center; font-variant-numeric: tabular-nums; }
 
 .est-pillwrap { display: flex; flex-wrap: wrap; gap: 12px; }
 /* Shrink + wrap so long media/size labels never push past the viewport edge. */
-.est-pillwrap .pill { flex: 1 1 auto; min-width: 0; gap: 6px; background: rgba(0,0,0,0.03); white-space: normal; }
-.est-pillwrap .pill.is-selected { background: #fff; }
+.est-pillwrap .pill { flex: 1 1 auto; min-width: 0; gap: 6px; background: rgb(var(--ink-rgb) / 0.03); white-space: normal; }
+.est-pillwrap .pill.is-selected { background: var(--surface); }
 .est-pillwrap .pill:disabled { opacity: 1; cursor: default; }
 .est-pill-hint { opacity: 0.45; }
 
-.est-cta { width: 100%; background: #000; color: #fff; padding: 16px; }
-.est-cta:hover { filter: invert(12%); background: #000; }
+.est-cta { width: 100%; background: var(--fill); color: var(--on-fill); padding: 16px; }
+.est-cta:hover { filter: invert(12%); background: var(--fill); }
 
 @media (max-width: 700px) {
   .est-steppers { flex-direction: column; }
@@ -840,8 +874,8 @@ body {
 .quote-plan { display: flex; flex-direction: column; gap: 8px; }
 .quote-plan-row { display: grid; grid-template-columns: minmax(120px, 180px) 1fr minmax(120px, max-content); gap: 16px; align-items: center; }
 .quote-plan-label { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.quote-plan-track { position: relative; height: 24px; background: rgba(0,0,0,0.04); border-radius: 6px; }
-.quote-plan-bar { position: absolute; top: 0; bottom: 0; background: #000; border-radius: 6px; min-width: 8px; transition: filter 0.12s; }
+.quote-plan-track { position: relative; height: 24px; background: rgb(var(--ink-rgb) / 0.04); border-radius: 6px; }
+.quote-plan-bar { position: absolute; top: 0; bottom: 0; background: var(--fill); border-radius: 6px; min-width: 8px; transition: filter 0.12s; }
 .quote-plan-bar:hover { filter: invert(20%); }
 .quote-plan-bar-presentation { background: #2b8c3a; }
 .quote-plan-bar-feedback { background: #b39530; }
@@ -855,20 +889,20 @@ body {
 .cal-plan { gap: 48px; }
 .cal-plan .cal-header { justify-content: center; }
 .cal-plan .cal-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); column-gap: 8px; row-gap: 4px; }
-.cal-plan .cal-day { padding: 0; display: block; cursor: default; background: rgba(0,0,0,0.025); border-radius: 12px; }
-.cal-plan .cal-day:hover { background: rgba(0,0,0,0.025); }
+.cal-plan .cal-day { padding: 0; display: block; cursor: default; background: rgb(var(--ink-rgb) / 0.025); border-radius: 12px; }
+.cal-plan .cal-day:hover { background: rgb(var(--ink-rgb) / 0.025); }
 .cal-plan .cal-day.is-out { background: transparent; opacity: 0.18; }
-.cal-plan .cal-day.is-weekend { background: rgba(0,0,0,0.06); }
+.cal-plan .cal-day.is-weekend { background: rgb(var(--ink-rgb) / 0.06); }
 .cal-plan .cal-daynum { font-size: 12px; opacity: 0.55; font-variant-numeric: tabular-nums; text-align: center; align-self: center; pointer-events: none; }
 .cal-plan .cal-daynum.is-out { opacity: 0.18; }
 .cal-plan .cal-bar { font-size: 11px; padding: 0 8px; border-radius: 8px; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: center; margin: 0 4px; box-sizing: border-box; height: 20px; }
-.cal-bar-item { background: #000; color: #fff; }
-.cal-bar-presentation, .cal-bar-feedback { background: #fff; color: #000; }
+.cal-bar-item { background: var(--fill); color: var(--on-fill); }
+.cal-bar-presentation, .cal-bar-feedback { background: var(--surface); color: var(--fg); }
 /* Typeface phases are active work like items — filled black, white text. */
 .cal-bar-glyph-design,
 .cal-bar-refinement,
 .cal-bar-spacing-kerning,
-.cal-bar-testing-output { background: #000; color: #fff; }
+.cal-bar-testing-output { background: var(--fill); color: var(--on-fill); }
 @media (max-width: 700px) {
   .cal-plan { gap: 32px; }
   .cal-plan .cal-row { column-gap: 4px; row-gap: 3px; }
