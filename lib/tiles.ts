@@ -58,11 +58,18 @@ const WEIGHT_ORDER = [
 ]
 
 function styleRank(style: string): number {
-  const lower = style.toLowerCase()
-  for (let i = 0; i < WEIGHT_ORDER.length; i++) {
-    if (lower.includes(WEIGHT_ORDER[i])) return i
-  }
-  return WEIGHT_ORDER.length + 1
+  // Spaces stripped so "Extra Bold" ranks as extrabold; the longest match
+  // wins so it isn't mistaken for plain bold.
+  const lower = style.toLowerCase().replace(/\s+/g, '')
+  let rank = WEIGHT_ORDER.length + 1
+  let matched = 0
+  WEIGHT_ORDER.forEach((w, i) => {
+    if (w.length > matched && lower.includes(w)) {
+      rank = i
+      matched = w.length
+    }
+  })
+  return rank
 }
 
 function titleCase(s: string): string {
@@ -70,32 +77,51 @@ function titleCase(s: string): string {
     .replace(/\b\w/g, c => c.toUpperCase())
 }
 
-// Tokens that mark a weight, slope or variable suffix in a font filename.
+// Width names and the modifiers that attach to a weight or width
+// ("SemiCondensed", "ExtraBold"). Without these a token like
+// "CondensedMedium" reads as part of the family name, so an upright and
+// its oblique become two families — two tiles — instead of one pair.
+const WIDTH_WORDS = ['condensed', 'compressed', 'narrow', 'extended', 'expanded', 'wide']
+const MODIFIER_WORDS = ['semi', 'extra', 'ultra', 'demi']
+
+// Tokens that mark a weight, width, slope or variable suffix in a font
+// filename.
 const STYLE_WORDS = new Set([
   ...WEIGHT_ORDER,
-  'italic', 'oblique', 'roman', 'upright', 'variable', 'vf', 'var',
+  ...WIDTH_WORDS,
+  ...MODIFIER_WORDS,
+  'rounded',
+  'italic', 'oblique', 'slanted', 'roman', 'upright', 'variable', 'vf', 'var',
 ])
 
 // Longest first so e.g. "extrabold" wins over "bold" when suffix-matching.
 const STYLE_WORDS_BY_LEN = [...STYLE_WORDS].sort((a, b) => b.length - a.length)
 
-// True if the token is made entirely of style words, even when joined
-// together ("VariableVF", "VariableObliqueVF") — i.e. a style descriptor,
-// not part of the family name.
-function isAllStyleWords(token: string): boolean {
-  let s = token.toLowerCase()
-  if (!s) return false
-  while (s.length > 0) {
-    const w = STYLE_WORDS_BY_LEN.find(x => s.endsWith(x))
-    if (!w) return false
-    s = s.slice(0, s.length - w.length)
+// Split a token made entirely of style words into those words, keeping the
+// original casing ("CondensedMediumOblique" -> ["Condensed", "Medium",
+// "Oblique"], "VariableVF" -> ["Variable", "VF"]). Null when any part of
+// the token isn't a style word — i.e. it belongs to the family name.
+function splitStyleWords(token: string): string[] | null {
+  if (!token) return null
+  const parts: string[] = []
+  let rest = token
+  while (rest.length > 0) {
+    const lower = rest.toLowerCase()
+    const w = STYLE_WORDS_BY_LEN.find(x => lower.endsWith(x))
+    if (!w) return null
+    parts.unshift(rest.slice(rest.length - w.length))
+    rest = rest.slice(0, rest.length - w.length)
   }
-  return true
+  return parts
 }
 
 function isStyleToken(token: string): boolean {
-  const t = token.toLowerCase()
-  return STYLE_WORDS.has(t) || /^[1-9]0{2}$/.test(t) || isAllStyleWords(t)
+  return /^[1-9]0{2}$/.test(token) || splitStyleWords(token) !== null
+}
+
+// The slope half of an upright/italic pair, by style name.
+export function isSlopedStyle(style: string): boolean {
+  return /italic|oblique|slanted/i.test(style)
 }
 
 // Strip trailing style words off a separator-less name ("BrigadaItalic" ->
@@ -152,7 +178,9 @@ export function parseFontName(fileName: string): ParsedFontName {
   return {
     familyKey: familyTokens.join(' ').toLowerCase(),
     familyName: familyTokens.join(' '),
-    style: styleTokens.length ? titleCase(styleTokens.join(' ')) : 'Regular',
+    style: styleTokens.length
+      ? titleCase(styleTokens.map(t => (splitStyleWords(t) ?? [t]).join(' ')).join(' '))
+      : 'Regular',
   }
 }
 

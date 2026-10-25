@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo, useDeferredValue } from 'react'
 import type { Tile, ImageTile, FontTile, FontFile } from '../lib/tiles'
-import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING, DEFAULT_PREVIEW_SIZE } from '../lib/tiles'
+import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING, DEFAULT_PREVIEW_SIZE, isSlopedStyle } from '../lib/tiles'
 import { type Axis, parseVariationAxes, parseCharSet, ensureFontFace, fontFamilyFor, glyphSafeText, loadCharSet } from '../lib/fontmeta'
 import Lightbox from './Lightbox'
 
@@ -14,13 +14,16 @@ const SPECIMEN = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz'
 // Font helpers
 // ---------------------------------------------------------------------------
 
-// Pick the file that best represents a typeface at a glance (a regular-ish
-// weight rather than a Thin or Black extreme).
+// Pick the file that best represents a typeface at a glance: an upright
+// over its italic/oblique companion, and a regular-ish weight rather than
+// a Thin or Black extreme.
 function representativeStyle(tile: FontTile): FontFile {
+  const uprights = tile.styles.filter(s => !isSlopedStyle(s.style))
+  const pool = uprights.length ? uprights : tile.styles
   return (
-    tile.styles.find(s => /regular|book|normal|text/i.test(s.style)) ||
-    tile.styles[Math.floor(tile.styles.length / 2)] ||
-    tile.styles[0]
+    pool.find(s => /regular|book|normal|text/i.test(s.style)) ||
+    pool[Math.floor(pool.length / 2)] ||
+    pool[0]
   )
 }
 
@@ -524,7 +527,7 @@ function FontPreview({
   // Upright vs italic/oblique split. When the typeface has both, the cursor's
   // vertical position switches between them (top upright, bottom italic) and
   // the style switcher is hidden; otherwise it's a plain single-track face.
-  const isItalicStyle = (s: FontFile) => /italic|oblique/i.test(s.style)
+  const isItalicStyle = (s: FontFile) => isSlopedStyle(s.style)
   const uprightStyles = tile.styles.filter(s => !isItalicStyle(s))
   const italicStyles = tile.styles.filter(isItalicStyle)
   const isDual = uprightStyles.length > 0 && italicStyles.length > 0
