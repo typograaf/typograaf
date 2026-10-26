@@ -8,6 +8,7 @@ const PUBLIC_URL = process.env.R2_PUBLIC_URL || ''
 const ORDER_KEY = 'cms/project-order.json'
 const ABOUT_KEY = 'cms/about.json'
 const HIDDEN_KEY = 'cms/hidden-images.json'
+const PORTFOLIO_KEY = 'cms/portfolio-images.json'
 const QUOTES_KEY = 'cms/quotes.json'
 const SENTENCES_KEY = 'cms/sentences.json'
 const AXES_KEY = 'cms/preview-axes.json'
@@ -101,6 +102,32 @@ export async function saveHiddenImageIds(ids: string[]): Promise<void> {
   await client.send(new PutObjectCommand({
     Bucket: BUCKET,
     Key: HIDDEN_KEY,
+    Body: JSON.stringify(unique),
+    ContentType: 'application/json',
+  }))
+}
+
+// Manifest ids picked for the /portfolio page. Opt-in and independent of
+// the hidden list: an image is on the portfolio only when it's in here,
+// whether or not it's hidden on the home feed. The page orders by project
+// order, not by this list.
+export async function getPortfolioImageIds(): Promise<string[]> {
+  try {
+    const res = await fetch(`${PUBLIC_URL}/${PORTFOLIO_KEY}?t=${Date.now()}`, { cache: 'no-store' })
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data) ? data.filter((p): p is string => typeof p === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+export async function savePortfolioImageIds(ids: string[]): Promise<void> {
+  const client = getS3()
+  const unique = Array.from(new Set(ids))
+  await client.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: PORTFOLIO_KEY,
     Body: JSON.stringify(unique),
     ContentType: 'application/json',
   }))

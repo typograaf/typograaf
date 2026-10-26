@@ -110,11 +110,26 @@ function projectFromPath(path: string): string {
   return parts[baseDepth] || ''
 }
 
+// The canonical display order: by project order (case-insensitive;
+// projects not in the order list sort first), then filename.
+function sortCanonical(entries: ManifestImage[], projectOrder: string[]): ManifestImage[] {
+  const orderIndex = (path: string) => {
+    const project = projectFromPath(path)
+    const i = projectOrder.findIndex(p => p.toLowerCase() === project)
+    return i === -1 ? -1 : i
+  }
+  return [...entries].sort((a, b) => {
+    const oa = orderIndex(a.path)
+    const ob = orderIndex(b.path)
+    if (oa !== ob) return oa - ob
+    return a.name.localeCompare(b.name)
+  })
+}
+
 /**
- * The canonical public display order: by project order (case-insensitive;
- * projects not in the order list sort first), then filename. The portfolio
- * page and the Are.na mirror both consume this so the board can't drift out
- * of sync with the site.
+ * The home feed: everything not hidden, in canonical order. The Are.na
+ * mirror consumes the same list so the board can't drift out of sync with
+ * the site.
  */
 export function orderedVisible(
   manifest: ManifestImage[],
@@ -122,18 +137,20 @@ export function orderedVisible(
   hiddenIds: string[],
 ): ManifestImage[] {
   const hidden = new Set(hiddenIds)
-  const visible = manifest.filter(img => !hidden.has(img.id))
-  const orderIndex = (path: string) => {
-    const project = projectFromPath(path)
-    const i = projectOrder.findIndex(p => p.toLowerCase() === project)
-    return i === -1 ? -1 : i
-  }
-  return [...visible].sort((a, b) => {
-    const oa = orderIndex(a.path)
-    const ob = orderIndex(b.path)
-    if (oa !== ob) return oa - ob
-    return a.name.localeCompare(b.name)
-  })
+  return sortCanonical(manifest.filter(img => !hidden.has(img.id)), projectOrder)
+}
+
+/**
+ * The /portfolio page: only the opted-in ids, in the same canonical order.
+ * Independent of the hidden list, and never mirrored to Are.na.
+ */
+export function orderedSelected(
+  manifest: ManifestImage[],
+  projectOrder: string[],
+  selectedIds: string[],
+): ManifestImage[] {
+  const selected = new Set(selectedIds)
+  return sortCanonical(manifest.filter(img => selected.has(img.id)), projectOrder)
 }
 
 async function updateRecentProjects(manifest: ManifestImage[]): Promise<void> {

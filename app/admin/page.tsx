@@ -36,12 +36,13 @@ import { parseEstimateLink } from '../../lib/estimate'
 import { DEFAULT_PREVIEW_WEIGHT, DEFAULT_PREVIEW_LEADING, DEFAULT_PREVIEW_SIZE } from '../../lib/tiles'
 import { type Axis, parseVariationAxes, parseCharSet, glyphSafeText } from '../../lib/fontmeta'
 
-type Tab = 'work' | 'about' | 'images' | 'quotes' | 'sentences'
+type Tab = 'work' | 'about' | 'images' | 'portfolio' | 'quotes' | 'sentences'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'work', label: 'Work' },
   { key: 'about', label: 'About' },
   { key: 'images', label: 'Images' },
+  { key: 'portfolio', label: 'Portfolio' },
   { key: 'quotes', label: 'Quotes' },
   { key: 'sentences', label: 'Type' },
 ]
@@ -62,6 +63,7 @@ interface AdminImage {
   url: string
   project: string
   hidden: boolean
+  portfolio: boolean
   isFont: boolean
 }
 
@@ -87,6 +89,7 @@ export default function Admin() {
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
   const [projectFilter, setProjectFilter] = useState<string>('')
   const [showHidden, setShowHidden] = useState(true)
+  const [onlyPortfolio, setOnlyPortfolio] = useState(false)
   const dragIndexRef = useRef<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [activeQuoteIdx, setActiveQuoteIdx] = useState(0)
@@ -323,6 +326,32 @@ export default function Admin() {
     }
   }
 
+  // Portfolio membership saves instantly like hide/unhide, but is its own
+  // list: it doesn't touch the Work feed or the Are.na mirror.
+  const togglePortfolio = async (img: AdminImage) => {
+    setTogglingIds(prev => new Set(prev).add(img.id))
+    const nextPortfolio = !img.portfolio
+    setImages(prev => prev.map(i => i.id === img.id ? { ...i, portfolio: nextPortfolio } : i))
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: img.id, portfolio: nextPortfolio }),
+      })
+      if (!res.ok) {
+        setImages(prev => prev.map(i => i.id === img.id ? { ...i, portfolio: img.portfolio } : i))
+        const err = await res.json().catch(() => ({}))
+        alert(`Toggle failed: ${err.error || res.statusText}`)
+      }
+    } finally {
+      setTogglingIds(prev => {
+        const next = new Set(prev)
+        next.delete(img.id)
+        return next
+      })
+    }
+  }
+
   const deleteImg = async (img: AdminImage) => {
     const label = img.project ? `${img.project} / ${img.name}` : img.name
     if (!confirm(`Delete "${label}"?\n\nThis removes it from Dropbox (and your Mac via sync) and from the site. This cannot be undone.`)) return
@@ -363,6 +392,16 @@ export default function Admin() {
   }, [images, projectFilter, showHidden])
 
   const hiddenCount = useMemo(() => images.filter(i => i.hidden).length, [images])
+
+  const portfolioImages = useMemo(() => {
+    return images.filter(i => {
+      if (onlyPortfolio && !i.portfolio) return false
+      if (projectFilter && i.project !== projectFilter) return false
+      return true
+    })
+  }, [images, projectFilter, onlyPortfolio])
+
+  const portfolioCount = useMemo(() => images.filter(i => i.portfolio).length, [images])
 
   if (authed === false) {
     return (
@@ -411,7 +450,7 @@ export default function Admin() {
             ))}
           </div>
           <div className="admin-save-row">
-            {tab === 'images' ? (
+            {tab === 'images' || tab === 'portfolio' ? (
               <span className="admin-muted admin-autosave">Saves instantly</span>
             ) : (
               <>
@@ -978,10 +1017,62 @@ export default function Admin() {
           </>
         )}
 
+        {tab === 'portfolio' && (
+          <>
+            <div className="admin-filter-row">
+              <select
+                className="admin-select"
+                value={projectFilter}
+                onChange={(e) => setProjectFilter(e.target.value)}
+              >
+                {projects.map(p => (
+                  <option key={p} value={p}>{p ? p : `All projects (${images.length})`}</option>
+                ))}
+              </select>
+              <label className="admin-checkbox">
+                <input
+                  type="checkbox"
+                  checked={onlyPortfolio}
+                  onChange={(e) => setOnlyPortfolio(e.target.checked)}
+                />
+                <span>Only selected ({portfolioCount})</span>
+              </label>
+              <span className="admin-muted">{portfolioImages.length} {portfolioImages.length === 1 ? 'image' : 'images'}</span>
+            </div>
+            <div className="admin-grid">
+              {portfolioImages.map(img => {
+                const toggling = togglingIds.has(img.id)
+                return (
+                  <div key={img.id} className={`admin-tile${img.portfolio ? '' : ' is-out'}`}>
+                    {img.isFont
+                      ? <div className="admin-tile-font">Aa</div>
+                      : <img src={img.url} alt={img.name} loading="lazy" />}
+                    <button
+                      type="button"
+                      className="admin-tile-btn admin-pick"
+                      onClick={() => togglePortfolio(img)}
+                      disabled={toggling}
+                      aria-label={img.portfolio ? `Remove ${img.name} from the portfolio` : `Add ${img.name} to the portfolio`}
+                      title={img.portfolio ? 'Remove from portfolio' : 'Add to portfolio'}
+                    >{img.portfolio ? '◉' : '◎'}</button>
+                    <div className="admin-tile-meta">
+                      {img.portfolio && <span className="admin-tile-tag">Portfolio</span>}
+                      {img.hidden && <span className="admin-tile-tag">Hidden on Work</span>}
+                      {img.project && <span className="admin-tile-project">{img.project}</span>}
+                      <span className="admin-tile-name">{img.name}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
+
         <p className="admin-muted admin-hint">
           {tab === 'work' && 'Drag rows to reorder, or use the arrows. New projects from Dropbox auto-prepend until you save a new order.'}
           {tab === 'about' && 'One paragraph per line. Empty lines are ignored.'}
           {tab === 'sentences' && 'Size sets the type size on each typeface tile; weight, width and leading set how it renders. Weight and width show only for fonts that have those axes. The preview updates live — click it for another sample string. Sentences are the sample texts, one per line. Changes go live on Save.'}
+          {tab === 'portfolio' && 'Click ◎ to put an image on /portfolio, ◉ to take it off. The selection is its own list: images hidden from Work can be on the portfolio and vice versa. The page uses the Work tab project order.'}
           {tab === 'images' && 'Click ◎ to hide an image from the public site (file stays in Dropbox). Click × to delete it from Dropbox — your Mac will sync the deletion within seconds. Deletion cannot be undone.'}
           {tab === 'quotes' && 'Branding options are flat-fee items you price yourself. Typeface options are priced from a link pasted out of /estimate — build the family there, paste the URL, and the quote shows that spec and figure, locked (the client cannot change it). Both take planning and pictures. Footnotes are written automatically from the licensing you chose. Changes go live on Save.'}
         </p>
@@ -1712,6 +1803,10 @@ function AdminStyles() {
 .admin-tile-btn { position: absolute; top: 6px; width: 24px; height: 24px; border-radius: 12px; border: 0; background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center; padding: 0; opacity: 0; transition: opacity 0.15s, background 0.12s; }
 .admin-hide { right: 36px; }
 .admin-delete { right: 6px; font-size: 16px; }
+/* Portfolio tab: unselected images sit back and their pick button stays visible. */
+.admin-pick { right: 6px; }
+.admin-tile.is-out img, .admin-tile.is-out .admin-tile-font { opacity: 0.3; }
+.admin-tile.is-out .admin-tile-btn { opacity: 1; }
 .admin-tile:hover .admin-tile-btn, .admin-tile.is-deleting .admin-tile-btn, .admin-tile.is-hidden .admin-tile-btn { opacity: 1; }
 .admin-hide:hover { background: rgba(0,0,0,0.85); }
 .admin-delete:hover { background: rgba(220,38,38,0.9); }

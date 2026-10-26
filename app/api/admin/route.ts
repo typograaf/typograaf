@@ -8,6 +8,8 @@ import {
   saveProjectOrderOverride,
   getHiddenImageIds,
   saveHiddenImageIds,
+  getPortfolioImageIds,
+  savePortfolioImageIds,
   getQuotes,
   saveQuotes,
   getSentences,
@@ -48,7 +50,7 @@ export async function GET() {
   }
   const folderPath = (process.env.DROPBOX_FOLDER_PATH || '').toLowerCase()
   const baseDepth = folderPath.split('/').length
-  const [order, about, manifest, hiddenIds, quotes, sentences, previewAxes, blockedDays] = await Promise.all([
+  const [order, about, manifest, hiddenIds, quotes, sentences, previewAxes, blockedDays, portfolioIds] = await Promise.all([
     getProjectOrder(),
     getAboutText(),
     getManifest(),
@@ -57,8 +59,10 @@ export async function GET() {
     getSentences(),
     getPreviewAxes(),
     getBlockedDays(),
+    getPortfolioImageIds(),
   ])
   const hidden = new Set(hiddenIds)
+  const inPortfolio = new Set(portfolioIds)
   const images = manifest.map(img => {
     const parts = img.path.split('/')
     const project = parts[baseDepth] || ''
@@ -68,6 +72,7 @@ export async function GET() {
       url: img.blobUrl,
       project,
       hidden: hidden.has(img.id),
+      portfolio: inPortfolio.has(img.id),
       isFont: isFontFile(img.name),
     }
   })
@@ -120,6 +125,7 @@ export async function POST(request: NextRequest) {
   revalidatePath('/about')
   revalidatePath('/')
   revalidatePath('/work')
+  revalidatePath('/portfolio')
 
   return NextResponse.json({ ok: true })
 }
@@ -131,8 +137,20 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
   const id = typeof body?.id === 'string' ? body.id : ''
   if (!id) return NextResponse.json({ error: 'missing id' }, { status: 400 })
+
+  // Portfolio membership: its own list, independent of the hidden list and
+  // never mirrored to Are.na.
+  if (typeof body?.portfolio === 'boolean') {
+    const set = new Set(await getPortfolioImageIds())
+    if (body.portfolio) set.add(id)
+    else set.delete(id)
+    await savePortfolioImageIds(Array.from(set))
+    revalidatePath('/portfolio')
+    return NextResponse.json({ ok: true, portfolio: body.portfolio })
+  }
+
   if (typeof body?.hidden !== 'boolean') {
-    return NextResponse.json({ error: 'missing hidden flag' }, { status: 400 })
+    return NextResponse.json({ error: 'missing hidden or portfolio flag' }, { status: 400 })
   }
 
   const current = await getHiddenImageIds()
