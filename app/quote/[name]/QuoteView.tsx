@@ -10,7 +10,7 @@ import {
   type LicenseModel,
   optionSpec,
   quoteAsOf,
-  typefaceTotal,
+  optionTypefacePrice,
   typefaceSpecRows,
   typefaceFootnote,
   effectiveDesignCost,
@@ -232,7 +232,7 @@ function TypefaceBlock({ option, asOf }: { option: QuoteOption; asOf: Date }) {
         </div>
         <div className="quote-col">
           <p className="quote-colhead">Price</p>
-          <div className="quote-cell">{formatEur(typefaceTotal(spec, asOf))}</div>
+          <div className="quote-cell">{formatEur(optionTypefacePrice(option, spec, asOf))}</div>
         </div>
       </div>
       <p className="quote-subhead">Specification</p>
@@ -513,7 +513,7 @@ function OptionBlock({ option, blockedDays, asOf }: { option: QuoteOption; block
     setItalic((prev) => prev.map((v, j) => (j === i ? on : v)))
   const d = hasAssets ? effectiveDesignCost({ ...option, assets }, italic) : 0
   const licensePortion = hasAssets ? licenseAmount(model, d) : 0
-  const typefacePortion = spec ? typefaceTotal(spec, asOf) : 0
+  const typefacePortion = spec ? optionTypefacePrice(option, spec, asOf) : 0
   const itemsPortion = items.reduce((s, it) => s + itemLineTotal(it), 0)
   const combined = licensePortion + typefacePortion + itemsPortion
   const amount = formatEur(combined)

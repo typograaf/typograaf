@@ -138,6 +138,7 @@ export interface QuoteOption {
   kind?: OptionKind // absent = inferred from the content (legacy quotes)
   description: string
   estimateUrl?: string // typeface options: a pasted /estimate link, the price source
+  priceOverride?: number // typeface options: hand-set figure (EUR) shown instead of the estimate's price
   assets: QuoteAsset[]
   items: QuoteItem[]
   pictures: QuotePicture[]
@@ -232,6 +233,14 @@ export function quoteAsOf(dateIso: string): Date {
 // presents it, so quote and calculator show the same number.
 export function typefaceTotal(spec: EstimateSpec, asOf: Date): number {
   return roundEur(grandTotal(spec, asOf))
+}
+
+// The figure a typeface option actually quotes: the hand-set override when
+// one is stored, otherwise the estimate's price. Renewal and the footnote
+// stay derived from the spec either way.
+export function optionTypefacePrice(opt: QuoteOption, spec: EstimateSpec, asOf: Date): number {
+  const override = Number(opt.priceOverride)
+  return Number.isFinite(override) && override > 0 ? override : typefaceTotal(spec, asOf)
 }
 
 // Per-year renewal — the annual option's recurring rate, and what a 2-year
@@ -792,6 +801,10 @@ export function normalizeQuote(raw: unknown): Quote | null {
     const estimateUrl = typeof oo.estimateUrl === 'string' && oo.estimateUrl.trim()
       ? oo.estimateUrl.trim().slice(0, 500)
       : undefined
+    // A hand-set price only means something above zero; anything else is
+    // "use the estimate" and isn't stored.
+    const overrideRaw = Number(oo.priceOverride)
+    const priceOverride = Number.isFinite(overrideRaw) && overrideRaw > 0 ? Math.round(overrideRaw) : undefined
     const kindRaw = typeof oo.kind === 'string' ? oo.kind.trim() : ''
     const kind: OptionKind = kindRaw === 'typeface' || kindRaw === 'branding'
       ? kindRaw
@@ -801,6 +814,7 @@ export function normalizeQuote(raw: unknown): Quote | null {
       kind,
       description: String(oo.description || ''),
       ...(estimateUrl ? { estimateUrl } : {}),
+      ...(priceOverride !== undefined ? { priceOverride } : {}),
       assets: keptAssets,
       items: items.filter((it) => !itemIsEmpty(it)),
       pictures: normalizePictures(oo.pictures),

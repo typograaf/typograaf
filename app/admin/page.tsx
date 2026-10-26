@@ -28,6 +28,7 @@ import {
   optionEstimateLink,
   quoteAsOf,
   typefaceTotal,
+  optionTypefacePrice,
   typefaceRenewal,
   typefaceTotalLabel,
   typefaceSpecRows,
@@ -915,7 +916,7 @@ export default function Admin() {
                         <div className="admin-price-preview">
                           {spec && (
                             <>
-                              <span>Typeface {formatEur(typefaceTotal(spec, quoteAsOf(q.date)))}</span>
+                              <span>Typeface {formatEur(optionTypefacePrice(o, spec, quoteAsOf(q.date)))}{o.priceOverride ? ' (override)' : ''}</span>
                               {spec.licensing !== 'buyout' && (
                                 <span>then {formatEur(typefaceRenewal(spec))} / yr</span>
                               )}
@@ -1230,6 +1231,8 @@ function EstimateField({
   const raw = option.estimateUrl || ''
   const spec = raw.trim() ? parseEstimateLink(raw) : null
   const asOf = quoteAsOf(quoteDate)
+  const derived = spec ? typefaceTotal(spec, asOf) : 0
+  const override = Number(option.priceOverride) > 0 ? Number(option.priceOverride) : 0
   return (
     <div className="admin-qfield">
       <label>Estimate link</label>
@@ -1269,6 +1272,31 @@ function EstimateField({
             <span>·</span>
             <a className="admin-link" href={optionEstimateLink(spec)} target="_blank" rel="noreferrer">Open in estimate ↗</a>
           </div>
+          {/* The estimate's figure is the default; a number here replaces it on
+              the quote. Renewal and the footnote still follow the estimate. */}
+          <div className="admin-asset-row">
+            <label className="admin-field">
+              <span>Price override (EUR, excl. VAT)</span>
+              <input
+                className="admin-input admin-input-num"
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                value={override || ''}
+                placeholder={String(derived)}
+                onChange={(e) => {
+                  const n = Number(e.target.value)
+                  onChange({ priceOverride: Number.isFinite(n) && n > 0 ? n : undefined })
+                }}
+              />
+            </label>
+          </div>
+          <span className="admin-hint admin-muted">
+            {override
+              ? `The quote shows ${formatEur(override)} instead of the estimate's ${formatEur(derived)}. Renewal and the footnote still follow the estimate.`
+              : 'Leave empty to quote the estimate\'s price. Fill in a figure to show that instead.'}
+          </span>
         </>
       )}
     </div>
